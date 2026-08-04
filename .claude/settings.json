@@ -1,0 +1,10 @@
+{
+    "allowedMcpServers": [
+        {
+            "serverName": "github"
+        }
+    ],
+    "disableClaudeAiConnectors": true,
+    "enableAllProjectMcpServers": false,
+    "enabledMcpjsonServers": []
+}
