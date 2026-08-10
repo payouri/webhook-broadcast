@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import type Router from "@koa/router";
-import type { Context } from "koa";
 import {
   endpointCreateSchema,
   endpointListQuerySchema,
@@ -16,7 +15,6 @@ import {
   decodeEndpointCursor,
   encodeEndpointCursor,
   EndpointUrlConflictError,
-  getChannelById,
   getEndpointById,
   getEndpointHealthByIds,
   insertEndpoint,
@@ -26,7 +24,8 @@ import {
   type EndpointHealthRow,
   type EndpointRow,
 } from "@webhook-broadcast/db";
-import { requireUuidParam, toDetails } from "./validation.js";
+import { requireChannel } from "./requireChannel.js";
+import { requireUuidParam, parseListCursor, toDetails } from "./validation.js";
 
 function toWireEndpoint(row: EndpointRow, health?: EndpointHealthRow): Endpoint {
   return {
@@ -46,20 +45,6 @@ function toWireEndpoint(row: EndpointRow, health?: EndpointHealthRow): Endpoint 
   };
 }
 
-/**
- * Endpoints are always addressed through their owning Channel (ADR 0001);
- * every route below 404s up front if that Channel doesn't exist.
- */
-async function requireChannel(ctx: Context, db: Database, channelId: string): Promise<boolean> {
-  const channel = await getChannelById(db, channelId);
-  if (!channel) {
-    ctx.status = 404;
-    ctx.body = errorBody("not_found", "channel not found");
-    return false;
-  }
-  return true;
-}
-
 export function registerEndpointRoutes(router: Router, db: Database): void {
   router.get("/channels/:channelId/endpoints", async (ctx) => {
     const channelId = requireUuidParam(ctx, "channelId");
@@ -77,14 +62,9 @@ export function registerEndpointRoutes(router: Router, db: Database): void {
       return;
     }
 
-    let cursor;
-    if (parsedQuery.data.cursor) {
-      cursor = decodeEndpointCursor(parsedQuery.data.cursor);
-      if (!cursor) {
-        ctx.status = 400;
-        ctx.body = errorBody("validation_failed", "invalid cursor");
-        return;
-      }
+    const cursor = parseListCursor(ctx, parsedQuery.data.cursor, decodeEndpointCursor);
+    if (cursor === null) {
+      return;
     }
 
     const { items, nextCursor } = await listEndpoints(db, channelId, {

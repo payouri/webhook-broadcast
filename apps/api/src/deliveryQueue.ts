@@ -1,5 +1,7 @@
 import { Queue } from "bullmq";
 import { randomUUID } from "node:crypto";
+import { Redis } from "ioredis";
+import { DEFAULT_DELIVERY_MAX_ATTEMPTS } from "@webhook-broadcast/contract/env";
 
 export const DELIVERY_QUEUE_NAME = "delivery";
 
@@ -23,18 +25,21 @@ export function newRequestId(): string {
 export interface DeliveryQueue {
   enqueue(job: DeliveryJobData): Promise<void>;
   enqueueBulk(jobs: DeliveryJobData[]): Promise<void>;
+  ping(): Promise<void>;
 }
 
 /** Mirrors `DELIVERY_MAX_ATTEMPTS`'s env default (ADR 0003). */
-const DEFAULT_MAX_ATTEMPTS = 8;
+const DEFAULT_MAX_ATTEMPTS = DEFAULT_DELIVERY_MAX_ATTEMPTS;
 
 export class BullMqDeliveryQueue implements DeliveryQueue {
   private readonly queue: Queue<DeliveryJobData>;
+  private readonly redisUrl: string;
 
   constructor(
     redisUrl: string,
     private readonly maxAttempts: number = DEFAULT_MAX_ATTEMPTS,
   ) {
+    this.redisUrl = redisUrl;
     this.queue = new Queue<DeliveryJobData>(DELIVERY_QUEUE_NAME, {
       connection: { url: redisUrl },
     });
@@ -83,6 +88,23 @@ export class BullMqDeliveryQueue implements DeliveryQueue {
         opts: this.jobAddOptions(job.deliveryId),
       })),
     );
+  }
+
+  async ping(): Promise<void> {
+    const redis = new Redis(this.redisUrl, {
+      maxRetriesPerRequest: 1,
+      connectTimeout: 2_000,
+      lazyConnect: true,
+    });
+    try {
+      await redis.connect();
+      const result = await redis.ping();
+      if (result !== "PONG") {
+        throw new Error("redis ping failed");
+      }
+    } finally {
+      redis.disconnect();
+    }
   }
 
   async close(): Promise<void> {

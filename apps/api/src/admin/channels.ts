@@ -22,7 +22,7 @@ import {
   type ChannelTokenSummaryRow,
   type Database,
 } from "@webhook-broadcast/db";
-import { requireUuidParam, toDetails } from "./validation.js";
+import { requireUuidParam, parseListCursor, toDetails } from "./validation.js";
 
 function toWireChannel(
   row: ChannelRow,
@@ -65,14 +65,9 @@ export function registerChannelRoutes(router: Router, db: Database): void {
       return;
     }
 
-    let cursor;
-    if (parsedQuery.data.cursor) {
-      cursor = decodeChannelCursor(parsedQuery.data.cursor);
-      if (!cursor) {
-        ctx.status = 400;
-        ctx.body = errorBody("validation_failed", "invalid cursor");
-        return;
-      }
+    const cursor = parseListCursor(ctx, parsedQuery.data.cursor, decodeChannelCursor);
+    if (cursor === null) {
+      return;
     }
 
     const { items, nextCursor } = await listChannels(db, { cursor, limit: parsedQuery.data.limit });

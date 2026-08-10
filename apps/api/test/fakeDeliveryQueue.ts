@@ -12,4 +12,8 @@ export class FakeDeliveryQueue implements DeliveryQueue {
   async enqueueBulk(jobs: DeliveryJobData[]): Promise<void> {
     this.enqueued.push(...jobs);
   }
+
+  async ping(): Promise<void> {
+    // In-process fake — always reachable for route tests that do not exercise /ready.
+  }
 }

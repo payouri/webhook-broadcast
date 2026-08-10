@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+/** Canonical defaults — keep env.ts Zod schema and runtime fallbacks in sync. */
+export const DEFAULT_INGEST_MAX_BODY_BYTES = 1_048_576;
+export const DEFAULT_DELIVERY_TIMEOUT_MS = 10_000;
+export const DEFAULT_DELIVERY_MAX_ATTEMPTS = 8;
+export const DEFAULT_DELIVERY_BACKOFF_MS = 5_000;
+export const DEFAULT_DELIVERY_BACKOFF_MAX_MS = 3_600_000;
+export const DEFAULT_ENDPOINT_AUTO_DISABLE_AFTER_MS = 3_600_000;
+
 /**
  * Full process boot config for the `server` and `worker` commands.
  * Mirrors the env surface table in docs/adr/0008-process-topology-deploy.md.
@@ -11,15 +19,23 @@ export const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8080),
   WORKER_HEALTH_PORT: z.coerce.number().int().positive().default(9091),
   WORKER_CONCURRENCY: z.coerce.number().int().positive().default(10),
-  INGEST_MAX_BODY_BYTES: z.coerce.number().int().positive().default(1_048_576),
+  INGEST_MAX_BODY_BYTES: z.coerce.number().int().positive().default(DEFAULT_INGEST_MAX_BODY_BYTES),
   INGEST_HEADER_ALLOWLIST: z.string().default(""),
   INGEST_HEADER_DENYLIST: z.string().default(""),
   HISTORY_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
-  DELIVERY_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
-  DELIVERY_MAX_ATTEMPTS: z.coerce.number().int().positive().default(8),
-  DELIVERY_BACKOFF_MS: z.coerce.number().int().positive().default(5_000),
-  DELIVERY_BACKOFF_MAX_MS: z.coerce.number().int().positive().default(3_600_000),
-  ENDPOINT_AUTO_DISABLE_AFTER_MS: z.coerce.number().int().positive().default(3_600_000),
+  DELIVERY_TIMEOUT_MS: z.coerce.number().int().positive().default(DEFAULT_DELIVERY_TIMEOUT_MS),
+  DELIVERY_MAX_ATTEMPTS: z.coerce.number().int().positive().default(DEFAULT_DELIVERY_MAX_ATTEMPTS),
+  DELIVERY_BACKOFF_MS: z.coerce.number().int().positive().default(DEFAULT_DELIVERY_BACKOFF_MS),
+  DELIVERY_BACKOFF_MAX_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_DELIVERY_BACKOFF_MAX_MS),
+  ENDPOINT_AUTO_DISABLE_AFTER_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_ENDPOINT_AUTO_DISABLE_AFTER_MS),
   COOKIE_NAME: z.string().default("wb_operator"),
   TRUST_PROXY: z
     .enum(["true", "false"])

@@ -54,5 +54,5 @@ Brings up Postgres, Redis, a one-shot `migrate` job, then `api` (`:8080`), `work
 successfully and on Postgres/Redis healthchecks before starting.
 
 - `curl localhost:8080/health` — API liveness
-- `curl localhost:8080/ready` — API readiness (stubbed until Postgres/Redis checks land)
+- `curl localhost:8080/ready` — API readiness (Postgres + Redis dependency checks)
 - `curl localhost:9091/health` — worker liveness

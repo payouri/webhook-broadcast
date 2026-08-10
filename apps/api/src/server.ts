@@ -12,6 +12,7 @@ const metrics = new MetricsCollector();
 const deliveryQueue = new BullMqDeliveryQueue(env.REDIS_URL, env.DELIVERY_MAX_ATTEMPTS);
 const app = createApp({
   db,
+  pool,
   deliveryQueue,
   operatorApiKey: env.OPERATOR_API_KEY,
   cookieName: env.COOKIE_NAME,

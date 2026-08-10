@@ -2,7 +2,9 @@ import Koa from "koa";
 import Router from "@koa/router";
 import { bodyParser } from "@koa/bodyparser";
 import { errorBody, healthResponseSchema, readyResponseSchema } from "@webhook-broadcast/contract";
+import { DEFAULT_INGEST_MAX_BODY_BYTES } from "@webhook-broadcast/contract/env";
 import type { Database } from "@webhook-broadcast/db";
+import type { Pool } from "pg";
 import { createOperatorAuthMiddleware } from "./admin/auth.js";
 import { registerAuthRoutes } from "./admin/authRoutes.js";
 import { registerChannelRoutes } from "./admin/channels.js";
@@ -14,13 +16,13 @@ import { mergeIngestHeaderDenylist } from "./ingest/headers.js";
 import { registerIngestRoutes } from "./ingest/routes.js";
 import type { DeliveryQueue } from "./deliveryQueue.js";
 import type { MetricsCollector } from "./observability/metrics.js";
-
-/** Mirrors ADR 0008's `INGEST_MAX_BODY_BYTES` default. */
-const DEFAULT_INGEST_MAX_BODY_BYTES = 1_048_576;
+import { checkReadiness, type ReadinessChecks } from "./readiness.js";
 
 export interface AppDeps {
   db: Database;
+  pool?: Pool;
   deliveryQueue: DeliveryQueue;
+  readinessCheck?: () => Promise<ReadinessChecks>;
   operatorApiKey: string;
   cookieName: string;
   cookieSecure?: boolean;
@@ -55,10 +57,19 @@ export function createApp(deps: AppDeps): Koa {
     ctx.body = healthResponseSchema.parse({ status: "ok" });
   });
 
-  // Stubbed until Postgres/Redis dependency checks land in a later slice.
-  router.get("/ready", (ctx) => {
-    ctx.status = 200;
-    ctx.body = readyResponseSchema.parse({ status: "ok", checks: {} });
+  // Postgres + Redis readiness (ADR 0008); liveness stays on /health above.
+  router.get("/ready", async (ctx) => {
+    const checks = deps.readinessCheck
+      ? await deps.readinessCheck()
+      : deps.pool
+        ? await checkReadiness({ pool: deps.pool, deliveryQueue: deps.deliveryQueue })
+        : { postgres: "fail" as const, redis: "fail" as const };
+    const ready = checks.postgres === "ok" && checks.redis === "ok";
+    ctx.status = ready ? 200 : 503;
+    ctx.body = readyResponseSchema.parse({
+      status: ready ? "ok" : "not_ready",
+      checks,
+    });
   });
 
   if (deps.renderMetrics) {

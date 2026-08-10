@@ -5,13 +5,9 @@ import {
   errorBody,
   type ChannelTokenCreated,
 } from "@webhook-broadcast/contract";
-import {
-  getChannelById,
-  insertChannelToken,
-  revokeChannelToken,
-  type Database,
-} from "@webhook-broadcast/db";
+import { insertChannelToken, revokeChannelToken, type Database } from "@webhook-broadcast/db";
 import { mintChannelToken } from "../tokens.js";
+import { requireChannel } from "./requireChannel.js";
 import { requireUuidParam } from "./validation.js";
 
 /**
@@ -26,10 +22,7 @@ export function registerChannelTokenRoutes(router: Router, db: Database): void {
       return;
     }
 
-    const channel = await getChannelById(db, channelId);
-    if (!channel) {
-      ctx.status = 404;
-      ctx.body = errorBody("not_found", "channel not found");
+    if (!(await requireChannel(ctx, db, channelId))) {
       return;
     }
 

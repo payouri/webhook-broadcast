@@ -10,7 +10,7 @@ describe("API liveness and readiness probes", () => {
   let baseUrl: string;
 
   beforeEach(async () => {
-    // Liveness/readiness never touch Postgres, so a real pool is unnecessary here.
+    // Liveness never touches Postgres; /ready is covered in ready.test.ts.
     const app = createApp({
       db: {} as Database,
       deliveryQueue: new FakeDeliveryQueue(),
@@ -31,12 +31,6 @@ describe("API liveness and readiness probes", () => {
     const response = await fetch(`${baseUrl}/health`);
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ status: "ok" });
-  });
-
-  it("GET /ready returns 200 with a stubbed status", async () => {
-    const response = await fetch(`${baseUrl}/ready`);
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ status: "ok", checks: {} });
   });
 
   it("unknown routes 404", async () => {

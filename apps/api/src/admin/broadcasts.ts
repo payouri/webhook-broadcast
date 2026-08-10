@@ -11,7 +11,6 @@ import {
   decodeBroadcastCursor,
   encodeBroadcastCursor,
   getBroadcastById,
-  getChannelById,
   getFanoutSummariesByBroadcastIds,
   listBroadcastsByChannel,
   listDeliveriesForBroadcast,
@@ -20,7 +19,8 @@ import {
 } from "@webhook-broadcast/db";
 import type { DeliveryQueue } from "../deliveryQueue.js";
 import { fanOutBroadcast } from "../fanOutBroadcast.js";
-import { requireUuidParam, toDetails } from "./validation.js";
+import { requireChannel } from "./requireChannel.js";
+import { requireUuidParam, parseListCursor, toDetails } from "./validation.js";
 
 const BODY_PREVIEW_MAX_LENGTH = 200;
 
@@ -52,21 +52,13 @@ export function registerBroadcastRoutes(router: Router, config: BroadcastRouteCo
       return;
     }
 
-    const channel = await getChannelById(db, channelId);
-    if (!channel) {
-      ctx.status = 404;
-      ctx.body = errorBody("not_found", "channel not found");
+    if (!(await requireChannel(ctx, db, channelId))) {
       return;
     }
 
-    let cursor;
-    if (parsedQuery.data.cursor) {
-      cursor = decodeBroadcastCursor(parsedQuery.data.cursor);
-      if (!cursor) {
-        ctx.status = 400;
-        ctx.body = errorBody("validation_failed", "invalid cursor");
-        return;
-      }
+    const cursor = parseListCursor(ctx, parsedQuery.data.cursor, decodeBroadcastCursor);
+    if (cursor === null) {
+      return;
     }
 
     const { items, nextCursor } = await listBroadcastsByChannel(db, {
@@ -104,10 +96,7 @@ export function registerBroadcastRoutes(router: Router, config: BroadcastRouteCo
       return;
     }
 
-    const channel = await getChannelById(db, channelId);
-    if (!channel) {
-      ctx.status = 404;
-      ctx.body = errorBody("not_found", "channel not found");
+    if (!(await requireChannel(ctx, db, channelId))) {
       return;
     }
 
@@ -163,10 +152,7 @@ export function registerBroadcastRoutes(router: Router, config: BroadcastRouteCo
       return;
     }
 
-    const channel = await getChannelById(db, channelId);
-    if (!channel) {
-      ctx.status = 404;
-      ctx.body = errorBody("not_found", "channel not found");
+    if (!(await requireChannel(ctx, db, channelId))) {
       return;
     }
 

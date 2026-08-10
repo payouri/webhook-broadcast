@@ -6,17 +6,17 @@ import {
   resetInProgressDeliveryToPending,
   type Database,
 } from "@webhook-broadcast/db";
+import {
+  DEFAULT_DELIVERY_BACKOFF_MAX_MS,
+  DEFAULT_DELIVERY_BACKOFF_MS,
+  DEFAULT_DELIVERY_MAX_ATTEMPTS,
+  DEFAULT_ENDPOINT_AUTO_DISABLE_AFTER_MS,
+} from "@webhook-broadcast/contract/env";
 import { RetryableDeliveryError } from "./errors.js";
 import { computeBackoffDelayMs, isRetryableOutcome, parseRetryAfterMs } from "./retryPolicy.js";
 import type { DeliveryJobData } from "../deliveryQueue.js";
 import type { MetricsCollector, AttemptResultClass } from "../observability/metrics.js";
 import { logStructured } from "../observability/logger.js";
-
-/** Mirrors the `DELIVERY_*` env defaults in packages/contract/src/env.ts. */
-const DEFAULT_MAX_ATTEMPTS = 8;
-const DEFAULT_BACKOFF_BASE_MS = 5_000;
-const DEFAULT_BACKOFF_MAX_MS = 3_600_000;
-const DEFAULT_ENDPOINT_AUTO_DISABLE_AFTER_MS = 3_600_000;
 
 export interface ProcessDeliveryDeps {
   db: Database;
@@ -50,9 +50,9 @@ export async function processDeliveryJob(
   deliveryId: string,
   observability?: Pick<DeliveryJobData, "requestId" | "channelId" | "broadcastId" | "endpointId">,
 ): Promise<void> {
-  const maxAttempts = deps.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
-  const backoffBaseMs = deps.backoffBaseMs ?? DEFAULT_BACKOFF_BASE_MS;
-  const backoffMaxMs = deps.backoffMaxMs ?? DEFAULT_BACKOFF_MAX_MS;
+  const maxAttempts = deps.maxAttempts ?? DEFAULT_DELIVERY_MAX_ATTEMPTS;
+  const backoffBaseMs = deps.backoffBaseMs ?? DEFAULT_DELIVERY_BACKOFF_MS;
+  const backoffMaxMs = deps.backoffMaxMs ?? DEFAULT_DELIVERY_BACKOFF_MAX_MS;
   const endpointAutoDisableAfterMs =
     deps.endpointAutoDisableAfterMs ?? DEFAULT_ENDPOINT_AUTO_DISABLE_AFTER_MS;
   const now = deps.now ?? (() => new Date());

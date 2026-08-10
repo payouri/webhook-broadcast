@@ -6,14 +6,15 @@ export const healthResponseSchema = z.object({
 
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 
-/**
- * /ready is stubbed until Postgres/Redis dependency checks land in a later
- * slice (see issue #15's acceptance criteria) — the shape is settled now so
- * the dashboard and ops tooling can integrate against it early.
- */
+/** Per-dependency result for GET /ready (ADR 0008: Postgres + Redis). */
+export const readinessCheckStatusSchema = z.enum(["ok", "fail"]);
+
 export const readyResponseSchema = z.object({
-  status: z.literal("ok"),
-  checks: z.object({}).catchall(z.never()).default({}),
+  status: z.enum(["ok", "not_ready"]),
+  checks: z.object({
+    postgres: readinessCheckStatusSchema,
+    redis: readinessCheckStatusSchema,
+  }),
 });
 
 export type ReadyResponse = z.infer<typeof readyResponseSchema>;

@@ -21,3 +21,24 @@ export function requireUuidParam(ctx: Context, name: string): string | undefined
   }
   return parsed.data;
 }
+
+/**
+ * Parses an opaque list cursor query param. Returns `undefined` when absent,
+ * `null` after writing a 400 invalid-cursor envelope, or the decoded cursor.
+ */
+export function parseListCursor<T>(
+  ctx: Context,
+  cursorParam: string | undefined,
+  decode: (cursor: string) => T | undefined,
+): T | undefined | null {
+  if (!cursorParam) {
+    return undefined;
+  }
+  const cursor = decode(cursorParam);
+  if (!cursor) {
+    ctx.status = 400;
+    ctx.body = errorBody("validation_failed", "invalid cursor");
+    return null;
+  }
+  return cursor;
+}

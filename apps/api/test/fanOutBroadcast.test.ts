@@ -26,6 +26,10 @@ class FailingDeliveryQueue implements DeliveryQueue {
     }
     this.enqueuedBeforeFailure.push(...jobs);
   }
+
+  async ping(): Promise<void> {
+    // Not exercised in fan-out compensation tests.
+  }
 }
 
 class ObservingDeliveryQueue extends FakeDeliveryQueue {
