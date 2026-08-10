@@ -15,11 +15,18 @@ import {
   DELIVERY_QUEUE_NAME,
   type DeliveryJobData,
 } from "../src/deliveryQueue.js";
+import { RetryableDeliveryError } from "../src/worker/errors.js";
 import { processDeliveryJob } from "../src/worker/processDeliveryJob.js";
 import { startTestDb, type TestDb } from "./testDb.js";
 
 const OPERATOR_API_KEY = "test-operator-key";
 const COOKIE_NAME = "wb_operator";
+// Small, fast stand-ins for DELIVERY_MAX_ATTEMPTS/DELIVERY_BACKOFF_MS so the
+// "/fail" Endpoint's retries (ADR 0003) exhaust and dead-letter well within
+// this test's timeout, instead of the real default 8 attempts / 5s+ backoff.
+const TEST_MAX_ATTEMPTS = 2;
+const TEST_BACKOFF_BASE_MS = 5;
+const TEST_BACKOFF_MAX_MS = 20;
 
 /**
  * Full process-boundary loop (issue #19 AC): real Postgres + real Redis +
@@ -54,7 +61,7 @@ describe("ingest → queue → worker → Attempt (process-boundary integration)
     const stubPort = (stubServer.address() as AddressInfo).port;
     stubBaseUrl = `http://127.0.0.1:${stubPort}`;
 
-    deliveryQueue = new BullMqDeliveryQueue(redis.getConnectionUrl());
+    deliveryQueue = new BullMqDeliveryQueue(redis.getConnectionUrl(), TEST_MAX_ATTEMPTS);
     const app = createApp({
       db: testDb.db,
       deliveryQueue,
@@ -69,9 +76,25 @@ describe("ingest → queue → worker → Attempt (process-boundary integration)
     worker = new Worker<DeliveryJobData>(
       DELIVERY_QUEUE_NAME,
       async (job) => {
-        await processDeliveryJob({ db: testDb.db, defaultTimeoutMs: 2_000 }, job.data.deliveryId);
+        await processDeliveryJob(
+          {
+            db: testDb.db,
+            defaultTimeoutMs: 2_000,
+            maxAttempts: TEST_MAX_ATTEMPTS,
+            backoffBaseMs: TEST_BACKOFF_BASE_MS,
+            backoffMaxMs: TEST_BACKOFF_MAX_MS,
+          },
+          job.data.deliveryId,
+        );
       },
-      { connection: { url: redis.getConnectionUrl() }, concurrency: 5 },
+      {
+        connection: { url: redis.getConnectionUrl() },
+        concurrency: 5,
+        settings: {
+          backoffStrategy: (_attemptsMade, _type, err) =>
+            err instanceof RetryableDeliveryError ? err.delayMs : -1,
+        },
+      },
     );
     await worker.waitUntilReady();
   }, 120_000);
@@ -163,7 +186,7 @@ describe("ingest → queue → worker → Attempt (process-boundary integration)
       (current) =>
         current.deliveries.length === 2 &&
         current.deliveries.every(
-          (delivery) => delivery.status === "succeeded" || delivery.status === "failed",
+          (delivery) => delivery.status === "succeeded" || delivery.status === "dead_lettered",
         ),
     );
 
@@ -173,19 +196,28 @@ describe("ingest → queue → worker → Attempt (process-boundary integration)
     const okDelivery = detail.deliveries.find((delivery) => delivery.endpointId === okEndpoint.id);
     expect(okDelivery).toMatchObject({ status: "succeeded", lastStatusCode: 200 });
 
+    // Retry, backoff, and dead-letter (ADR 0003): the always-503 Endpoint
+    // retries up to TEST_MAX_ATTEMPTS before the Delivery lands dead_lettered.
     const failDelivery = detail.deliveries.find(
       (delivery) => delivery.endpointId === failEndpoint.id,
     );
-    expect(failDelivery).toMatchObject({ status: "failed", lastStatusCode: 503 });
+    expect(failDelivery).toMatchObject({
+      status: "dead_lettered",
+      lastStatusCode: 503,
+      attemptCount: TEST_MAX_ATTEMPTS,
+    });
 
     const activityResponse = await fetch(
       `${apiBaseUrl}/channels/${channel.id}/broadcasts`,
       authed(),
     );
     const activity = (await activityResponse.json()) as {
-      items: { id: string; fanout: { total: number; succeeded: number; failed: number } }[];
+      items: {
+        id: string;
+        fanout: { total: number; succeeded: number; failed: number; deadLettered: number };
+      }[];
     };
     const activityItem = activity.items.find((item) => item.id === broadcastId);
-    expect(activityItem?.fanout).toMatchObject({ total: 2, succeeded: 1, failed: 1 });
+    expect(activityItem?.fanout).toMatchObject({ total: 2, succeeded: 1, deadLettered: 1 });
   }, 30_000);
 });

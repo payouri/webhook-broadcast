@@ -3,6 +3,7 @@ import { createDb } from "@webhook-broadcast/db";
 import { bootEnv } from "./config.js";
 import { DELIVERY_QUEUE_NAME, type DeliveryJobData } from "./deliveryQueue.js";
 import { createHealthServer } from "./healthServer.js";
+import { RetryableDeliveryError } from "./worker/errors.js";
 import { processDeliveryJob } from "./worker/processDeliveryJob.js";
 
 const env = bootEnv();
@@ -12,13 +13,25 @@ const worker = new Worker<DeliveryJobData>(
   DELIVERY_QUEUE_NAME,
   async (job: Job<DeliveryJobData>) => {
     await processDeliveryJob(
-      { db, defaultTimeoutMs: env.DELIVERY_TIMEOUT_MS },
+      {
+        db,
+        defaultTimeoutMs: env.DELIVERY_TIMEOUT_MS,
+        maxAttempts: env.DELIVERY_MAX_ATTEMPTS,
+        backoffBaseMs: env.DELIVERY_BACKOFF_MS,
+        backoffMaxMs: env.DELIVERY_BACKOFF_MAX_MS,
+      },
       job.data.deliveryId,
     );
   },
   {
     connection: { url: env.REDIS_URL },
     concurrency: env.WORKER_CONCURRENCY,
+    settings: {
+      // ADR 0003's backoff math all lives in retryPolicy.ts/processDeliveryJob.ts;
+      // this just relays the delay a RetryableDeliveryError already computed.
+      backoffStrategy: (_attemptsMade, _type, err) =>
+        err instanceof RetryableDeliveryError ? err.delayMs : -1,
+    },
   },
 );
 

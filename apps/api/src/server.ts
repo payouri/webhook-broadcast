@@ -7,7 +7,7 @@ import { parseHeaderList } from "./ingest/headers.js";
 
 const env = bootEnv();
 const { db, pool } = createDb(env.DATABASE_URL);
-const deliveryQueue = new BullMqDeliveryQueue(env.REDIS_URL);
+const deliveryQueue = new BullMqDeliveryQueue(env.REDIS_URL, env.DELIVERY_MAX_ATTEMPTS);
 const app = createApp({
   db,
   deliveryQueue,

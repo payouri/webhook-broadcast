@@ -113,10 +113,13 @@ export async function markDeliveryInProgress(
 }
 
 /**
- * Records the Attempt and terminal Delivery status in one transaction. This
- * slice only ever writes Attempt `n = 1` (ADR 0003's retry loop is a later
- * ticket) — `failed` here covers every non-2xx outcome, network error, and
- * timeout alike.
+ * Records one Attempt and the Delivery's resulting status in one
+ * transaction — the Attempt row is written every try, so the timeline grows
+ * across retries (ADR 0003) even though only the final call for a given
+ * Delivery lands on a terminal `status` (`succeeded` | `failed` |
+ * `dead_lettered`); a retryable-but-not-exhausted outcome instead passes
+ * `status: "pending"` so the next Attempt can be picked up (worker-side
+ * `markDeliveryInProgress` guards on that).
  */
 export async function completeDelivery(
   db: Database,
@@ -126,7 +129,7 @@ export async function completeDelivery(
     statusCode: number | null;
     durationMs: number;
     error: string | null;
-    status: Extract<DeliveryStatus, "succeeded" | "failed">;
+    status: DeliveryStatus;
     at: Date;
   },
 ): Promise<void> {

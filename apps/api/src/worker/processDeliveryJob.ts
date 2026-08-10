@@ -4,37 +4,60 @@ import {
   markDeliveryInProgress,
   type Database,
 } from "@webhook-broadcast/db";
+import { RetryableDeliveryError } from "./errors.js";
+import { computeBackoffDelayMs, isRetryableOutcome, parseRetryAfterMs } from "./retryPolicy.js";
+
+/** Mirrors the `DELIVERY_*` env defaults in packages/contract/src/env.ts. */
+const DEFAULT_MAX_ATTEMPTS = 8;
+const DEFAULT_BACKOFF_BASE_MS = 5_000;
+const DEFAULT_BACKOFF_MAX_MS = 3_600_000;
 
 export interface ProcessDeliveryDeps {
   db: Database;
   /** Falls back to the Endpoint's own `timeoutMs` when set (ADR 0007/0008). */
   defaultTimeoutMs: number;
   fetchImpl?: typeof fetch;
+  /** ADR 0003 retry policy knobs — default to that ADR's documented defaults. */
+  maxAttempts?: number;
+  backoffBaseMs?: number;
+  backoffMaxMs?: number;
+  /** Injectable for deterministic tests. */
+  random?: () => number;
+  now?: () => Date;
 }
 
 /**
- * One Delivery's single HTTP Attempt (issue #19 — first Attempt only; full
- * retry policy per ADR 0003 is a later ticket). `2xx` succeeds; every other
- * outcome — non-2xx, network error, or timeout — fails the Delivery.
- *
- * Exported standalone from the BullMQ `Worker` wiring so it can be
- * exercised directly against a stub HTTP target without a live Redis.
+ * One Delivery's HTTP Attempt, retried per ADR 0003's policy. Exported
+ * standalone from the BullMQ `Worker` wiring so it can be exercised
+ * directly against a stub HTTP target without a live Redis: a retryable
+ * failure resolves normally after resetting the Delivery to `pending` for
+ * the next Attempt (a caller simulating BullMQ's backoff just calls this
+ * again), or throws `RetryableDeliveryError` — the shape `worker.ts`'s
+ * BullMQ `backoffStrategy` needs to actually delay that next call in
+ * production.
  */
 export async function processDeliveryJob(
   deps: ProcessDeliveryDeps,
   deliveryId: string,
 ): Promise<void> {
+  const maxAttempts = deps.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
+  const backoffBaseMs = deps.backoffBaseMs ?? DEFAULT_BACKOFF_BASE_MS;
+  const backoffMaxMs = deps.backoffMaxMs ?? DEFAULT_BACKOFF_MAX_MS;
+  const now = deps.now ?? (() => new Date());
+
   const record = await getDeliveryForProcessing(deps.db, deliveryId);
   if (!record) {
     // Delivery vanished (e.g. Broadcast retention swept it); nothing to do.
     return;
   }
   if (record.status !== "pending") {
-    // Idempotency guard against a redelivered/duplicate job.
+    // Idempotency guard against a redelivered/duplicate job. A Delivery
+    // scheduled for retry is reset to `pending` below, so this still lets a
+    // legitimate next Attempt through.
     return;
   }
 
-  const inProgress = await markDeliveryInProgress(deps.db, deliveryId, new Date());
+  const inProgress = await markDeliveryInProgress(deps.db, deliveryId, now());
   if (!inProgress) {
     return;
   }
@@ -45,6 +68,7 @@ export async function processDeliveryJob(
 
   let statusCode: number | null = null;
   let error: string | null = null;
+  let retryAfterMs: number | undefined;
   const startedAt = process.hrtime.bigint();
   try {
     const doFetch = deps.fetchImpl ?? fetch;
@@ -58,6 +82,9 @@ export async function processDeliveryJob(
       signal: controller.signal,
     });
     statusCode = response.status;
+    if (statusCode === 429 || statusCode === 503) {
+      retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"), now());
+    }
     // Drain the response body so the connection can be released back to
     // the pool; we never persist it (CONTEXT.md: Attempt stores status
     // code/duration/error, "not the response body").
@@ -73,15 +100,66 @@ export async function processDeliveryJob(
   }
 
   const durationMs = Number((process.hrtime.bigint() - startedAt) / 1_000_000n);
-  const succeeded = statusCode !== null && statusCode >= 200 && statusCode < 300;
+  const n = record.attemptCount + 1;
+  const at = now();
+
+  if (statusCode !== null && statusCode >= 200 && statusCode < 300) {
+    await completeDelivery(deps.db, {
+      deliveryId,
+      n,
+      statusCode,
+      durationMs,
+      error: null,
+      status: "succeeded",
+      at,
+    });
+    return;
+  }
+
+  if (!isRetryableOutcome({ statusCode })) {
+    await completeDelivery(deps.db, {
+      deliveryId,
+      n,
+      statusCode,
+      durationMs,
+      error,
+      status: "failed",
+      at,
+    });
+    return;
+  }
+
+  if (n >= maxAttempts) {
+    await completeDelivery(deps.db, {
+      deliveryId,
+      n,
+      statusCode,
+      durationMs,
+      error,
+      status: "dead_lettered",
+      at,
+    });
+    return;
+  }
 
   await completeDelivery(deps.db, {
     deliveryId,
-    n: record.attemptCount + 1,
+    n,
     statusCode,
     durationMs,
     error,
-    status: succeeded ? "succeeded" : "failed",
-    at: new Date(),
+    status: "pending",
+    at,
   });
+  const delayMs = computeBackoffDelayMs({
+    attemptNumber: n,
+    baseMs: backoffBaseMs,
+    capMs: backoffMaxMs,
+    ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
+    ...(deps.random ? { random: deps.random } : {}),
+  });
+  throw new RetryableDeliveryError(
+    `Delivery ${deliveryId} Attempt ${n} failed (${statusCode ?? error}); retrying in ${delayMs}ms`,
+    delayMs,
+  );
 }
