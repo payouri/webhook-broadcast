@@ -106,6 +106,19 @@ export async function getBroadcastById(
   return row;
 }
 
+/**
+ * Retention prune (ADR 0002 / ADR 0007): delete Broadcasts with
+ * `received_at` strictly before `cutoff`. Deliveries and Attempts cascade
+ * via `ON DELETE CASCADE` on the FK edges.
+ */
+export async function deleteBroadcastsReceivedBefore(db: Database, cutoff: Date): Promise<number> {
+  const deleted = await db
+    .delete(broadcasts)
+    .where(lt(broadcasts.receivedAt, cutoff))
+    .returning({ id: broadcasts.id });
+  return deleted.length;
+}
+
 export interface FanoutSummaryRow {
   total: number;
   succeeded: number;

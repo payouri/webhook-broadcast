@@ -5,6 +5,7 @@ import { DELIVERY_QUEUE_NAME, type DeliveryJobData } from "./deliveryQueue.js";
 import { createHealthServer } from "./healthServer.js";
 import { RetryableDeliveryError } from "./worker/errors.js";
 import { processDeliveryJob } from "./worker/processDeliveryJob.js";
+import { startRetentionSweeper } from "./worker/retentionSweeper.js";
 
 const env = bootEnv();
 const { db, pool } = createDb(env.DATABASE_URL);
@@ -39,6 +40,12 @@ worker.on("error", (error) => {
   console.error(JSON.stringify({ msg: "worker error", error: String(error) }));
 });
 
+// ADR 0008: retention sweeper is an interval inside the worker process.
+const retentionSweeper = startRetentionSweeper({
+  db,
+  retentionDays: env.HISTORY_RETENTION_DAYS,
+});
+
 const healthServer = createHealthServer();
 healthServer.listen(env.WORKER_HEALTH_PORT, () => {
   console.log(JSON.stringify({ msg: "worker listening", healthPort: env.WORKER_HEALTH_PORT }));
@@ -46,6 +53,7 @@ healthServer.listen(env.WORKER_HEALTH_PORT, () => {
 
 function shutdown(signal: string): void {
   console.log(JSON.stringify({ msg: "worker shutting down", signal }));
+  retentionSweeper.stop();
   Promise.all([
     worker.close(),
     pool.end(),

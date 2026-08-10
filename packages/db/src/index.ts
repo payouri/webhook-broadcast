@@ -38,6 +38,7 @@ export {
 export {
   insertBroadcast,
   getBroadcastById,
+  deleteBroadcastsReceivedBefore,
   listBroadcastsByChannel,
   getFanoutSummariesByBroadcastIds,
   encodeBroadcastCursor,

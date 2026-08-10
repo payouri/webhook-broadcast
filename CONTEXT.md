@@ -17,7 +17,7 @@ The record of one inbound request accepted on a Channel. Identified by an opaque
 _Avoid_: event, message, job, request (alone)
 
 **Replay**:
-An operator action on a retained Broadcast (ADR 0002's retention window) that accepts a brand-new Broadcast carrying the same stored body/headers/contentType, without a new `POST /ingest/:slug`. Its fan-out snapshots the Endpoints enabled *at replay time*, which may differ from the original accept. Distinct from re-queuing a single `dead_lettered` Delivery (ADR 0003).
+An operator action on a retained Broadcast (ADR 0002's retention window) that accepts a brand-new Broadcast carrying the same stored body/headers/contentType, without a new `POST /ingest/:slug`. Its fan-out snapshots the Endpoints enabled _at replay time_, which may differ from the original accept. Distinct from re-queuing a single `dead_lettered` Delivery (ADR 0003).
 _Avoid_: resend (of the original Broadcast/Delivery rows), retry
 
 **Delivery**:
