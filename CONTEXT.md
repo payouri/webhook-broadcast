@@ -17,7 +17,7 @@ The record of one inbound request accepted on a Channel. Identified by an opaque
 _Avoid_: event, message, job, request (alone)
 
 **Delivery**:
-The unit of work for one Broadcast × one Endpoint. Exactly one per pair — unique on `(broadcastId, endpointId)`. Lifecycle: `pending` → `in_progress` → `succeeded` | `failed` | `dead_lettered`. What the dashboard lists.
+The unit of work for one Broadcast × one Endpoint. Exactly one per pair — unique on `(broadcastId, endpointId)`. Lifecycle: `pending` → `in_progress` → `succeeded` | `failed` (non-retryable response) | `dead_lettered` (retries exhausted). What the dashboard lists. Per-Endpoint completion order is not guaranteed.
 _Avoid_: job, task, message
 
 **Attempt**:
