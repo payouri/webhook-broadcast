@@ -149,4 +149,66 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
       expect(screen.queryByText("wbt_abcd1234…")).toBeNull();
     });
   });
+
+  it("replays a Broadcast from its detail panel (issue #22)", async () => {
+    const broadcastId = "44444444-4444-4444-4444-444444444444";
+    const replayId = "55555555-5555-5555-5555-555555555555";
+    let replayCalled = false;
+
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      const method = init?.method ?? "GET";
+
+      if (url.endsWith(`/channels/${CHANNEL_ID}`) && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (url.endsWith(`/channels/${CHANNEL_ID}/broadcasts`) && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            items: [
+              {
+                id: broadcastId,
+                channelId: CHANNEL_ID,
+                receivedAt: "2026-08-10T12:00:00.000Z",
+                bodyPreview: "hello-world",
+                fanout: { total: 0, succeeded: 0, failed: 0, deadLettered: 0, pending: 0 },
+              },
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
+      if (url.endsWith(`/channels/${CHANNEL_ID}/broadcasts/${broadcastId}`) && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            id: broadcastId,
+            channelId: CHANNEL_ID,
+            receivedAt: "2026-08-10T12:00:00.000Z",
+            contentType: "application/json",
+            body: "hello-world",
+            deliveries: [],
+          }),
+        );
+      }
+      if (
+        url.endsWith(`/channels/${CHANNEL_ID}/broadcasts/${broadcastId}/replay`) &&
+        method === "POST"
+      ) {
+        replayCalled = true;
+        return Promise.resolve(jsonResponse(202, { id: replayId }));
+      }
+      throw new Error(`unexpected fetch: ${method} ${url}`);
+    });
+
+    render(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByText("hello-world"));
+    fireEvent.click(await screen.findByRole("button", { name: "Replay" }));
+
+    await waitFor(() => {
+      expect(replayCalled).toBe(true);
+    });
+    expect(await screen.findByText(/Replayed/)).toBeTruthy();
+  });
 });

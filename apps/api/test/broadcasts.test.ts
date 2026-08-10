@@ -1,6 +1,12 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import type { BroadcastList, Channel, ChannelTokenCreated } from "@webhook-broadcast/contract";
+import type {
+  BroadcastDetail,
+  BroadcastList,
+  Channel,
+  ChannelTokenCreated,
+  Endpoint,
+} from "@webhook-broadcast/contract";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { FakeDeliveryQueue } from "./fakeDeliveryQueue.js";
@@ -236,5 +242,219 @@ describe("Broadcast detail — GET /channels/:channelId/broadcasts/:broadcastId 
       body: JSON.stringify({ hello: "world" }),
       deliveries: [],
     });
+  });
+});
+
+describe("Broadcast replay — POST .../broadcasts/:broadcastId/replay (admin HTTP seam)", () => {
+  let testDb: TestDb;
+  let server: Server;
+  let baseUrl: string;
+  let deliveryQueue: FakeDeliveryQueue;
+
+  beforeAll(async () => {
+    testDb = await startTestDb();
+    deliveryQueue = new FakeDeliveryQueue();
+    const app = createApp({
+      db: testDb.db,
+      deliveryQueue,
+      operatorApiKey: OPERATOR_API_KEY,
+      cookieName: COOKIE_NAME,
+    });
+    server = createServer(app.callback());
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const { port } = server.address() as AddressInfo;
+    baseUrl = `http://127.0.0.1:${port}`;
+  }, 60_000);
+
+  afterEach(async () => {
+    deliveryQueue.enqueued.length = 0;
+    await testDb.reset();
+  });
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await testDb.stop();
+  }, 30_000);
+
+  function authed(init: RequestInit = {}): RequestInit {
+    return { ...init, headers: { authorization: `Bearer ${OPERATOR_API_KEY}`, ...init.headers } };
+  }
+
+  async function createChannel(slug: string): Promise<Channel> {
+    const response = await fetch(
+      `${baseUrl}/channels`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ slug }),
+      }),
+    );
+    return (await response.json()) as Channel;
+  }
+
+  async function createEndpoint(
+    channelId: string,
+    input: { url: string; enabled?: boolean },
+  ): Promise<Endpoint> {
+    const response = await fetch(
+      `${baseUrl}/channels/${channelId}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      }),
+    );
+    return (await response.json()) as Endpoint;
+  }
+
+  async function setEndpointEnabled(
+    channelId: string,
+    endpointId: string,
+    enabled: boolean,
+  ): Promise<void> {
+    await fetch(
+      `${baseUrl}/channels/${channelId}/endpoints/${endpointId}`,
+      authed({
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      }),
+    );
+  }
+
+  async function ingest(channelId: string, slug: string, body: string): Promise<string> {
+    const mintResponse = await fetch(
+      `${baseUrl}/channels/${channelId}/tokens`,
+      authed({ method: "POST" }),
+    );
+    const { token } = (await mintResponse.json()) as ChannelTokenCreated;
+    const response = await fetch(`${baseUrl}/ingest/${slug}`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body,
+    });
+    const accepted = (await response.json()) as { id: string };
+    return accepted.id;
+  }
+
+  async function getDetail(channelId: string, broadcastId: string): Promise<BroadcastDetail> {
+    const response = await fetch(
+      `${baseUrl}/channels/${channelId}/broadcasts/${broadcastId}`,
+      authed(),
+    );
+    return (await response.json()) as BroadcastDetail;
+  }
+
+  it("404s for an unknown Channel", async () => {
+    const response = await fetch(
+      `${baseUrl}/channels/00000000-0000-0000-0000-000000000000/broadcasts/00000000-0000-0000-0000-000000000000/replay`,
+      authed({ method: "POST" }),
+    );
+    expect(response.status).toBe(404);
+  });
+
+  it("404s for an unknown Broadcast on a known Channel", async () => {
+    const channel = await createChannel("orders");
+    const response = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts/00000000-0000-0000-0000-000000000000/replay`,
+      authed({ method: "POST" }),
+    );
+    expect(response.status).toBe(404);
+  });
+
+  it("202s with a new Broadcast id, fanning out to currently enabled Endpoints without a new ingest", async () => {
+    const channel = await createChannel("orders");
+    const endpoint = await createEndpoint(channel.id, { url: "http://127.0.0.1:1/hook" });
+    const payload = JSON.stringify({ orderId: "abc-123" });
+    const originalId = await ingest(channel.id, "orders", payload);
+
+    const response = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts/${originalId}/replay`,
+      authed({ method: "POST" }),
+    );
+    expect(response.status).toBe(202);
+    const { id: replayId } = (await response.json()) as { id: string };
+    expect(replayId).not.toBe(originalId);
+
+    const replayDetail = await getDetail(channel.id, replayId);
+    expect(replayDetail.contentType).toBe("application/json");
+    expect(replayDetail.body).toBe(payload);
+    expect(replayDetail.deliveries).toHaveLength(1);
+    expect(replayDetail.deliveries[0]).toMatchObject({
+      endpointId: endpoint.id,
+      status: "pending",
+    });
+
+    // The original Broadcast's own Delivery is untouched by the replay.
+    const originalDetail = await getDetail(channel.id, originalId);
+    expect(originalDetail.deliveries).toHaveLength(1);
+
+    expect(deliveryQueue.enqueued).toContain(replayDetail.deliveries[0]?.id);
+  });
+
+  it("fans out to Endpoints enabled at replay time, not at original ingest time", async () => {
+    const channel = await createChannel("orders");
+    const staysEnabled = await createEndpoint(channel.id, { url: "http://127.0.0.1:1/keep" });
+    const getsDisabled = await createEndpoint(channel.id, { url: "http://127.0.0.1:1/drop" });
+    const originalId = await ingest(channel.id, "orders", "{}");
+
+    await setEndpointEnabled(channel.id, getsDisabled.id, false);
+    const addedLater = await createEndpoint(channel.id, { url: "http://127.0.0.1:1/added" });
+
+    const response = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts/${originalId}/replay`,
+      authed({ method: "POST" }),
+    );
+    const { id: replayId } = (await response.json()) as { id: string };
+
+    const replayDetail = await getDetail(channel.id, replayId);
+    const replayedEndpointIds = replayDetail.deliveries
+      .map((delivery) => delivery.endpointId)
+      .sort();
+    expect(replayedEndpointIds).toEqual([staysEnabled.id, addedLater.id].sort());
+  });
+
+  it("202s with zero Deliveries and enqueues nothing when no Endpoint is currently enabled", async () => {
+    const channel = await createChannel("orders");
+    const originalId = await ingest(channel.id, "orders", "{}");
+
+    const response = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts/${originalId}/replay`,
+      authed({ method: "POST" }),
+    );
+    expect(response.status).toBe(202);
+    const { id: replayId } = (await response.json()) as { id: string };
+
+    const replayDetail = await getDetail(channel.id, replayId);
+    expect(replayDetail.deliveries).toEqual([]);
+    expect(deliveryQueue.enqueued).toEqual([]);
+  });
+
+  it("replaying twice creates two independent sets of Deliveries", async () => {
+    const channel = await createChannel("orders");
+    const endpoint = await createEndpoint(channel.id, { url: "http://127.0.0.1:1/hook" });
+    const originalId = await ingest(channel.id, "orders", "{}");
+
+    const firstReplay = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts/${originalId}/replay`,
+      authed({ method: "POST" }),
+    );
+    const { id: firstReplayId } = (await firstReplay.json()) as { id: string };
+
+    const secondReplay = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts/${originalId}/replay`,
+      authed({ method: "POST" }),
+    );
+    expect(secondReplay.status).toBe(202);
+    const { id: secondReplayId } = (await secondReplay.json()) as { id: string };
+
+    expect(secondReplayId).not.toBe(firstReplayId);
+    const firstDetail = await getDetail(channel.id, firstReplayId);
+    const secondDetail = await getDetail(channel.id, secondReplayId);
+    expect(firstDetail.deliveries).toHaveLength(1);
+    expect(secondDetail.deliveries).toHaveLength(1);
+    expect(firstDetail.deliveries[0]?.endpointId).toBe(endpoint.id);
+    expect(secondDetail.deliveries[0]?.endpointId).toBe(endpoint.id);
+    expect(firstDetail.deliveries[0]?.id).not.toBe(secondDetail.deliveries[0]?.id);
   });
 });

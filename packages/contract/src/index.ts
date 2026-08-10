@@ -49,6 +49,7 @@ export {
   deliveryStatusSchema,
   deliveryItemSchema,
   broadcastDetailSchema,
+  broadcastReplayAcceptedSchema,
 } from "./broadcast.js";
 export type {
   FanoutSummary,
@@ -58,6 +59,7 @@ export type {
   DeliveryStatus,
   DeliveryItem,
   BroadcastDetail,
+  BroadcastReplayAccepted,
 } from "./broadcast.js";
 export { ingestAcceptedSchema } from "./ingest.js";
 export type { IngestAccepted } from "./ingest.js";

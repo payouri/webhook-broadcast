@@ -1,24 +1,35 @@
+import { randomUUID } from "node:crypto";
 import type Router from "@koa/router";
 import {
   broadcastListQuerySchema,
+  broadcastReplayAcceptedSchema,
   errorBody,
   type BroadcastDetail,
   type BroadcastList,
 } from "@webhook-broadcast/contract";
 import {
+  createDeliveriesForBroadcast,
   decodeBroadcastCursor,
   encodeBroadcastCursor,
   getBroadcastById,
   getChannelById,
   getFanoutSummariesByBroadcastIds,
+  insertBroadcast,
   listBroadcastsByChannel,
   listDeliveriesForBroadcast,
+  listEnabledEndpointsByChannel,
   EMPTY_FANOUT_SUMMARY,
   type Database,
 } from "@webhook-broadcast/db";
+import type { DeliveryQueue } from "../deliveryQueue.js";
 import { requireUuidParam, toDetails } from "./validation.js";
 
 const BODY_PREVIEW_MAX_LENGTH = 200;
+
+export interface BroadcastRouteConfig {
+  db: Database;
+  deliveryQueue: DeliveryQueue;
+}
 
 function toBodyPreview(body: Buffer): string {
   const text = body.toString("utf8");
@@ -28,7 +39,8 @@ function toBodyPreview(body: Buffer): string {
 }
 
 /** Channel Activity: newest-first Broadcasts with cursor pages (issue #17). */
-export function registerBroadcastRoutes(router: Router, db: Database): void {
+export function registerBroadcastRoutes(router: Router, config: BroadcastRouteConfig): void {
+  const { db, deliveryQueue } = config;
   router.get("/channels/:channelId/broadcasts", async (ctx) => {
     const channelId = requireUuidParam(ctx, "channelId");
     if (!channelId) {
@@ -131,5 +143,64 @@ export function registerBroadcastRoutes(router: Router, db: Database): void {
     };
     ctx.status = 200;
     ctx.body = detail;
+  });
+
+  /**
+   * Replay (issue #22): while the original Broadcast is still retained
+   * (ADR 0002 — its row exists), accept a brand-new Broadcast carrying the
+   * stored body/headers/contentType and fan it out to the Endpoints enabled
+   * on the Channel *right now*. Reusing the original `broadcastId` for the
+   * new Deliveries would collide with the `(broadcast_id, endpoint_id)`
+   * unique constraint (ADR 0007) on any Endpoint replayed more than once —
+   * a new Broadcast row sidesteps that entirely and matches the locked
+   * `202`/`{ id }` shape in docs/contracts/admin.openapi.yaml.
+   */
+  router.post("/channels/:channelId/broadcasts/:broadcastId/replay", async (ctx) => {
+    const channelId = requireUuidParam(ctx, "channelId");
+    if (!channelId) {
+      return;
+    }
+    const broadcastId = requireUuidParam(ctx, "broadcastId");
+    if (!broadcastId) {
+      return;
+    }
+
+    const channel = await getChannelById(db, channelId);
+    if (!channel) {
+      ctx.status = 404;
+      ctx.body = errorBody("not_found", "channel not found");
+      return;
+    }
+
+    const original = await getBroadcastById(db, channelId, broadcastId);
+    if (!original) {
+      ctx.status = 404;
+      ctx.body = errorBody("not_found", "broadcast not found");
+      return;
+    }
+
+    const now = new Date();
+    const replay = await insertBroadcast(db, {
+      id: randomUUID(),
+      channelId: original.channelId,
+      receivedAt: now,
+      contentType: original.contentType,
+      body: original.body,
+      headers: original.headers,
+    });
+
+    const enabledEndpoints = await listEnabledEndpointsByChannel(db, channel.id);
+    if (enabledEndpoints.length > 0) {
+      const createdDeliveries = await createDeliveriesForBroadcast(db, {
+        broadcastId: replay.id,
+        channelId: channel.id,
+        endpointIds: enabledEndpoints.map((endpoint) => endpoint.id),
+        now,
+      });
+      await Promise.all(createdDeliveries.map((delivery) => deliveryQueue.enqueue(delivery.id)));
+    }
+
+    ctx.status = 202;
+    ctx.body = broadcastReplayAcceptedSchema.parse({ id: replay.id });
   });
 }

@@ -112,6 +112,10 @@ export const api = {
     ),
   getBroadcastDetail: (channelId: string, broadcastId: string) =>
     request<BroadcastDetail>(`/channels/${channelId}/broadcasts/${broadcastId}`),
+  replayBroadcast: (channelId: string, broadcastId: string) =>
+    request<{ id: string }>(`/channels/${channelId}/broadcasts/${broadcastId}/replay`, {
+      method: "POST",
+    }),
   createChannelToken: (channelId: string) =>
     request<ChannelTokenCreated>(`/channels/${channelId}/tokens`, { method: "POST" }),
   revokeChannelToken: (channelId: string, tokenId: string) =>

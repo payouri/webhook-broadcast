@@ -69,7 +69,7 @@ export function createApp(deps: AppDeps): Koa {
   registerChannelRoutes(adminRouter, deps.db);
   registerEndpointRoutes(adminRouter, deps.db);
   registerChannelTokenRoutes(adminRouter, deps.db);
-  registerBroadcastRoutes(adminRouter, deps.db);
+  registerBroadcastRoutes(adminRouter, { db: deps.db, deliveryQueue: deps.deliveryQueue });
   router.use(adminRouter.routes(), adminRouter.allowedMethods());
 
   app.use(async (ctx, next) => {

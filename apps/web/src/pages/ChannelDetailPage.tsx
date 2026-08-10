@@ -179,7 +179,11 @@ function ChannelActivityTab({ channelId }: { channelId: string }) {
                   <span className="muted activity-fanout">{fanoutLabel(item.fanout)}</span>
                 </button>
                 {expandedId === item.id && (
-                  <BroadcastDetailPanel channelId={channelId} broadcastId={item.id} />
+                  <BroadcastDetailPanel
+                    channelId={channelId}
+                    broadcastId={item.id}
+                    onReplayed={() => void loadFirstPage()}
+                  />
                 )}
               </li>
             ))}
@@ -208,12 +212,17 @@ function deliveryStatusLabel(status: BroadcastDetail["deliveries"][number]["stat
 function BroadcastDetailPanel({
   channelId,
   broadcastId,
+  onReplayed,
 }: {
   channelId: string;
   broadcastId: string;
+  onReplayed?: () => void;
 }) {
   const [detail, setDetail] = useState<BroadcastDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [replaying, setReplaying] = useState(false);
+  const [replayError, setReplayError] = useState<string | null>(null);
+  const [replayedId, setReplayedId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -236,6 +245,20 @@ function BroadcastDetailPanel({
     };
   }, [channelId, broadcastId]);
 
+  async function handleReplay(): Promise<void> {
+    setReplaying(true);
+    setReplayError(null);
+    try {
+      const { id } = await api.replayBroadcast(channelId, broadcastId);
+      setReplayedId(id);
+      onReplayed?.();
+    } catch (err) {
+      setReplayError(err instanceof Error ? err.message : "Failed to replay Broadcast");
+    } finally {
+      setReplaying(false);
+    }
+  }
+
   return (
     <div className="broadcast-detail">
       {error && (
@@ -248,6 +271,28 @@ function BroadcastDetailPanel({
         <>
           <p className="muted broadcast-detail-content-type">{detail.contentType}</p>
           <pre className="broadcast-body">{detail.body || "(empty body)"}</pre>
+
+          {/* Replay (issue #22): re-fans the stored payload out to Endpoints
+              enabled right now — no new ingest needed. */}
+          <div className="broadcast-replay">
+            <button
+              type="button"
+              className="button-ghost"
+              onClick={() => void handleReplay()}
+              disabled={replaying}
+            >
+              {replaying ? "Replaying…" : "Replay"}
+            </button>
+            {replayError && (
+              <span className="error-text" role="alert">
+                {replayError}
+              </span>
+            )}
+            {replayedId && !replayError && (
+              <span className="success-text">Replayed — see it in Activity.</span>
+            )}
+          </div>
+
           {detail.deliveries.length === 0 ? (
             <p className="muted empty-state">
               No Endpoints were enabled on this Channel when the Broadcast was accepted.

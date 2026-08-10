@@ -324,6 +324,13 @@ button:disabled {
   margin: 0 0 8px;
 }
 
+.broadcast-replay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
 .broadcast-body {
   margin: 0 0 12px;
   padding: 10px;

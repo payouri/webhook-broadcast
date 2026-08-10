@@ -81,3 +81,16 @@ export const broadcastDetailSchema = z.object({
 });
 
 export type BroadcastDetail = z.infer<typeof broadcastDetailSchema>;
+
+/**
+ * `POST .../broadcasts/:broadcastId/replay` response (issue #22; mirrors
+ * `docs/contracts/admin.openapi.yaml`'s `BroadcastAccepted`): replay accepts
+ * a brand-new Broadcast built from the stored payload — same `{ id }` shape
+ * as ingest's `202`, distinguishing it from an in-place resend of the
+ * original Broadcast's Deliveries.
+ */
+export const broadcastReplayAcceptedSchema = z.object({
+  id: idSchema,
+});
+
+export type BroadcastReplayAccepted = z.infer<typeof broadcastReplayAcceptedSchema>;
