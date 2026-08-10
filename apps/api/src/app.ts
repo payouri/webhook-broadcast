@@ -9,6 +9,7 @@ import { registerChannelRoutes } from "./admin/channels.js";
 import { registerEndpointRoutes } from "./admin/endpoints.js";
 import { registerChannelTokenRoutes } from "./admin/tokens.js";
 import { registerBroadcastRoutes } from "./admin/broadcasts.js";
+import { registerDeliveryRoutes } from "./admin/deliveries.js";
 import { registerIngestRoutes } from "./ingest/routes.js";
 import type { DeliveryQueue } from "./deliveryQueue.js";
 
@@ -70,6 +71,7 @@ export function createApp(deps: AppDeps): Koa {
   registerEndpointRoutes(adminRouter, deps.db);
   registerChannelTokenRoutes(adminRouter, deps.db);
   registerBroadcastRoutes(adminRouter, { db: deps.db, deliveryQueue: deps.deliveryQueue });
+  registerDeliveryRoutes(adminRouter, deps.db, deps.deliveryQueue);
   router.use(adminRouter.routes(), adminRouter.allowedMethods());
 
   app.use(async (ctx, next) => {

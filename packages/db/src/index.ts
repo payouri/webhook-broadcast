@@ -54,8 +54,13 @@ export {
   markDeliveryInProgress,
   completeDelivery,
   listDeliveriesForBroadcast,
+  getDeliveryDetailById,
+  listAttemptsForDelivery,
+  retryDeadLetteredDelivery,
   type DeliveryStatus,
   type DeliveryRow,
   type DeliveryForProcessing,
   type DeliveryWithEndpointRow,
+  type DeliveryDetailRow,
+  type AttemptRow,
 } from "./repositories/deliveries.js";

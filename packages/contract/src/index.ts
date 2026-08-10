@@ -63,3 +63,5 @@ export type {
 } from "./broadcast.js";
 export { ingestAcceptedSchema } from "./ingest.js";
 export type { IngestAccepted } from "./ingest.js";
+export { deliveryDetailSchema, attemptSchema, attemptListSchema } from "./delivery.js";
+export type { DeliveryDetail, Attempt, AttemptList } from "./delivery.js";

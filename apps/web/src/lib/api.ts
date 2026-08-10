@@ -1,9 +1,11 @@
 import type {
+  AttemptList,
   BroadcastDetail,
   BroadcastList,
   Channel,
   ChannelList,
   ChannelTokenCreated,
+  DeliveryDetail,
   Endpoint,
   EndpointList,
   LoginResponse,
@@ -116,6 +118,11 @@ export const api = {
     request<{ id: string }>(`/channels/${channelId}/broadcasts/${broadcastId}/replay`, {
       method: "POST",
     }),
+  getDeliveryDetail: (deliveryId: string) => request<DeliveryDetail>(`/deliveries/${deliveryId}`),
+  listDeliveryAttempts: (deliveryId: string) =>
+    request<AttemptList>(`/deliveries/${deliveryId}/attempts`),
+  retryDelivery: (deliveryId: string) =>
+    request<DeliveryDetail>(`/deliveries/${deliveryId}/retry`, { method: "POST" }),
   createChannelToken: (channelId: string) =>
     request<ChannelTokenCreated>(`/channels/${channelId}/tokens`, { method: "POST" }),
   revokeChannelToken: (channelId: string, tokenId: string) =>

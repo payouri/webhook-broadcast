@@ -7,6 +7,7 @@ import type {
   Endpoint,
 } from "@webhook-broadcast/contract";
 import { api } from "../lib/api.js";
+import { DeliveryDetail } from "./DeliveryDetail.js";
 
 type Tab = "activity" | "endpoints" | "settings";
 
@@ -204,10 +205,6 @@ function ChannelActivityTab({ channelId }: { channelId: string }) {
   );
 }
 
-function deliveryStatusLabel(status: BroadcastDetail["deliveries"][number]["status"]): string {
-  return status.replace("_", " ");
-}
-
 /** Broadcast detail (issue #19): inbound payload plus every fanned-out Delivery. */
 function BroadcastDetailPanel({
   channelId,
@@ -224,26 +221,21 @@ function BroadcastDetailPanel({
   const [replayError, setReplayError] = useState<string | null>(null);
   const [replayedId, setReplayedId] = useState<string | null>(null);
 
+  const load = useCallback(async () => {
+    try {
+      const result = await api.getBroadcastDetail(channelId, broadcastId);
+      setDetail(result);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load Broadcast");
+    }
+  }, [channelId, broadcastId]);
+
   useEffect(() => {
-    let cancelled = false;
     setDetail(null);
     setError(null);
-    api
-      .getBroadcastDetail(channelId, broadcastId)
-      .then((result) => {
-        if (!cancelled) {
-          setDetail(result);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load Broadcast");
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [channelId, broadcastId]);
+    void load();
+  }, [load]);
 
   async function handleReplay(): Promise<void> {
     setReplaying(true);
@@ -300,21 +292,7 @@ function BroadcastDetailPanel({
           ) : (
             <ul className="delivery-list">
               {detail.deliveries.map((delivery) => (
-                <li key={delivery.id} className="delivery-row">
-                  <span className={`delivery-status delivery-status-${delivery.status}`}>
-                    {deliveryStatusLabel(delivery.status)}
-                  </span>
-                  <span className="delivery-endpoint">
-                    {delivery.endpointName ?? delivery.endpointUrl}
-                  </span>
-                  <span className="muted delivery-meta">
-                    {delivery.lastStatusCode !== null ? `HTTP ${delivery.lastStatusCode}` : "—"}
-                    {delivery.lastDurationMs !== null ? ` · ${delivery.lastDurationMs}ms` : ""}
-                  </span>
-                  {delivery.lastError && (
-                    <span className="error-text delivery-error">{delivery.lastError}</span>
-                  )}
-                </li>
+                <DeliveryDetail key={delivery.id} delivery={delivery} onRetried={load} />
               ))}
             </ul>
           )}

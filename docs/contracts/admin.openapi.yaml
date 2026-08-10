@@ -307,10 +307,10 @@ paths:
     post:
       tags: [deliveries]
       operationId: retryDelivery
-      summary: Re-enqueue a dead_lettered Delivery
+      summary: Re-enqueue a dead_lettered Delivery (409 if not dead_lettered)
       responses:
-        '202':
-          description: Accepted
+        '200':
+          description: Delivery re-queued as pending
           content:
             application/json:
               schema:
@@ -678,7 +678,18 @@ components:
 
     Delivery:
       type: object
-      required: [id, broadcastId, endpointId, channelId, status, attemptCount, updatedAt]
+      required:
+        [
+          id,
+          broadcastId,
+          endpointId,
+          channelId,
+          endpointName,
+          endpointUrl,
+          status,
+          attemptCount,
+          updatedAt,
+        ]
       properties:
         id:
           $ref: '#/components/schemas/Id'
@@ -688,6 +699,10 @@ components:
           $ref: '#/components/schemas/Id'
         channelId:
           $ref: '#/components/schemas/Id'
+        endpointName:
+          type: [string, 'null']
+        endpointUrl:
+          type: string
         status:
           $ref: '#/components/schemas/DeliveryStatus'
         attemptCount:
@@ -715,11 +730,9 @@ components:
 
     Attempt:
       type: object
-      required: [id, deliveryId, n, at]
+      required: [id, n, at]
       properties:
         id:
-          $ref: '#/components/schemas/Id'
-        deliveryId:
           $ref: '#/components/schemas/Id'
         n:
           type: integer
