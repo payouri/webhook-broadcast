@@ -8,7 +8,8 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      # Host 5432 is often taken; map a dedicated local-dev port.
+      - "5433:5432"
     healthcheck:
       test:
         [
@@ -21,6 +22,10 @@ services:
 
   redis:
     image: redis:7-alpine
+    # Loopback only — host `pnpm run dev:*` can reach Redis without LAN exposure.
+    # Host 6379 is often taken; map a dedicated local-dev port.
+    ports:
+      - "127.0.0.1:6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -33,6 +38,8 @@ services:
       dockerfile: apps/api/Dockerfile
     command: ["migrate"]
     env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-webhook_broadcast}:${POSTGRES_PASSWORD:-webhook_broadcast}@postgres:5432/${POSTGRES_DB:-webhook_broadcast}
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,6 +50,9 @@ services:
       dockerfile: apps/api/Dockerfile
     command: ["server"]
     env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-webhook_broadcast}:${POSTGRES_PASSWORD:-webhook_broadcast}@postgres:5432/${POSTGRES_DB:-webhook_broadcast}
+      REDIS_URL: redis://redis:6379
     ports:
       - "${PORT:-8080}:8080"
     depends_on:
@@ -70,6 +80,9 @@ services:
       dockerfile: apps/api/Dockerfile
     command: ["worker"]
     env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-webhook_broadcast}:${POSTGRES_PASSWORD:-webhook_broadcast}@postgres:5432/${POSTGRES_DB:-webhook_broadcast}
+      REDIS_URL: redis://redis:6379
     ports:
       - "${WORKER_HEALTH_PORT:-9091}:9091"
     depends_on:

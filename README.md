@@ -21,12 +21,15 @@ Node 24, pnpm 9+, Docker with Compose v2.
 
 ```bash
 pnpm install
-cp .env.example .env   # then start Postgres/Redis some other way, or via `docker compose up postgres redis`
+cp .env.example .env   # localhost:5433 Postgres, localhost:6380 Redis
+docker compose up -d postgres redis
+pnpm run migrate
 
-pnpm run dev:api        # Koa server on $PORT (default 8080)
-pnpm run dev:worker      # BullMQ worker + health server on $WORKER_HEALTH_PORT (default 9091)
-pnpm run dev:web         # Vite dev server on :5173
-pnpm run migrate         # apply pending Postgres migrations
+pnpm run dev            # api (:8080) + worker (:9091) + web (:5173)
+# or individually:
+# pnpm run dev:api
+# pnpm run dev:worker
+# pnpm run dev:web
 ```
 
 Required env vars (`DATABASE_URL`, `REDIS_URL`, `OPERATOR_API_KEY`) are Zod-validated at process
