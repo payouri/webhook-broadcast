@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChannelDetailPage } from "../src/pages/ChannelDetailPage.js";
+import { FRESHNESS_POLL_MS } from "../src/lib/freshness.js";
 import { requestMethod, readJsonBody, requestPath, stubFetchMock } from "./fetchMock.js";
 
 const CHANNEL_ID = "11111111-1111-1111-1111-111111111111";
@@ -101,6 +102,7 @@ describe("Channel Detail — Endpoints tab", () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -177,5 +179,67 @@ describe("Channel Detail — Endpoints tab", () => {
       ).toBe(true);
     });
     expect(await screen.findByText("Renamed")).toBeTruthy();
+  });
+
+  it("polls Endpoints every ~5s", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    render(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    await screen.findByText("Primary");
+
+    const endpointCalls = () =>
+      fetchMock.mock.calls.filter(
+        ([input, init]) =>
+          requestPath(input) === `/channels/${CHANNEL_ID}/endpoints` &&
+          requestMethod(input, init) === "GET",
+      ).length;
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const initialCalls = endpointCalls();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(FRESHNESS_POLL_MS);
+    });
+    expect(endpointCalls()).toBe(initialCalls + 1);
+  });
+
+  it("shows a Retry control when Endpoints fail to load", async () => {
+    let shouldFail = true;
+
+    fetchMock.mockImplementation(async (input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return jsonResponse(200, channelBody());
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return jsonResponse(200, { items: [], nextCursor: null });
+      }
+      if (path === `/channels/${CHANNEL_ID}/endpoints` && method === "GET") {
+        if (shouldFail) {
+          return jsonResponse(500, { error: { message: "server down" } });
+        }
+        return jsonResponse(200, { items: endpoints, nextCursor: null });
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    render(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
+
+    shouldFail = false;
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByText("Primary")).toBeTruthy();
   });
 });

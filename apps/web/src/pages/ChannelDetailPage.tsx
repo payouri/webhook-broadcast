@@ -6,13 +6,12 @@ import type {
   ChannelTokenCreated,
   Endpoint,
 } from "@webhook-broadcast/contract";
+import { InlineLoadError } from "../components/InlineLoadError.js";
 import { api } from "../lib/api.js";
+import { usePolling } from "../lib/freshness.js";
 import { DeliveryDetail } from "./DeliveryDetail.js";
 
 type Tab = "activity" | "endpoints" | "settings";
-
-/** ADR 0004: TanStack Query `refetchInterval` sketch, done here with a plain interval. */
-const ACTIVITY_POLL_MS = 5_000;
 
 export function ChannelDetailPage({
   channelId,
@@ -125,11 +124,7 @@ function ChannelActivityTab({ channelId }: { channelId: string }) {
     }
   }, [channelId]);
 
-  useEffect(() => {
-    void loadFirstPage();
-    const interval = setInterval(() => void loadFirstPage(), ACTIVITY_POLL_MS);
-    return () => clearInterval(interval);
-  }, [loadFirstPage]);
+  usePolling(loadFirstPage);
 
   async function handleLoadMore(): Promise<void> {
     if (!nextCursor) {
@@ -150,11 +145,7 @@ function ChannelActivityTab({ channelId }: { channelId: string }) {
   return (
     <section className="card">
       <h2>Activity</h2>
-      {error && (
-        <p className="error-text" role="alert">
-          {error}
-        </p>
-      )}
+      {error && <InlineLoadError message={error} onRetry={loadFirstPage} />}
       {items === null && !error && <p className="muted">Loading…</p>}
       {items !== null && items.length === 0 && (
         <p className="muted empty-state">
@@ -234,8 +225,9 @@ function BroadcastDetailPanel({
   useEffect(() => {
     setDetail(null);
     setError(null);
-    void load();
-  }, [load]);
+  }, [channelId, broadcastId]);
+
+  usePolling(load);
 
   async function handleReplay(): Promise<void> {
     setReplaying(true);
@@ -253,11 +245,7 @@ function BroadcastDetailPanel({
 
   return (
     <div className="broadcast-detail">
-      {error && (
-        <p className="error-text" role="alert">
-          {error}
-        </p>
-      )}
+      {error && <InlineLoadError message={error} onRetry={load} />}
       {!detail && !error && <p className="muted">Loading…</p>}
       {detail && (
         <>
@@ -491,9 +479,7 @@ function EndpointsTab({ channelId }: { channelId: string }) {
     }
   }, [channelId]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  usePolling(load);
 
   return (
     <div className="stack">
@@ -516,11 +502,7 @@ function EndpointsTab({ channelId }: { channelId: string }) {
 
       <section className="card">
         <h2>Endpoints</h2>
-        {error && (
-          <p className="error-text" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <InlineLoadError message={error} onRetry={load} />}
         {endpoints === null && !error && <p className="muted">Loading…</p>}
         {endpoints !== null && endpoints.length === 0 && (
           <p className="muted empty-state">No Endpoints yet — add one above.</p>

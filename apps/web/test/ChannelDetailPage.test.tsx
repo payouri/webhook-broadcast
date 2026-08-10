@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChannelDetailPage } from "../src/pages/ChannelDetailPage.js";
+import { FRESHNESS_POLL_MS } from "../src/lib/freshness.js";
 import { requestMethod, requestPath, stubFetchMock } from "./fetchMock.js";
 
 const CHANNEL_ID = "11111111-1111-1111-1111-111111111111";
@@ -27,6 +28,20 @@ function baseChannel(tokens: { id: string; prefix: string; createdAt: string }[]
   };
 }
 
+async function flushAsync(): Promise<void> {
+  await act(async () => {
+    await Promise.resolve();
+  });
+}
+
+function broadcastListCalls(fetchMock: ReturnType<typeof vi.fn>): number {
+  return fetchMock.mock.calls.filter(
+    ([input, init]) =>
+      requestPath(input) === `/channels/${CHANNEL_ID}/broadcasts` &&
+      requestMethod(input, init) === "GET",
+  ).length;
+}
+
 describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -37,6 +52,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -211,5 +227,132 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
       expect(replayCalled).toBe(true);
     });
     expect(await screen.findByText(/Replayed/)).toBeTruthy();
+  });
+
+  it("polls Activity every ~5s", async () => {
+    vi.useFakeTimers();
+
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    render(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    await flushAsync();
+    expect(broadcastListCalls(fetchMock)).toBe(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(FRESHNESS_POLL_MS);
+    });
+    expect(broadcastListCalls(fetchMock)).toBe(2);
+  });
+
+  it("shows a Retry control when Activity fails to load", async () => {
+    let shouldFail = true;
+
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        if (shouldFail) {
+          return Promise.resolve(jsonResponse(500, { error: { message: "server down" } }));
+        }
+        return Promise.resolve(
+          jsonResponse(200, {
+            items: [
+              {
+                id: "22222222-2222-2222-2222-222222222222",
+                channelId: CHANNEL_ID,
+                receivedAt: "2026-08-10T12:00:00.000Z",
+                bodyPreview: "recovered",
+                fanout: { total: 0, succeeded: 0, failed: 0, deadLettered: 0, pending: 0 },
+              },
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    render(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
+
+    shouldFail = false;
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByText("recovered")).toBeTruthy();
+  });
+
+  it("polls Broadcast detail while expanded", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const broadcastId = "44444444-4444-4444-4444-444444444444";
+    let detailCalls = 0;
+
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            items: [
+              {
+                id: broadcastId,
+                channelId: CHANNEL_ID,
+                receivedAt: "2026-08-10T12:00:00.000Z",
+                bodyPreview: "hello-world",
+                fanout: { total: 0, succeeded: 0, failed: 0, deadLettered: 0, pending: 0 },
+              },
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts/${broadcastId}` && method === "GET") {
+        detailCalls += 1;
+        return Promise.resolve(
+          jsonResponse(200, {
+            id: broadcastId,
+            channelId: CHANNEL_ID,
+            receivedAt: "2026-08-10T12:00:00.000Z",
+            contentType: "application/json",
+            body: "hello-world",
+            deliveries: [],
+          }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    render(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    fireEvent.click(await screen.findByText("hello-world"));
+    await flushAsync();
+    expect(detailCalls).toBe(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(FRESHNESS_POLL_MS);
+    });
+    expect(detailCalls).toBe(2);
   });
 });

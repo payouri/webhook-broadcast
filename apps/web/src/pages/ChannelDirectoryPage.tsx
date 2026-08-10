@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useState, type FormEvent } from "react";
 import type { Channel } from "@webhook-broadcast/contract";
+import { InlineLoadError } from "../components/InlineLoadError.js";
 import { api } from "../lib/api.js";
+import { usePolling } from "../lib/freshness.js";
 
 /** Landing page (ADR 0004): "which Channels exist and are they healthy?" */
 export function ChannelDirectoryPage({
@@ -25,9 +27,7 @@ export function ChannelDirectoryPage({
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  usePolling(load);
 
   async function handleCreate(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -79,11 +79,7 @@ export function ChannelDirectoryPage({
 
       <section className="card">
         <h2>Channels</h2>
-        {error && (
-          <p className="error-text" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <InlineLoadError message={error} onRetry={load} />}
         {channels === null && !error && <p className="muted">Loading…</p>}
         {channels !== null && channels.length === 0 && (
           <p className="muted empty-state">No Channels yet — create one above.</p>
