@@ -1,11 +1,17 @@
 import type { LoginResponse } from "@webhook-broadcast/contract";
 import { getAdminFetchClient } from "@webhook-broadcast/contract/client";
 
+export interface ApiErrorDetail {
+  path: string;
+  message: string;
+}
+
 export class ApiRequestError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
     message: string,
+    readonly details: ApiErrorDetail[] = [],
   ) {
     super(message);
     this.name = "ApiRequestError";
@@ -13,7 +19,39 @@ export class ApiRequestError extends Error {
 }
 
 interface ErrorResponseBody {
-  error?: { code?: string; message?: string };
+  error?: {
+    code?: string;
+    message?: string;
+    details?: ApiErrorDetail[];
+  };
+}
+
+/** Prefer Zod field details over the generic envelope message when present. */
+export function formatApiErrorMessage(
+  message: string | undefined,
+  details: ApiErrorDetail[] | undefined,
+  fallback: string,
+): string {
+  if (details && details.length > 0) {
+    return details
+      .map((detail) => {
+        if (detail.path.length === 0 || detail.message.toLowerCase().startsWith(detail.path.toLowerCase())) {
+          return detail.message;
+        }
+        return `${detail.path}: ${detail.message}`;
+      })
+      .join("; ");
+  }
+  return message && message.length > 0 ? message : fallback;
+}
+
+function throwApiError(status: number, body: ErrorResponseBody | undefined, fallback: string): never {
+  throw new ApiRequestError(
+    status,
+    body?.error?.code ?? "unknown",
+    formatApiErrorMessage(body?.error?.message, body?.error?.details, fallback),
+    body?.error?.details ?? [],
+  );
 }
 
 async function unwrap<T>(result: { data?: T; error?: unknown; response: Response }): Promise<T> {
@@ -22,11 +60,10 @@ async function unwrap<T>(result: { data?: T; error?: unknown; response: Response
   }
 
   if (result.error || !result.response.ok) {
-    const errorBody = result.error as ErrorResponseBody | undefined;
-    throw new ApiRequestError(
+    throwApiError(
       result.response.status,
-      errorBody?.error?.code ?? "unknown",
-      errorBody?.error?.message ?? result.response.statusText,
+      result.error as ErrorResponseBody | undefined,
+      result.response.statusText,
     );
   }
 
@@ -51,12 +88,7 @@ async function authRequest<TResponse>(path: string, init: RequestInit = {}): Pro
   const body: unknown = await response.json().catch(() => undefined);
 
   if (!response.ok) {
-    const errorBody = body as ErrorResponseBody | undefined;
-    throw new ApiRequestError(
-      response.status,
-      errorBody?.error?.code ?? "unknown",
-      errorBody?.error?.message ?? response.statusText,
-    );
+    throwApiError(response.status, body as ErrorResponseBody | undefined, response.statusText);
   }
 
   return body as TResponse;

@@ -55,10 +55,11 @@ export function ChannelDirectoryPage({
         <form className="inline-form" onSubmit={(event) => void handleCreate(event)}>
           <input
             aria-label="Slug"
-            placeholder="slug (e.g. orders)"
+            placeholder="slug (lowercase kebab-case, e.g. unipile-dev)"
             value={slug}
             onChange={(event) => setSlug(event.target.value)}
             required
+            title="Lowercase letters, digits, and hyphens only (e.g. unipile-dev)"
           />
           <input
             aria-label="Description"
