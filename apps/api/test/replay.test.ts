@@ -1,12 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { RedisContainer, type StartedRedisContainer } from "@testcontainers/redis";
-import type {
-  BroadcastDetail,
-  Channel,
-  ChannelTokenCreated,
-  Endpoint,
-} from "@webhook-broadcast/contract";
+import type { BroadcastDetail, Channel, ChannelTokenCreated } from "@webhook-broadcast/contract";
+import { insertEndpoint } from "@webhook-broadcast/db";
 import { Worker } from "bullmq";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
@@ -120,16 +117,18 @@ describe("replay → queue → worker → Attempt (process-boundary integration)
       }),
     );
     const channel = (await channelResponse.json()) as Channel;
-
-    const endpointResponse = await fetch(
-      `${apiBaseUrl}/channels/${channel.id}/endpoints`,
-      authed({
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: `${stubBaseUrl}/hook` }),
-      }),
-    );
-    const endpoint = (await endpointResponse.json()) as Endpoint;
+    const now = new Date();
+    const endpoint = await insertEndpoint(testDb.db, {
+      id: randomUUID(),
+      channelId: channel.id,
+      name: null,
+      url: `${stubBaseUrl}/hook`,
+      timeoutMs: null,
+      headers: {},
+      enabled: true,
+      createdAt: now,
+      updatedAt: now,
+    });
 
     const mintResponse = await fetch(
       `${apiBaseUrl}/channels/${channel.id}/tokens`,

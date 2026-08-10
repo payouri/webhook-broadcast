@@ -198,6 +198,53 @@ describe("Endpoint CRUD (HTTP admin seam)", () => {
     });
   });
 
+  it("rejects private and metadata endpoint URLs", async () => {
+    for (const url of [
+      "http://example.com/hook",
+      "https://127.0.0.1/hook",
+      "https://169.254.169.254/latest/meta-data",
+      "https://10.0.0.1/hook",
+    ]) {
+      const response = await fetch(
+        `${baseUrl}/channels/${channel.id}/endpoints`,
+        authed({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ url }),
+        }),
+      );
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        error: { code: "validation_failed" },
+      });
+    }
+  });
+
+  it("rejects patching an endpoint URL to a blocked target", async () => {
+    const createResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com/safe" }),
+      }),
+    );
+    const created = (await createResponse.json()) as Endpoint;
+
+    const patchResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints/${created.id}`,
+      authed({
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: "https://127.0.0.1/hook" }),
+      }),
+    );
+    expect(patchResponse.status).toBe(400);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      error: { code: "validation_failed" },
+    });
+  });
+
   it("404s creating/listing/getting/patching Endpoints under an unknown Channel id", async () => {
     const unknownChannelId = "00000000-0000-0000-0000-000000000000";
 

@@ -34,7 +34,8 @@ export type ErrorCode =
   | "conflict"
   | "validation_failed"
   | "payload_too_large"
-  | "internal_error";
+  | "internal_error"
+  | "rate_limited";
 
 export function errorBody(
   code: ErrorCode,

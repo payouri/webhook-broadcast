@@ -9,6 +9,10 @@ import {
   type Endpoint,
 } from "@webhook-broadcast/contract";
 import {
+  UnsafeEndpointUrlError,
+  assertSafeEndpointUrl,
+} from "@webhook-broadcast/contract/endpoint-url";
+import {
   decodeEndpointCursor,
   encodeEndpointCursor,
   EndpointUrlConflictError,
@@ -118,6 +122,17 @@ export function registerEndpointRoutes(router: Router, db: Database): void {
       return;
     }
 
+    try {
+      await assertSafeEndpointUrl(parsedBody.data.url);
+    } catch (error) {
+      if (error instanceof UnsafeEndpointUrlError) {
+        ctx.status = 400;
+        ctx.body = errorBody("validation_failed", error.message);
+        return;
+      }
+      throw error;
+    }
+
     const now = new Date();
     try {
       const row = await insertEndpoint(db, {
@@ -189,6 +204,19 @@ export function registerEndpointRoutes(router: Router, db: Database): void {
         toDetails(parsedBody.error),
       );
       return;
+    }
+
+    if (parsedBody.data.url) {
+      try {
+        await assertSafeEndpointUrl(parsedBody.data.url);
+      } catch (error) {
+        if (error instanceof UnsafeEndpointUrlError) {
+          ctx.status = 400;
+          ctx.body = errorBody("validation_failed", error.message);
+          return;
+        }
+        throw error;
+      }
     }
 
     try {

@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./env": "./src/env.ts",
+    "./endpoint-url": "./src/endpointUrl.ts",
     "./client": "./src/generated/admin-client.ts"
   },
   "scripts": {

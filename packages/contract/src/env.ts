@@ -21,6 +21,12 @@ export const envSchema = z.object({
   DELIVERY_BACKOFF_MAX_MS: z.coerce.number().int().positive().default(3_600_000),
   ENDPOINT_AUTO_DISABLE_AFTER_MS: z.coerce.number().int().positive().default(3_600_000),
   COOKIE_NAME: z.string().default("wb_operator"),
+  TRUST_PROXY: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  LOGIN_RATE_LIMIT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+  LOGIN_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
 });
 
 export type Env = z.infer<typeof envSchema>;

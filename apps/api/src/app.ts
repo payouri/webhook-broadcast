@@ -10,6 +10,7 @@ import { registerEndpointRoutes } from "./admin/endpoints.js";
 import { registerChannelTokenRoutes } from "./admin/tokens.js";
 import { registerBroadcastRoutes } from "./admin/broadcasts.js";
 import { registerDeliveryRoutes } from "./admin/deliveries.js";
+import { mergeIngestHeaderDenylist } from "./ingest/headers.js";
 import { registerIngestRoutes } from "./ingest/routes.js";
 import type { DeliveryQueue } from "./deliveryQueue.js";
 import type { MetricsCollector } from "./observability/metrics.js";
@@ -22,6 +23,10 @@ export interface AppDeps {
   deliveryQueue: DeliveryQueue;
   operatorApiKey: string;
   cookieName: string;
+  cookieSecure?: boolean;
+  trustProxy?: boolean;
+  loginRateLimitMaxAttempts?: number;
+  loginRateLimitWindowMs?: number;
   ingestMaxBodyBytes?: number;
   ingestHeaderAllowlist?: string[];
   ingestHeaderDenylist?: string[];
@@ -39,7 +44,7 @@ export function createApp(deps: AppDeps): Koa {
     deliveryQueue: deps.deliveryQueue,
     maxBodyBytes: deps.ingestMaxBodyBytes ?? DEFAULT_INGEST_MAX_BODY_BYTES,
     headerAllowlist: deps.ingestHeaderAllowlist ?? [],
-    headerDenylist: deps.ingestHeaderDenylist ?? [],
+    headerDenylist: mergeIngestHeaderDenylist(deps.ingestHeaderDenylist ?? []),
     ...(deps.metrics ? { metrics: deps.metrics } : {}),
   });
 
@@ -64,7 +69,14 @@ export function createApp(deps: AppDeps): Koa {
     });
   }
 
-  registerAuthRoutes(router, { operatorApiKey: deps.operatorApiKey, cookieName: deps.cookieName });
+  registerAuthRoutes(router, {
+    operatorApiKey: deps.operatorApiKey,
+    cookieName: deps.cookieName,
+    cookieSecure: deps.cookieSecure ?? false,
+    trustProxy: deps.trustProxy ?? false,
+    loginRateLimitMaxAttempts: deps.loginRateLimitMaxAttempts ?? 5,
+    loginRateLimitWindowMs: deps.loginRateLimitWindowMs ?? 60_000,
+  });
 
   const adminRouter = new Router();
   adminRouter.use(

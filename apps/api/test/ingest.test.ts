@@ -95,6 +95,7 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
         "content-type": "application/json",
         "x-secret": "should-be-dropped",
         "x-request-id": "abc-123",
+        cookie: "session=abc",
       },
       body: JSON.stringify({ hello: "world" }),
     });
@@ -156,17 +157,19 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
     expect(response.status).toBe(401);
   });
 
-  it("rejects ingest for an unknown slug", async () => {
+  it("rejects ingest for an unknown slug with the same response as a bad token", async () => {
     const response = await fetch(`${baseUrl}/ingest/does-not-exist`, {
       method: "POST",
       headers: { authorization: "Bearer whatever" },
       body: "hi",
     });
-    expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toMatchObject({ error: { code: "not_found" } });
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "unauthorized", message: "invalid ingest token" },
+    });
   });
 
-  it("rejects ingest for a disabled Channel", async () => {
+  it("rejects ingest for a disabled Channel without revealing channel state", async () => {
     const channel = await createChannel({ slug: "orders", enabled: false });
     const token = await mintToken(channel.id);
 
@@ -175,10 +178,13 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
       headers: { authorization: `Bearer ${token}` },
       body: "hi",
     });
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "unauthorized", message: "invalid ingest token" },
+    });
   });
 
-  it("rejects ingest for a soft-deleted Channel", async () => {
+  it("rejects ingest for a soft-deleted Channel without revealing channel state", async () => {
     const channel = await createChannel({ slug: "orders" });
     const token = await mintToken(channel.id);
     await fetch(`${baseUrl}/channels/${channel.id}`, authed({ method: "DELETE" }));
@@ -188,7 +194,10 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
       headers: { authorization: `Bearer ${token}` },
       body: "hi",
     });
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "unauthorized", message: "invalid ingest token" },
+    });
   });
 
   it("rejects a body over INGEST_MAX_BODY_BYTES with 413", async () => {

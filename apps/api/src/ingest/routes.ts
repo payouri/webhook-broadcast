@@ -36,17 +36,17 @@ export function registerIngestRoutes(router: Router, config: IngestRouteConfig):
   router.post("/ingest/:slug", async (ctx) => {
     const { slug } = ctx.params as { slug: string };
 
-    const channel = await getActiveChannelBySlug(config.db, slug);
-    if (!channel) {
-      ctx.status = 404;
-      ctx.body = errorBody("not_found", "channel not found");
-      return;
-    }
-
     const token = extractBearerToken(ctx.headers.authorization);
     if (!token) {
       ctx.status = 401;
       ctx.body = errorBody("unauthorized", "missing ingest token");
+      return;
+    }
+
+    const channel = await getActiveChannelBySlug(config.db, slug);
+    if (!channel) {
+      ctx.status = 401;
+      ctx.body = errorBody("unauthorized", "invalid ingest token");
       return;
     }
 

@@ -1,6 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import type { Channel, ChannelTokenCreated, Endpoint } from "@webhook-broadcast/contract";
+import type { Channel, ChannelTokenCreated } from "@webhook-broadcast/contract";
+import { insertEndpoint } from "@webhook-broadcast/db";
 import { Queue, Worker } from "bullmq";
 import { RedisContainer, type StartedRedisContainer } from "@testcontainers/redis";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -210,16 +212,18 @@ describe("observability (metrics and structured logs)", () => {
         body: JSON.stringify({ slug: "orders" }),
       });
       const channel = (await channelResponse.json()) as Channel;
-
-      const endpointResponse = await fetch(`${apiBaseUrl}/channels/${channel.id}/endpoints`, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${OPERATOR_API_KEY}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ url: `${stubBaseUrl}/ok` }),
+      const now = new Date();
+      const endpoint = await insertEndpoint(testDb.db, {
+        id: randomUUID(),
+        channelId: channel.id,
+        name: null,
+        url: `${stubBaseUrl}/ok`,
+        timeoutMs: null,
+        headers: {},
+        enabled: true,
+        createdAt: now,
+        updatedAt: now,
       });
-      const endpoint = (await endpointResponse.json()) as Endpoint;
 
       const mintResponse = await fetch(`${apiBaseUrl}/channels/${channel.id}/tokens`, {
         method: "POST",

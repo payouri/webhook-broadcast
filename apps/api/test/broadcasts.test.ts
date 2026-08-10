@@ -364,7 +364,7 @@ describe("Broadcast replay — POST .../broadcasts/:broadcastId/replay (admin HT
 
   it("202s with a new Broadcast id, fanning out to currently enabled Endpoints without a new ingest", async () => {
     const channel = await createChannel("orders");
-    const endpoint = await createEndpoint(channel.id, { url: "http://127.0.0.1:1/hook" });
+    const endpoint = await createEndpoint(channel.id, { url: "https://example.com/hook" });
     const payload = JSON.stringify({ orderId: "abc-123" });
     const originalId = await ingest(channel.id, "orders", payload);
 
@@ -396,12 +396,12 @@ describe("Broadcast replay — POST .../broadcasts/:broadcastId/replay (admin HT
 
   it("fans out to Endpoints enabled at replay time, not at original ingest time", async () => {
     const channel = await createChannel("orders");
-    const staysEnabled = await createEndpoint(channel.id, { url: "http://127.0.0.1:1/keep" });
-    const getsDisabled = await createEndpoint(channel.id, { url: "http://127.0.0.1:1/drop" });
+    const staysEnabled = await createEndpoint(channel.id, { url: "https://example.com/keep" });
+    const getsDisabled = await createEndpoint(channel.id, { url: "https://example.com/drop" });
     const originalId = await ingest(channel.id, "orders", "{}");
 
     await setEndpointEnabled(channel.id, getsDisabled.id, false);
-    const addedLater = await createEndpoint(channel.id, { url: "http://127.0.0.1:1/added" });
+    const addedLater = await createEndpoint(channel.id, { url: "https://example.com/added" });
 
     const response = await fetch(
       `${baseUrl}/channels/${channel.id}/broadcasts/${originalId}/replay`,
@@ -434,7 +434,7 @@ describe("Broadcast replay — POST .../broadcasts/:broadcastId/replay (admin HT
 
   it("replaying twice creates two independent sets of Deliveries", async () => {
     const channel = await createChannel("orders");
-    const endpoint = await createEndpoint(channel.id, { url: "http://127.0.0.1:1/hook" });
+    const endpoint = await createEndpoint(channel.id, { url: "https://example.com/hook" });
     const originalId = await ingest(channel.id, "orders", "{}");
 
     const firstReplay = await fetch(

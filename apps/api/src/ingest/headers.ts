@@ -1,5 +1,19 @@
 import type { IncomingHttpHeaders } from "node:http";
 
+/** Always stripped from persisted ingest headers unless explicitly allowlisted. */
+export const DEFAULT_INGEST_HEADER_DENYLIST = [
+  "authorization",
+  "cookie",
+  "set-cookie",
+  "proxy-authorization",
+  "x-api-key",
+  "x-auth-token",
+] as const;
+
+export function mergeIngestHeaderDenylist(envDenylist: string[]): string[] {
+  return [...new Set([...DEFAULT_INGEST_HEADER_DENYLIST, ...envDenylist])];
+}
+
 export function parseHeaderList(value: string): string[] {
   return value
     .split(",")

@@ -102,6 +102,85 @@ describe("Admin auth + Channel CRUD (HTTP seam)", () => {
         error: { code: "unauthorized", message: expect.any(String) },
       });
     });
+
+    it("rate-limits repeated failed login attempts from the same IP", async () => {
+      const app = createApp({
+        db: testDb.db,
+        deliveryQueue: new FakeDeliveryQueue(),
+        operatorApiKey: OPERATOR_API_KEY,
+        cookieName: COOKIE_NAME,
+        loginRateLimitMaxAttempts: 2,
+        loginRateLimitWindowMs: 60_000,
+      });
+      const rateLimitedServer = createServer(app.callback());
+      await new Promise<void>((resolve) => rateLimitedServer.listen(0, resolve));
+      const { port } = rateLimitedServer.address() as AddressInfo;
+      const loginUrl = `http://127.0.0.1:${port}/auth/login`;
+
+      try {
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const response = await fetch(loginUrl, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ apiKey: "wrong-key" }),
+          });
+          expect(response.status).toBe(401);
+        }
+
+        const blocked = await fetch(loginUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ apiKey: "wrong-key" }),
+        });
+        expect(blocked.status).toBe(429);
+        await expect(blocked.json()).resolves.toMatchObject({
+          error: { code: "rate_limited" },
+        });
+      } finally {
+        await new Promise<void>((resolve) => rateLimitedServer.close(() => resolve()));
+      }
+    });
+
+    it("sets a Secure session cookie when trustProxy sees HTTPS", async () => {
+      const app = createApp({
+        db: testDb.db,
+        deliveryQueue: new FakeDeliveryQueue(),
+        operatorApiKey: OPERATOR_API_KEY,
+        cookieName: COOKIE_NAME,
+        trustProxy: true,
+      });
+      const secureServer = createServer(app.callback());
+      await new Promise<void>((resolve) => secureServer.listen(0, resolve));
+      const { port } = secureServer.address() as AddressInfo;
+
+      try {
+        const loginResponse = await fetch(`http://127.0.0.1:${port}/auth/login`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-forwarded-proto": "https",
+          },
+          body: JSON.stringify({ apiKey: OPERATOR_API_KEY }),
+        });
+        expect(loginResponse.status).toBe(200);
+        expect(loginResponse.headers.get("set-cookie")).toMatch(/Secure/i);
+      } finally {
+        await new Promise<void>((resolve) => secureServer.close(() => resolve()));
+      }
+    });
+
+    it("does not trust X-Forwarded-Proto for Secure unless trustProxy is enabled", async () => {
+      const loginResponse = await fetch(`${baseUrl}/auth/login`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-proto": "https",
+        },
+        body: JSON.stringify({ apiKey: OPERATOR_API_KEY }),
+      });
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.headers.get("set-cookie")).not.toMatch(/Secure/i);
+    });
   });
 
   describe("Channel CRUD", () => {

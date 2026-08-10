@@ -1,10 +1,15 @@
 import type Router from "@koa/router";
 import { errorBody, loginRequestSchema } from "@webhook-broadcast/contract";
 import { safeEqual } from "./auth.js";
+import { LoginRateLimiter } from "./loginRateLimit.js";
 
 export interface AuthRouteConfig {
   operatorApiKey: string;
   cookieName: string;
+  cookieSecure: boolean;
+  trustProxy: boolean;
+  loginRateLimitMaxAttempts: number;
+  loginRateLimitWindowMs: number;
 }
 
 /**
@@ -14,7 +19,18 @@ export interface AuthRouteConfig {
  * carried in an HttpOnly cookie so the dashboard never stores it in JS.
  */
 export function registerAuthRoutes(router: Router, config: AuthRouteConfig): void {
+  const loginRateLimiter = new LoginRateLimiter({
+    maxAttempts: config.loginRateLimitMaxAttempts,
+    windowMs: config.loginRateLimitWindowMs,
+  });
+
   router.post("/auth/login", async (ctx) => {
+    if (!loginRateLimiter.tryConsume(ctx.ip)) {
+      ctx.status = 429;
+      ctx.body = errorBody("rate_limited", "too many login attempts");
+      return;
+    }
+
     const parsed = loginRequestSchema.safeParse(ctx.request.body);
     if (!parsed.success) {
       ctx.status = 400;
@@ -31,11 +47,10 @@ export function registerAuthRoutes(router: Router, config: AuthRouteConfig): voi
     ctx.cookies.set(config.cookieName, config.operatorApiKey, {
       httpOnly: true,
       sameSite: "lax",
-      // `ctx.secure` (with `app.proxy = true`) reflects `X-Forwarded-Proto`
-      // behind a TLS-terminating reverse proxy — a static "are we in prod"
-      // flag would either reject plain-HTTP compose deployments or send an
-      // insecure cookie behind TLS.
-      secure: ctx.secure,
+      // Honor X-Forwarded-Proto only when explicitly configured; otherwise
+      // derive Secure from boot config so a directly exposed API cannot be
+      // tricked into issuing a session cookie over plain HTTP.
+      secure: config.trustProxy ? ctx.secure : config.cookieSecure,
       path: "/",
     });
     ctx.status = 200;
