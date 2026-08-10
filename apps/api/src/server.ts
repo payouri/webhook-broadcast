@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { createDb } from "@webhook-broadcast/db";
 import { bootEnv } from "./config.js";
 import { createApp } from "./app.js";
+import { parseHeaderList } from "./ingest/headers.js";
 
 const env = bootEnv();
 const { db, pool } = createDb(env.DATABASE_URL);
@@ -9,6 +10,9 @@ const app = createApp({
   db,
   operatorApiKey: env.OPERATOR_API_KEY,
   cookieName: env.COOKIE_NAME,
+  ingestMaxBodyBytes: env.INGEST_MAX_BODY_BYTES,
+  ingestHeaderAllowlist: parseHeaderList(env.INGEST_HEADER_ALLOWLIST),
+  ingestHeaderDenylist: parseHeaderList(env.INGEST_HEADER_DENYLIST),
 });
 const server = createServer(app.callback());
 

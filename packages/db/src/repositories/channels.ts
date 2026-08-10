@@ -80,6 +80,22 @@ export async function getChannelById(db: Database, id: string): Promise<ChannelR
   return row;
 }
 
+/**
+ * Ingest-only lookup: a disabled or soft-deleted Channel must reject the same
+ * way as an unknown slug (issue #17 AC), so this folds both checks into one
+ * query instead of leaking "exists but disabled" as a distinct outcome.
+ */
+export async function getActiveChannelBySlug(
+  db: Database,
+  slug: string,
+): Promise<ChannelRow | undefined> {
+  const [row] = await db
+    .select()
+    .from(channels)
+    .where(and(eq(channels.slug, slug), eq(channels.enabled, true), isNull(channels.deletedAt)));
+  return row;
+}
+
 export interface ChannelCursor {
   slug: string;
   id: string;

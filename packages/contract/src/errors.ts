@@ -23,7 +23,12 @@ export const errorEnvelopeSchema = z.object({
 export type ErrorEnvelope = z.infer<typeof errorEnvelopeSchema>;
 
 export type ErrorCode =
-  "unauthorized" | "not_found" | "conflict" | "validation_failed" | "internal_error";
+  | "unauthorized"
+  | "not_found"
+  | "conflict"
+  | "validation_failed"
+  | "payload_too_large"
+  | "internal_error";
 
 export function errorBody(
   code: ErrorCode,

@@ -1,6 +1,8 @@
 import type {
+  BroadcastList,
   Channel,
   ChannelList,
+  ChannelTokenCreated,
   Endpoint,
   EndpointList,
   LoginResponse,
@@ -103,4 +105,12 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),
+  listBroadcasts: (channelId: string, cursor?: string) =>
+    request<BroadcastList>(
+      `/channels/${channelId}/broadcasts${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+    ),
+  createChannelToken: (channelId: string) =>
+    request<ChannelTokenCreated>(`/channels/${channelId}/tokens`, { method: "POST" }),
+  revokeChannelToken: (channelId: string, tokenId: string) =>
+    request<void>(`/channels/${channelId}/tokens/${tokenId}`, { method: "DELETE" }),
 };

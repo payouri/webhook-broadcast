@@ -7,7 +7,7 @@ export interface OperatorAuthConfig {
   cookieName: string;
 }
 
-function extractBearerToken(header: string | undefined): string | undefined {
+export function extractBearerToken(header: string | undefined): string | undefined {
   if (!header) {
     return undefined;
   }

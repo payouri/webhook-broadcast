@@ -7,16 +7,33 @@ import { createOperatorAuthMiddleware } from "./admin/auth.js";
 import { registerAuthRoutes } from "./admin/authRoutes.js";
 import { registerChannelRoutes } from "./admin/channels.js";
 import { registerEndpointRoutes } from "./admin/endpoints.js";
+import { registerChannelTokenRoutes } from "./admin/tokens.js";
+import { registerBroadcastRoutes } from "./admin/broadcasts.js";
+import { registerIngestRoutes } from "./ingest/routes.js";
+
+/** Mirrors ADR 0008's `INGEST_MAX_BODY_BYTES` default. */
+const DEFAULT_INGEST_MAX_BODY_BYTES = 1_048_576;
 
 export interface AppDeps {
   db: Database;
   operatorApiKey: string;
   cookieName: string;
+  ingestMaxBodyBytes?: number;
+  ingestHeaderAllowlist?: string[];
+  ingestHeaderDenylist?: string[];
 }
 
 export function createApp(deps: AppDeps): Koa {
   const app = new Koa();
   app.proxy = true;
+
+  const ingestRouter = new Router();
+  registerIngestRoutes(ingestRouter, {
+    db: deps.db,
+    maxBodyBytes: deps.ingestMaxBodyBytes ?? DEFAULT_INGEST_MAX_BODY_BYTES,
+    headerAllowlist: deps.ingestHeaderAllowlist ?? [],
+    headerDenylist: deps.ingestHeaderDenylist ?? [],
+  });
 
   const router = new Router();
 
@@ -48,6 +65,8 @@ export function createApp(deps: AppDeps): Koa {
   });
   registerChannelRoutes(adminRouter, deps.db);
   registerEndpointRoutes(adminRouter, deps.db);
+  registerChannelTokenRoutes(adminRouter, deps.db);
+  registerBroadcastRoutes(adminRouter, deps.db);
   router.use(adminRouter.routes(), adminRouter.allowedMethods());
 
   app.use(async (ctx, next) => {
@@ -59,6 +78,10 @@ export function createApp(deps: AppDeps): Koa {
       ctx.body = errorBody("internal_error", "internal server error");
     }
   });
+  // Ingest reads its own raw, unparsed body (see ingest/routes.ts) and must
+  // run before @koa/bodyparser; unmatched paths fall through via `next()`.
+  app.use(ingestRouter.routes());
+  app.use(ingestRouter.allowedMethods());
   app.use(bodyParser());
   app.use(router.routes());
   app.use(router.allowedMethods());

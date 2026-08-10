@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import type { Channel, Endpoint } from "@webhook-broadcast/contract";
+import type {
+  BroadcastListItem,
+  Channel,
+  ChannelTokenCreated,
+  Endpoint,
+} from "@webhook-broadcast/contract";
 import { api } from "../lib/api.js";
 
 type Tab = "activity" | "endpoints" | "settings";
+
+/** ADR 0004: TanStack Query `refetchInterval` sketch, done here with a plain interval. */
+const ACTIVITY_POLL_MS = 5_000;
 
 export function ChannelDetailPage({
   channelId,
@@ -13,7 +21,7 @@ export function ChannelDetailPage({
 }) {
   const [channel, setChannel] = useState<Channel | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("settings");
+  const [tab, setTab] = useState<Tab>("activity");
 
   const load = useCallback(async () => {
     try {
@@ -49,9 +57,12 @@ export function ChannelDetailPage({
             <h2>{channel.slug}</h2>
           </header>
 
-          {/* ADR 0004: the Activity tab lands with a later slice. */}
           <nav className="tabs">
-            <button type="button" className="tab" disabled title="Coming soon">
+            <button
+              type="button"
+              className={`tab ${tab === "activity" ? "tab-active" : ""}`}
+              onClick={() => setTab("activity")}
+            >
               Activity
             </button>
             <button
@@ -70,11 +81,200 @@ export function ChannelDetailPage({
             </button>
           </nav>
 
+          {tab === "activity" && <ChannelActivityTab channelId={channelId} />}
           {tab === "endpoints" && <EndpointsTab channelId={channel.id} />}
-          {tab === "settings" && <ChannelSettingsForm channel={channel} onSaved={setChannel} />}
+          {tab === "settings" && (
+            <>
+              <ChannelSettingsForm channel={channel} onSaved={setChannel} />
+              <ChannelTokensPanel channelId={channelId} />
+            </>
+          )}
         </>
       )}
     </div>
+  );
+}
+
+function fanoutLabel(fanout: BroadcastListItem["fanout"]): string {
+  if (fanout.total === 0) {
+    return "no Endpoints yet";
+  }
+  return `${fanout.succeeded}/${fanout.total} succeeded${
+    fanout.deadLettered > 0 ? `, ${fanout.deadLettered} dead-lettered` : ""
+  }`;
+}
+
+/** Channel Activity (ADR 0004): newest-first Broadcasts, ~5s poll, cursor "load more". */
+function ChannelActivityTab({ channelId }: { channelId: string }) {
+  const [items, setItems] = useState<BroadcastListItem[] | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const loadFirstPage = useCallback(async () => {
+    try {
+      const page = await api.listBroadcasts(channelId);
+      setItems(page.items);
+      setNextCursor(page.nextCursor);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load Activity");
+    }
+  }, [channelId]);
+
+  useEffect(() => {
+    void loadFirstPage();
+    const interval = setInterval(() => void loadFirstPage(), ACTIVITY_POLL_MS);
+    return () => clearInterval(interval);
+  }, [loadFirstPage]);
+
+  async function handleLoadMore(): Promise<void> {
+    if (!nextCursor) {
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      const page = await api.listBroadcasts(channelId, nextCursor);
+      setItems((current) => [...(current ?? []), ...page.items]);
+      setNextCursor(page.nextCursor);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load more Activity");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  return (
+    <section className="card">
+      <h2>Activity</h2>
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+      {items === null && !error && <p className="muted">Loading…</p>}
+      {items !== null && items.length === 0 && (
+        <p className="muted empty-state">
+          No Broadcasts yet — send a request to <code>POST /ingest/&lt;slug&gt;</code> with a
+          Channel token.
+        </p>
+      )}
+      {items !== null && items.length > 0 && (
+        <>
+          <ul className="activity-list">
+            {items.map((item) => (
+              <li key={item.id} className="activity-row">
+                <span className="activity-time">{new Date(item.receivedAt).toLocaleString()}</span>
+                <span className="activity-preview">{item.bodyPreview || "(empty body)"}</span>
+                <span className="muted activity-fanout">{fanoutLabel(item.fanout)}</span>
+              </li>
+            ))}
+          </ul>
+          {nextCursor && (
+            <button
+              type="button"
+              className="button-ghost"
+              onClick={() => void handleLoadMore()}
+              disabled={loadingMore}
+            >
+              {loadingMore ? "Loading…" : "Load more"}
+            </button>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+/** Settings tab token management (ADR 0004/0005): mint once, list id/prefix/createdAt, revoke. */
+function ChannelTokensPanel({ channelId }: { channelId: string }) {
+  const [tokens, setTokens] = useState<Channel["tokens"] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [minting, setMinting] = useState(false);
+  const [mintedToken, setMintedToken] = useState<ChannelTokenCreated | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const channel = await api.getChannel(channelId);
+      setTokens(channel.tokens);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load tokens");
+    }
+  }, [channelId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function handleMint(): Promise<void> {
+    setMinting(true);
+    setError(null);
+    try {
+      const created = await api.createChannelToken(channelId);
+      setMintedToken(created);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to mint token");
+    } finally {
+      setMinting(false);
+    }
+  }
+
+  async function handleRevoke(tokenId: string): Promise<void> {
+    setError(null);
+    try {
+      await api.revokeChannelToken(channelId, tokenId);
+      if (mintedToken?.id === tokenId) {
+        setMintedToken(null);
+      }
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to revoke token");
+    }
+  }
+
+  return (
+    <section className="card stack">
+      <h2>Ingest tokens</h2>
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+
+      {mintedToken && (
+        <p className="success-text">
+          New token (shown once): <code>{mintedToken.token}</code>
+        </p>
+      )}
+
+      {tokens === null && !error && <p className="muted">Loading…</p>}
+      {tokens !== null && tokens.length === 0 && (
+        <p className="muted empty-state">No ingest tokens yet — mint one below.</p>
+      )}
+      {tokens !== null && tokens.length > 0 && (
+        <ul className="token-list">
+          {tokens.map((token) => (
+            <li key={token.id} className="token-row">
+              <span className="token-prefix">{token.prefix}…</span>
+              <span className="muted">{new Date(token.createdAt).toLocaleString()}</span>
+              <button
+                type="button"
+                className="button-ghost"
+                onClick={() => void handleRevoke(token.id)}
+              >
+                Revoke
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <button type="button" onClick={() => void handleMint()} disabled={minting}>
+        {minting ? "Minting…" : "Mint new token"}
+      </button>
+    </section>
   );
 }
 

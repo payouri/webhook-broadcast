@@ -5,6 +5,7 @@ export {
   ChannelSlugConflictError,
   insertChannel,
   getChannelById,
+  getActiveChannelBySlug,
   listChannels,
   updateChannel,
   softDeleteChannel,
@@ -27,3 +28,20 @@ export {
   type EndpointRow,
   type EndpointCursor,
 } from "./repositories/endpoints.js";
+export {
+  insertChannelToken,
+  revokeChannelToken,
+  findChannelTokenByHash,
+  type ChannelTokenRow,
+} from "./repositories/channelTokens.js";
+export {
+  insertBroadcast,
+  listBroadcastsByChannel,
+  getFanoutSummariesByBroadcastIds,
+  encodeBroadcastCursor,
+  decodeBroadcastCursor,
+  EMPTY_FANOUT_SUMMARY,
+  type BroadcastRow,
+  type BroadcastCursor,
+  type FanoutSummaryRow,
+} from "./repositories/broadcasts.js";

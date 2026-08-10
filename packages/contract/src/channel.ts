@@ -9,6 +9,14 @@ export const channelTokenSummarySchema = z.object({
   createdAt: dateTimeSchema,
 });
 
+export const channelTokenCreatedSchema = z.object({
+  id: idSchema,
+  token: z.string(),
+  createdAt: dateTimeSchema,
+});
+
+export type ChannelTokenCreated = z.infer<typeof channelTokenCreatedSchema>;
+
 export const channelSchema = z.object({
   id: idSchema,
   slug: z.string().min(1),
