@@ -1,5 +1,6 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import type { Database } from "@webhook-broadcast/db";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 
@@ -8,7 +9,12 @@ describe("API liveness and readiness probes", () => {
   let baseUrl: string;
 
   beforeEach(async () => {
-    const app = createApp();
+    // Liveness/readiness never touch Postgres, so a real pool is unnecessary here.
+    const app = createApp({
+      db: {} as Database,
+      operatorApiKey: "test-operator-key",
+      cookieName: "wb_operator",
+    });
     server = createServer(app.callback());
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const { port } = server.address() as AddressInfo;

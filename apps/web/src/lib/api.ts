@@ -1,0 +1,73 @@
+import type { Channel, ChannelList, LoginResponse } from "@webhook-broadcast/contract";
+
+export class ApiRequestError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
+interface ErrorResponseBody {
+  error?: { code?: string; message?: string };
+}
+
+/**
+ * Same-origin fetch (see apps/web/vite.config.ts dev proxy and
+ * apps/web/nginx.conf) — the HttpOnly session cookie only survives the trip
+ * when the browser treats the admin API as same-site.
+ */
+async function request<TResponse>(path: string, init: RequestInit = {}): Promise<TResponse> {
+  const response = await fetch(path, {
+    ...init,
+    credentials: "include",
+    headers: { "content-type": "application/json", ...init.headers },
+  });
+
+  if (response.status === 204) {
+    return undefined as TResponse;
+  }
+
+  const body: unknown = await response.json().catch(() => undefined);
+
+  if (!response.ok) {
+    const errorBody = body as ErrorResponseBody | undefined;
+    throw new ApiRequestError(
+      response.status,
+      errorBody?.error?.code ?? "unknown",
+      errorBody?.error?.message ?? response.statusText,
+    );
+  }
+
+  return body as TResponse;
+}
+
+export interface ChannelInput {
+  slug: string;
+  description?: string | undefined;
+  enabled?: boolean | undefined;
+}
+
+export interface ChannelPatch {
+  slug?: string;
+  description?: string | null;
+  enabled?: boolean;
+}
+
+export const api = {
+  login: (apiKey: string) =>
+    request<LoginResponse>("/auth/login", { method: "POST", body: JSON.stringify({ apiKey }) }),
+  logout: () => request<void>("/auth/logout", { method: "POST" }),
+  session: () => request<{ ok: true }>("/auth/session"),
+  listChannels: () => request<ChannelList>("/channels"),
+  createChannel: (input: ChannelInput) =>
+    request<Channel>("/channels", { method: "POST", body: JSON.stringify(input) }),
+  getChannel: (channelId: string) => request<Channel>(`/channels/${channelId}`),
+  updateChannel: (channelId: string, patch: ChannelPatch) =>
+    request<Channel>(`/channels/${channelId}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  deleteChannel: (channelId: string) =>
+    request<void>(`/channels/${channelId}`, { method: "DELETE" }),
+};

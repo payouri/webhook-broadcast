@@ -4,7 +4,7 @@ import {
   EnvValidationError,
   type Env,
   type MigrateEnv,
-} from "@webhook-broadcast/contract";
+} from "@webhook-broadcast/contract/env";
 
 /**
  * Fail-fast entrypoint: any command that boots (server, worker, migrate)
