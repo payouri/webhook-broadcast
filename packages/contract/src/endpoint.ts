@@ -11,6 +11,10 @@ export const endpointSchema = z.object({
   timeoutMs: z.number().int().min(1).nullable(),
   headers: headersSchema,
   enabled: z.boolean(),
+  autoDisabledAt: dateTimeSchema.nullable().optional(),
+  successRate24h: z.number().min(0).max(1).nullable().optional(),
+  p95Ms: z.number().int().nullable().optional(),
+  lastSuccessAt: dateTimeSchema.nullable().optional(),
   createdAt: dateTimeSchema,
   updatedAt: dateTimeSchema,
 });

@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import {
   createDeliveriesForBroadcast,
   getDeliveryForProcessing,
+  getEndpointById,
   insertBroadcast,
   insertChannel,
   insertEndpoint,
@@ -62,7 +63,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     endpointUrl: string;
     timeoutMs?: number | null;
     headers?: Record<string, string>;
-  }): Promise<string> {
+  }): Promise<{ deliveryId: string; endpointId: string; channelId: string }> {
     const now = new Date();
     const channel = await insertChannel(testDb.db, {
       id: randomUUID(),
@@ -100,6 +101,31 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     if (!delivery) {
       throw new Error("expected a Delivery row");
     }
+    return { deliveryId: delivery.id, endpointId: endpoint.id, channelId: channel.id };
+  }
+
+  async function seedAnotherDelivery(input: {
+    channelId: string;
+    endpointId: string;
+    now: Date;
+  }): Promise<string> {
+    const broadcast = await insertBroadcast(testDb.db, {
+      id: randomUUID(),
+      channelId: input.channelId,
+      receivedAt: input.now,
+      contentType: "application/json",
+      body: Buffer.from(JSON.stringify({ again: true })),
+      headers: {},
+    });
+    const [delivery] = await createDeliveriesForBroadcast(testDb.db, {
+      broadcastId: broadcast.id,
+      channelId: input.channelId,
+      endpointIds: [input.endpointId],
+      now: input.now,
+    });
+    if (!delivery) {
+      throw new Error("expected a Delivery row");
+    }
     return delivery.id;
   }
 
@@ -121,7 +147,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       res.writeHead(200, { "content-type": "text/plain" });
       res.end("ok");
     };
-    const deliveryId = await seedDelivery({ endpointUrl: stubUrl });
+    const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl });
 
     await processDeliveryJob(baseDeps(), deliveryId);
 
@@ -140,7 +166,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       res.writeHead(404);
       res.end("not found");
     };
-    const deliveryId = await seedDelivery({ endpointUrl: stubUrl });
+    const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl });
 
     await processDeliveryJob(baseDeps(), deliveryId);
 
@@ -158,7 +184,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       res.writeHead(500);
       res.end("boom");
     };
-    const deliveryId = await seedDelivery({ endpointUrl: stubUrl });
+    const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl });
     const deps = baseDeps({ maxAttempts: 3, backoffBaseMs: 1, backoffMaxMs: 10 });
 
     await expect(processDeliveryJob(deps, deliveryId)).rejects.toThrow(RetryableDeliveryError);
@@ -187,7 +213,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       res.writeHead(503);
       res.end("try later");
     };
-    const deliveryId = await seedDelivery({ endpointUrl: stubUrl });
+    const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl });
     const deps = baseDeps({ maxAttempts: 5, backoffBaseMs: 1, backoffMaxMs: 10 });
 
     await expect(processDeliveryJob(deps, deliveryId)).rejects.toThrow(RetryableDeliveryError);
@@ -212,7 +238,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     handler = () => {
       // Never respond; the client-side AbortController must fire.
     };
-    const deliveryId = await seedDelivery({ endpointUrl: stubUrl, timeoutMs: 50 });
+    const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl, timeoutMs: 50 });
     const deps = baseDeps({ maxAttempts: 1, backoffBaseMs: 1, backoffMaxMs: 10 });
 
     // maxAttempts: 1 means the very first Attempt is already the last one.
@@ -227,7 +253,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
   });
 
   it("retries a connection-refused (network error) instead of failing immediately", async () => {
-    const deliveryId = await seedDelivery({ endpointUrl: "http://127.0.0.1:1" });
+    const { deliveryId } = await seedDelivery({ endpointUrl: "http://127.0.0.1:1" });
     const deps = baseDeps({ maxAttempts: 2, backoffBaseMs: 1, backoffMaxMs: 10 });
 
     await expect(processDeliveryJob(deps, deliveryId)).rejects.toThrow(RetryableDeliveryError);
@@ -248,7 +274,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       res.writeHead(429, { "retry-after": "1" });
       res.end("slow down");
     };
-    const deliveryId = await seedDelivery({ endpointUrl: stubUrl });
+    const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl });
     const deps = baseDeps({ maxAttempts: 2, backoffBaseMs: 5_000, backoffMaxMs: 3_600_000 });
 
     let caught: unknown;
@@ -266,7 +292,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       res.writeHead(503, { "retry-after": "3600" });
       res.end("try later");
     };
-    const deliveryId = await seedDelivery({ endpointUrl: stubUrl });
+    const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl });
     const deps = baseDeps({ maxAttempts: 2, backoffBaseMs: 5_000, backoffMaxMs: 60_000 });
 
     let caught: unknown;
@@ -284,7 +310,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       res.writeHead(200);
       res.end();
     };
-    const deliveryId = await seedDelivery({ endpointUrl: stubUrl });
+    const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl });
     await processDeliveryJob(baseDeps(), deliveryId);
 
     let calls = 0;
@@ -298,5 +324,83 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     expect(calls).toBe(0);
     const record = await getDeliveryForProcessing(testDb.db, deliveryId);
     expect(record?.attemptCount).toBe(1);
+  });
+
+  it("auto-disables an Endpoint after a continuous failure streak exceeds the window", async () => {
+    handler = (_req, res) => {
+      res.writeHead(404);
+      res.end("not found");
+    };
+
+    const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+    let currentMs = t0;
+    const now = () => new Date(currentMs);
+
+    const {
+      deliveryId: firstDeliveryId,
+      endpointId,
+      channelId,
+    } = await seedDelivery({
+      endpointUrl: stubUrl,
+    });
+    await processDeliveryJob(baseDeps({ endpointAutoDisableAfterMs: 1_000, now }), firstDeliveryId);
+
+    currentMs = t0 + 2_000;
+    const secondDeliveryId = await seedAnotherDelivery({
+      channelId,
+      endpointId,
+      now: new Date(currentMs),
+    });
+    await processDeliveryJob(
+      baseDeps({ endpointAutoDisableAfterMs: 1_000, now }),
+      secondDeliveryId,
+    );
+
+    const endpoint = await getEndpointById(testDb.db, channelId, endpointId);
+    expect(endpoint).toMatchObject({
+      enabled: false,
+    });
+    expect(endpoint?.autoDisabledAt).toEqual(new Date(currentMs));
+  });
+
+  it("does not auto-disable when a success breaks the failure streak", async () => {
+    let call = 0;
+    handler = (_req, res) => {
+      call += 1;
+      if (call === 1) {
+        res.writeHead(404);
+        res.end("not found");
+        return;
+      }
+      res.writeHead(200);
+      res.end("ok");
+    };
+
+    const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+    let currentMs = t0;
+    const now = () => new Date(currentMs);
+
+    const {
+      deliveryId: firstDeliveryId,
+      endpointId,
+      channelId,
+    } = await seedDelivery({
+      endpointUrl: stubUrl,
+    });
+    await processDeliveryJob(baseDeps({ endpointAutoDisableAfterMs: 1_000, now }), firstDeliveryId);
+
+    currentMs = t0 + 2_000;
+    const secondDeliveryId = await seedAnotherDelivery({
+      channelId,
+      endpointId,
+      now: new Date(currentMs),
+    });
+    await processDeliveryJob(
+      baseDeps({ endpointAutoDisableAfterMs: 1_000, now }),
+      secondDeliveryId,
+    );
+
+    const endpoint = await getEndpointById(testDb.db, channelId, endpointId);
+    expect(endpoint).toMatchObject({ enabled: true, autoDisabledAt: null });
   });
 });

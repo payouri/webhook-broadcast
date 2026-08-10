@@ -1,6 +1,13 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { randomUUID } from "node:crypto";
 import type { Channel, Endpoint, EndpointList } from "@webhook-broadcast/contract";
+import {
+  completeDelivery,
+  createDeliveriesForBroadcast,
+  insertBroadcast,
+  updateEndpoint,
+} from "@webhook-broadcast/db";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { FakeDeliveryQueue } from "./fakeDeliveryQueue.js";
@@ -254,5 +261,124 @@ describe("Endpoint CRUD (HTTP admin seam)", () => {
       authed(),
     );
     expect(response.status).toBe(404);
+  });
+
+  it("lists health aggregates and auto-disabled state on the Endpoints tab API", async () => {
+    const createResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com/health" }),
+      }),
+    );
+    const created = (await createResponse.json()) as Endpoint;
+    const now = new Date();
+
+    const broadcast = await insertBroadcast(testDb.db, {
+      id: randomUUID(),
+      channelId: channel.id,
+      receivedAt: now,
+      contentType: "application/json",
+      body: Buffer.from("{}"),
+      headers: {},
+    });
+    const [succeededDelivery] = await createDeliveriesForBroadcast(testDb.db, {
+      broadcastId: broadcast.id,
+      channelId: channel.id,
+      endpointIds: [created.id],
+      now,
+    });
+    if (!succeededDelivery) {
+      throw new Error("expected Delivery");
+    }
+    await completeDelivery(testDb.db, {
+      deliveryId: succeededDelivery.id,
+      n: 1,
+      statusCode: 200,
+      durationMs: 100,
+      error: null,
+      status: "succeeded",
+      at: now,
+    });
+
+    const failBroadcast = await insertBroadcast(testDb.db, {
+      id: randomUUID(),
+      channelId: channel.id,
+      receivedAt: now,
+      contentType: "application/json",
+      body: Buffer.from("{}"),
+      headers: {},
+    });
+    const [failedDelivery] = await createDeliveriesForBroadcast(testDb.db, {
+      broadcastId: failBroadcast.id,
+      channelId: channel.id,
+      endpointIds: [created.id],
+      now,
+    });
+    if (!failedDelivery) {
+      throw new Error("expected Delivery");
+    }
+    await completeDelivery(testDb.db, {
+      deliveryId: failedDelivery.id,
+      n: 1,
+      statusCode: 404,
+      durationMs: 200,
+      error: null,
+      status: "failed",
+      at: now,
+    });
+
+    await updateEndpoint(testDb.db, channel.id, created.id, {
+      enabled: false,
+      autoDisabledAt: now,
+      updatedAt: now,
+    });
+
+    const listResponse = await fetch(`${baseUrl}/channels/${channel.id}/endpoints`, authed());
+    expect(listResponse.status).toBe(200);
+    const list = (await listResponse.json()) as EndpointList;
+    expect(list.items[0]).toMatchObject({
+      id: created.id,
+      enabled: false,
+      autoDisabledAt: now.toISOString(),
+      successRate24h: 0.5,
+      lastSuccessAt: now.toISOString(),
+    });
+    expect(list.items[0]?.p95Ms).toEqual(expect.any(Number));
+  });
+
+  it("re-enables an auto-disabled Endpoint and clears autoDisabledAt", async () => {
+    const createResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com/re-enable" }),
+      }),
+    );
+    const created = (await createResponse.json()) as Endpoint;
+    const disabledAt = new Date("2026-08-10T12:00:00.000Z");
+    await updateEndpoint(testDb.db, channel.id, created.id, {
+      enabled: false,
+      autoDisabledAt: disabledAt,
+      updatedAt: disabledAt,
+    });
+
+    const patchResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints/${created.id}`,
+      authed({
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: true }),
+      }),
+    );
+    expect(patchResponse.status).toBe(200);
+    const patched = (await patchResponse.json()) as Endpoint;
+    expect(patched).toMatchObject({
+      id: created.id,
+      enabled: true,
+      autoDisabledAt: null,
+    });
   });
 });

@@ -48,6 +48,7 @@ export async function createDeliveriesForBroadcast(
 
 export interface DeliveryForProcessing {
   id: string;
+  endpointId: string;
   status: DeliveryStatus;
   attemptCount: number;
   endpoint: { url: string; headers: Record<string, string>; timeoutMs: number | null };
@@ -66,6 +67,7 @@ export async function getDeliveryForProcessing(
   const [row] = await db
     .select({
       id: deliveries.id,
+      endpointId: deliveries.endpointId,
       status: deliveries.status,
       attemptCount: deliveries.attemptCount,
       endpointUrl: endpoints.url,
@@ -84,6 +86,7 @@ export async function getDeliveryForProcessing(
   }
   return {
     id: row.id,
+    endpointId: row.endpointId,
     status: row.status,
     attemptCount: row.attemptCount,
     endpoint: {

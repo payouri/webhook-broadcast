@@ -24,9 +24,12 @@ export {
   listEndpoints,
   listEnabledEndpointsByChannel,
   updateEndpoint,
+  maybeAutoDisableEndpoint,
+  getEndpointHealthByIds,
   encodeEndpointCursor,
   decodeEndpointCursor,
   type EndpointRow,
+  type EndpointHealthRow,
   type EndpointCursor,
 } from "./repositories/endpoints.js";
 export {

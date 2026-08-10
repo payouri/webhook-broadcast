@@ -35,6 +35,10 @@ interface EndpointJson {
   timeoutMs: number | null;
   headers: Record<string, string>;
   enabled: boolean;
+  autoDisabledAt: string | null;
+  successRate24h: number | null;
+  p95Ms: number | null;
+  lastSuccessAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,6 +52,10 @@ function endpointBody(overrides: Partial<EndpointJson> = {}): EndpointJson {
     timeoutMs: 5000,
     headers: {},
     enabled: true,
+    autoDisabledAt: null,
+    successRate24h: null,
+    p95Ms: null,
+    lastSuccessAt: null,
     createdAt: "2026-08-10T00:00:00.000Z",
     updatedAt: "2026-08-10T00:00:00.000Z",
     ...overrides,
@@ -101,6 +109,25 @@ describe("Channel Detail — Endpoints tab", () => {
 
     expect(await screen.findByText("Primary")).toBeTruthy();
     expect(screen.getByText("https://example.com/hook")).toBeTruthy();
+  });
+
+  it("shows auto-disabled state and health aggregates on the Endpoints tab", async () => {
+    endpoints = [
+      endpointBody({
+        enabled: false,
+        autoDisabledAt: "2026-08-10T12:00:00.000Z",
+        successRate24h: 0.5,
+        p95Ms: 120,
+        lastSuccessAt: "2026-08-09T18:00:00.000Z",
+      }),
+    ];
+    render(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+
+    expect(await screen.findByText(/auto-disabled/i)).toBeTruthy();
+    expect(screen.getByText(/50% ok \(24h\)/)).toBeTruthy();
+    expect(screen.getByText(/p95 120ms/)).toBeTruthy();
   });
 
   it("creates a new Endpoint from the Endpoints tab form", async () => {

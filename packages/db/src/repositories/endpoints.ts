@@ -1,6 +1,6 @@
-import { and, asc, eq, gt, or } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import type { Database } from "../client.js";
-import { endpoints } from "../schema.js";
+import { attempts, deliveries, endpoints } from "../schema.js";
 
 export interface EndpointRow {
   id: string;
@@ -10,8 +10,15 @@ export interface EndpointRow {
   timeoutMs: number | null;
   headers: Record<string, string>;
   enabled: boolean;
+  autoDisabledAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface EndpointHealthRow {
+  successRate24h: number | null;
+  p95Ms: number | null;
+  lastSuccessAt: Date | null;
 }
 
 export class EndpointUrlConflictError extends Error {
@@ -153,7 +160,137 @@ export async function listEnabledEndpointsByChannel(
   return db
     .select()
     .from(endpoints)
-    .where(and(eq(endpoints.channelId, channelId), eq(endpoints.enabled, true)));
+    .where(
+      and(
+        eq(endpoints.channelId, channelId),
+        eq(endpoints.enabled, true),
+        isNull(endpoints.autoDisabledAt),
+      ),
+    );
+}
+
+/**
+ * ADR 0003: after a terminal Delivery failure, disable the Endpoint when
+ * consecutive failures (no intervening success) span at least
+ * `autoDisableAfterMs`. Idempotent — already auto-disabled Endpoints are
+ * left alone.
+ */
+export async function maybeAutoDisableEndpoint(
+  db: Database,
+  input: { endpointId: string; autoDisableAfterMs: number; now: Date },
+): Promise<boolean> {
+  const endpoint = await db
+    .select({ enabled: endpoints.enabled, autoDisabledAt: endpoints.autoDisabledAt })
+    .from(endpoints)
+    .where(eq(endpoints.id, input.endpointId))
+    .then((rows) => rows[0]);
+  if (!endpoint || endpoint.autoDisabledAt !== null || !endpoint.enabled) {
+    return false;
+  }
+
+  const [lastSuccess] = await db
+    .select({
+      at: sql<Date | null>`max(${deliveries.updatedAt})`.mapWith((value) =>
+        value === null ? null : new Date(value as string | Date),
+      ),
+    })
+    .from(deliveries)
+    .where(and(eq(deliveries.endpointId, input.endpointId), eq(deliveries.status, "succeeded")));
+
+  const [streak] = await db
+    .select({
+      start: sql<Date | null>`min(${deliveries.updatedAt})`.mapWith((value) =>
+        value === null ? null : new Date(value as string | Date),
+      ),
+    })
+    .from(deliveries)
+    .where(
+      and(
+        eq(deliveries.endpointId, input.endpointId),
+        inArray(deliveries.status, ["failed", "dead_lettered"]),
+        lastSuccess?.at ? gt(deliveries.updatedAt, lastSuccess.at) : undefined,
+      ),
+    );
+
+  if (!streak?.start) {
+    return false;
+  }
+
+  const streakDurationMs = input.now.getTime() - streak.start.getTime();
+  if (streakDurationMs < input.autoDisableAfterMs) {
+    return false;
+  }
+
+  const rows = await db
+    .update(endpoints)
+    .set({ enabled: false, autoDisabledAt: input.now, updatedAt: input.now })
+    .where(and(eq(endpoints.id, input.endpointId), isNull(endpoints.autoDisabledAt)))
+    .returning({ id: endpoints.id });
+  return rows.length > 0;
+}
+
+/** Endpoint health aggregates for the admin list (ADR 0007 — computed in SQL). */
+export async function getEndpointHealthByIds(
+  db: Database,
+  endpointIds: string[],
+): Promise<Map<string, EndpointHealthRow>> {
+  if (endpointIds.length === 0) {
+    return new Map();
+  }
+
+  const since = sql`now() - interval '24 hours'`;
+
+  const deliveryStats = await db
+    .select({
+      endpointId: deliveries.endpointId,
+      successRate24h: sql<number | null>`
+        count(*) filter (where ${deliveries.status} = 'succeeded')::float
+        / nullif(
+          count(*) filter (where ${deliveries.status} in ('succeeded', 'failed', 'dead_lettered')),
+          0
+        )
+      `.mapWith((value) => (value === null ? null : Number(value))),
+      lastSuccessAt:
+        sql<Date | null>`max(${deliveries.updatedAt}) filter (where ${deliveries.status} = 'succeeded')`.mapWith(
+          (value) => (value === null ? null : new Date(value as string | Date)),
+        ),
+    })
+    .from(deliveries)
+    .where(
+      and(inArray(deliveries.endpointId, endpointIds), sql`${deliveries.updatedAt} >= ${since}`),
+    )
+    .groupBy(deliveries.endpointId);
+
+  const attemptStats = await db
+    .select({
+      endpointId: deliveries.endpointId,
+      p95Ms: sql<number | null>`
+        percentile_cont(0.95) within group (order by ${attempts.durationMs})
+      `.mapWith((value) => (value === null ? null : Math.round(Number(value)))),
+    })
+    .from(attempts)
+    .innerJoin(deliveries, eq(deliveries.id, attempts.deliveryId))
+    .where(
+      and(
+        inArray(deliveries.endpointId, endpointIds),
+        sql`${attempts.at} >= ${since}`,
+        sql`${attempts.durationMs} is not null`,
+      ),
+    )
+    .groupBy(deliveries.endpointId);
+
+  const p95ByEndpoint = new Map(attemptStats.map((row) => [row.endpointId, row.p95Ms]));
+
+  return new Map(
+    deliveryStats.map((row) => [
+      row.endpointId,
+      {
+        successRate24h: row.successRate24h,
+        p95Ms: p95ByEndpoint.get(row.endpointId) ?? null,
+        lastSuccessAt: row.lastSuccessAt,
+      },
+    ]),
+  );
 }
 
 export async function updateEndpoint(
@@ -166,6 +303,7 @@ export async function updateEndpoint(
     timeoutMs?: number | null | undefined;
     headers?: Record<string, string> | undefined;
     enabled?: boolean | undefined;
+    autoDisabledAt?: Date | null | undefined;
     updatedAt: Date;
   },
 ): Promise<EndpointRow | undefined> {

@@ -2,6 +2,7 @@ import {
   completeDelivery,
   getDeliveryForProcessing,
   markDeliveryInProgress,
+  maybeAutoDisableEndpoint,
   type Database,
 } from "@webhook-broadcast/db";
 import { RetryableDeliveryError } from "./errors.js";
@@ -11,6 +12,7 @@ import { computeBackoffDelayMs, isRetryableOutcome, parseRetryAfterMs } from "./
 const DEFAULT_MAX_ATTEMPTS = 8;
 const DEFAULT_BACKOFF_BASE_MS = 5_000;
 const DEFAULT_BACKOFF_MAX_MS = 3_600_000;
+const DEFAULT_ENDPOINT_AUTO_DISABLE_AFTER_MS = 3_600_000;
 
 export interface ProcessDeliveryDeps {
   db: Database;
@@ -21,6 +23,8 @@ export interface ProcessDeliveryDeps {
   maxAttempts?: number;
   backoffBaseMs?: number;
   backoffMaxMs?: number;
+  /** ADR 0003 auto-disable window — default matches env.ts. */
+  endpointAutoDisableAfterMs?: number;
   /** Injectable for deterministic tests. */
   random?: () => number;
   now?: () => Date;
@@ -43,6 +47,8 @@ export async function processDeliveryJob(
   const maxAttempts = deps.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
   const backoffBaseMs = deps.backoffBaseMs ?? DEFAULT_BACKOFF_BASE_MS;
   const backoffMaxMs = deps.backoffMaxMs ?? DEFAULT_BACKOFF_MAX_MS;
+  const endpointAutoDisableAfterMs =
+    deps.endpointAutoDisableAfterMs ?? DEFAULT_ENDPOINT_AUTO_DISABLE_AFTER_MS;
   const now = deps.now ?? (() => new Date());
 
   const record = await getDeliveryForProcessing(deps.db, deliveryId);
@@ -116,7 +122,13 @@ export async function processDeliveryJob(
     return;
   }
 
-  if (!isRetryableOutcome({ statusCode })) {
+  const terminalStatus = !isRetryableOutcome({ statusCode })
+    ? ("failed" as const)
+    : n >= maxAttempts
+      ? ("dead_lettered" as const)
+      : null;
+
+  if (terminalStatus === "failed") {
     await completeDelivery(deps.db, {
       deliveryId,
       n,
@@ -126,10 +138,15 @@ export async function processDeliveryJob(
       status: "failed",
       at,
     });
+    await maybeAutoDisableEndpoint(deps.db, {
+      endpointId: record.endpointId,
+      autoDisableAfterMs: endpointAutoDisableAfterMs,
+      now: at,
+    });
     return;
   }
 
-  if (n >= maxAttempts) {
+  if (terminalStatus === "dead_lettered") {
     await completeDelivery(deps.db, {
       deliveryId,
       n,
@@ -138,6 +155,11 @@ export async function processDeliveryJob(
       error,
       status: "dead_lettered",
       at,
+    });
+    await maybeAutoDisableEndpoint(deps.db, {
+      endpointId: record.endpointId,
+      autoDisableAfterMs: endpointAutoDisableAfterMs,
+      now: at,
     });
     return;
   }

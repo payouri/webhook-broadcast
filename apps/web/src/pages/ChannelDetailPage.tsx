@@ -554,8 +554,23 @@ function EndpointsTab({ channelId }: { channelId: string }) {
                     <span className="channel-slug">{endpoint.name ?? endpoint.url}</span>
                     <span className="muted channel-description">{endpoint.url}</span>
                     <span className="channel-meta">
-                      {endpoint.timeoutMs ? `${endpoint.timeoutMs}ms` : "default timeout"}
+                      {endpoint.autoDisabledAt
+                        ? `auto-disabled ${new Date(endpoint.autoDisabledAt).toLocaleString()}`
+                        : endpoint.timeoutMs
+                          ? `${endpoint.timeoutMs}ms`
+                          : "default timeout"}
                     </span>
+                    {(endpoint.successRate24h != null ||
+                      endpoint.p95Ms != null ||
+                      endpoint.lastSuccessAt != null) && (
+                      <span className="muted channel-meta">
+                        {endpoint.successRate24h != null &&
+                          `${Math.round(endpoint.successRate24h * 100)}% ok (24h)`}
+                        {endpoint.p95Ms != null && ` · p95 ${endpoint.p95Ms}ms`}
+                        {endpoint.lastSuccessAt != null &&
+                          ` · last ok ${new Date(endpoint.lastSuccessAt).toLocaleString()}`}
+                      </span>
+                    )}
                   </button>
                 </li>
               ),

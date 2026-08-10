@@ -20,6 +20,7 @@ const worker = new Worker<DeliveryJobData>(
         maxAttempts: env.DELIVERY_MAX_ATTEMPTS,
         backoffBaseMs: env.DELIVERY_BACKOFF_MS,
         backoffMaxMs: env.DELIVERY_BACKOFF_MAX_MS,
+        endpointAutoDisableAfterMs: env.ENDPOINT_AUTO_DISABLE_AFTER_MS,
       },
       job.data.deliveryId,
     );

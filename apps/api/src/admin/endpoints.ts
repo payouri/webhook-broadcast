@@ -14,15 +14,17 @@ import {
   EndpointUrlConflictError,
   getChannelById,
   getEndpointById,
+  getEndpointHealthByIds,
   insertEndpoint,
   listEndpoints,
   updateEndpoint,
   type Database,
+  type EndpointHealthRow,
   type EndpointRow,
 } from "@webhook-broadcast/db";
 import { requireUuidParam, toDetails } from "./validation.js";
 
-function toWireEndpoint(row: EndpointRow): Endpoint {
+function toWireEndpoint(row: EndpointRow, health?: EndpointHealthRow): Endpoint {
   return {
     id: row.id,
     channelId: row.channelId,
@@ -31,6 +33,10 @@ function toWireEndpoint(row: EndpointRow): Endpoint {
     timeoutMs: row.timeoutMs,
     headers: row.headers,
     enabled: row.enabled,
+    autoDisabledAt: row.autoDisabledAt?.toISOString() ?? null,
+    successRate24h: health?.successRate24h ?? null,
+    p95Ms: health?.p95Ms ?? null,
+    lastSuccessAt: health?.lastSuccessAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -81,9 +87,13 @@ export function registerEndpointRoutes(router: Router, db: Database): void {
       cursor,
       limit: parsedQuery.data.limit,
     });
+    const healthById = await getEndpointHealthByIds(
+      db,
+      items.map((item) => item.id),
+    );
     ctx.status = 200;
     ctx.body = {
-      items: items.map(toWireEndpoint),
+      items: items.map((item) => toWireEndpoint(item, healthById.get(item.id))),
       nextCursor: nextCursor ? encodeEndpointCursor(nextCursor) : null,
     };
   });
@@ -152,8 +162,9 @@ export function registerEndpointRoutes(router: Router, db: Database): void {
       ctx.body = errorBody("not_found", "endpoint not found");
       return;
     }
+    const healthById = await getEndpointHealthByIds(db, [row.id]);
     ctx.status = 200;
-    ctx.body = toWireEndpoint(row);
+    ctx.body = toWireEndpoint(row, healthById.get(row.id));
   });
 
   router.patch("/channels/:channelId/endpoints/:endpointId", async (ctx) => {
@@ -183,6 +194,7 @@ export function registerEndpointRoutes(router: Router, db: Database): void {
     try {
       const row = await updateEndpoint(db, channelId, endpointId, {
         ...parsedBody.data,
+        ...(parsedBody.data.enabled === true ? { autoDisabledAt: null } : {}),
         updatedAt: new Date(),
       });
       if (!row) {
@@ -190,8 +202,9 @@ export function registerEndpointRoutes(router: Router, db: Database): void {
         ctx.body = errorBody("not_found", "endpoint not found");
         return;
       }
+      const healthById = await getEndpointHealthByIds(db, [row.id]);
       ctx.status = 200;
-      ctx.body = toWireEndpoint(row);
+      ctx.body = toWireEndpoint(row, healthById.get(row.id));
     } catch (error) {
       if (error instanceof EndpointUrlConflictError) {
         ctx.status = 409;
