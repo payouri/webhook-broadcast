@@ -1,0 +1,3 @@
+# Observability: Prometheus metrics and structured logs
+
+MVP telemetry is **Prometheus** scrapes on the API (`/metrics`) and worker (`WORKER_HEALTH_PORT/metrics`), combining BullMQ `exportPrometheusMetrics()` with app series: queue depth (waiting/active/failed), Attempt duration histogram, Attempt results by status class, ingest accept counter, and worker concurrency gauge. Per-Endpoint Prometheus labels are avoided (cardinality). No in-app metrics UI — the Channel-navigator dashboard remains the operator surface. Logs are structured JSON to stdout with `channelId` / `broadcastId` / `deliveryId` / `endpointId` when known; never log bodies, tokens, or auth headers. Correlate API→worker with a `requestId` on the job. **OpenTelemetry distributed tracing is deferred.**
