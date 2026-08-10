@@ -2,17 +2,14 @@ import { randomUUID } from "node:crypto";
 import type Router from "@koa/router";
 import { errorBody, ingestAcceptedSchema } from "@webhook-broadcast/contract";
 import {
-  createDeliveriesForBroadcast,
   findChannelTokenByHash,
   getActiveChannelBySlug,
-  insertBroadcast,
-  listEnabledEndpointsByChannel,
   type Database,
 } from "@webhook-broadcast/db";
 import { extractBearerToken } from "../admin/auth.js";
 import { hashChannelToken } from "../tokens.js";
 import type { DeliveryQueue } from "../deliveryQueue.js";
-import { newRequestId } from "../deliveryQueue.js";
+import { fanOutBroadcast } from "../fanOutBroadcast.js";
 import type { MetricsCollector } from "../observability/metrics.js";
 import { logStructured } from "../observability/logger.js";
 import { filterHeaders } from "./headers.js";
@@ -83,41 +80,18 @@ export function registerIngestRoutes(router: Router, config: IngestRouteConfig):
       throw error;
     }
 
-    const broadcast = await insertBroadcast(config.db, {
-      id: randomUUID(),
-      channelId: channel.id,
-      receivedAt: new Date(),
-      contentType: ctx.get("content-type") || "application/octet-stream",
-      body,
-      headers: filterHeaders(ctx.req.headers, config.headerAllowlist, config.headerDenylist),
-    });
-
-    const requestId = newRequestId();
-
-    // Fan-out snapshot (CONTEXT.md's Broadcast/Delivery language): exactly
-    // one Delivery per Endpoint enabled on this Channel right now, each
-    // enqueued as its own job so the worker never processes more than one
-    // Endpoint's Attempt per job.
-    const enabledEndpoints = await listEnabledEndpointsByChannel(config.db, channel.id);
-    if (enabledEndpoints.length > 0) {
-      const createdDeliveries = await createDeliveriesForBroadcast(config.db, {
-        broadcastId: broadcast.id,
+    const { broadcast, requestId, deliveryCount } = await fanOutBroadcast({
+      db: config.db,
+      deliveryQueue: config.deliveryQueue,
+      broadcast: {
+        id: randomUUID(),
         channelId: channel.id,
-        endpointIds: enabledEndpoints.map((endpoint) => endpoint.id),
-        now: new Date(),
-      });
-      await Promise.all(
-        createdDeliveries.map((delivery) =>
-          config.deliveryQueue.enqueue({
-            deliveryId: delivery.id,
-            requestId,
-            channelId: channel.id,
-            broadcastId: broadcast.id,
-            endpointId: delivery.endpointId,
-          }),
-        ),
-      );
-    }
+        receivedAt: new Date(),
+        contentType: ctx.get("content-type") || "application/octet-stream",
+        body,
+        headers: filterHeaders(ctx.req.headers, config.headerAllowlist, config.headerDenylist),
+      },
+    });
 
     config.metrics?.ingestAcceptedTotal.inc();
     logStructured({
@@ -125,7 +99,7 @@ export function registerIngestRoutes(router: Router, config: IngestRouteConfig):
       requestId,
       channelId: channel.id,
       broadcastId: broadcast.id,
-      deliveryCount: enabledEndpoints.length,
+      deliveryCount,
     });
 
     ctx.status = 202;

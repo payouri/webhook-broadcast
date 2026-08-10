@@ -8,21 +8,18 @@ import {
   type BroadcastList,
 } from "@webhook-broadcast/contract";
 import {
-  createDeliveriesForBroadcast,
   decodeBroadcastCursor,
   encodeBroadcastCursor,
   getBroadcastById,
   getChannelById,
   getFanoutSummariesByBroadcastIds,
-  insertBroadcast,
   listBroadcastsByChannel,
   listDeliveriesForBroadcast,
-  listEnabledEndpointsByChannel,
   EMPTY_FANOUT_SUMMARY,
   type Database,
 } from "@webhook-broadcast/db";
 import type { DeliveryQueue } from "../deliveryQueue.js";
-import { newRequestId } from "../deliveryQueue.js";
+import { fanOutBroadcast } from "../fanOutBroadcast.js";
 import { requireUuidParam, toDetails } from "./validation.js";
 
 const BODY_PREVIEW_MAX_LENGTH = 200;
@@ -181,35 +178,18 @@ export function registerBroadcastRoutes(router: Router, config: BroadcastRouteCo
     }
 
     const now = new Date();
-    const replay = await insertBroadcast(db, {
-      id: randomUUID(),
-      channelId: original.channelId,
-      receivedAt: now,
-      contentType: original.contentType,
-      body: original.body,
-      headers: original.headers,
+    const { broadcast: replay } = await fanOutBroadcast({
+      db,
+      deliveryQueue,
+      broadcast: {
+        id: randomUUID(),
+        channelId: original.channelId,
+        receivedAt: now,
+        contentType: original.contentType,
+        body: original.body,
+        headers: original.headers,
+      },
     });
-
-    const enabledEndpoints = await listEnabledEndpointsByChannel(db, channel.id);
-    if (enabledEndpoints.length > 0) {
-      const createdDeliveries = await createDeliveriesForBroadcast(db, {
-        broadcastId: replay.id,
-        channelId: channel.id,
-        endpointIds: enabledEndpoints.map((endpoint) => endpoint.id),
-        now,
-      });
-      await Promise.all(
-        createdDeliveries.map((delivery) =>
-          deliveryQueue.enqueue({
-            deliveryId: delivery.id,
-            requestId: newRequestId(),
-            channelId: channel.id,
-            broadcastId: replay.id,
-            endpointId: delivery.endpointId,
-          }),
-        ),
-      );
-    }
 
     ctx.status = 202;
     ctx.body = broadcastReplayAcceptedSchema.parse({ id: replay.id });

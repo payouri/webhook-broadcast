@@ -260,6 +260,49 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
     expect(deliveryQueue.enqueued.map((job) => job.deliveryId).sort()).toEqual(
       detail.deliveries.map((delivery) => delivery.id).sort(),
     );
+    const requestIds = new Set(deliveryQueue.enqueued.map((job) => job.requestId));
+    expect(requestIds.size).toBe(1);
+  });
+
+  it("does not return 202 when enqueueBulk fails — Broadcast row is rolled back", async () => {
+    class FailBulkQueue extends FakeDeliveryQueue {
+      override async enqueueBulk(): Promise<void> {
+        throw new Error("redis unavailable");
+      }
+    }
+    const failQueue = new FailBulkQueue();
+    const failApp = createApp({
+      db: testDb.db,
+      deliveryQueue: failQueue,
+      operatorApiKey: OPERATOR_API_KEY,
+      cookieName: COOKIE_NAME,
+      ingestMaxBodyBytes: MAX_BODY_BYTES,
+      ingestHeaderAllowlist: [],
+      ingestHeaderDenylist: [],
+    });
+    const failServer = createServer(failApp.callback());
+    await new Promise<void>((resolve) => failServer.listen(0, resolve));
+    const failPort = (failServer.address() as AddressInfo).port;
+    const failBaseUrl = `http://127.0.0.1:${failPort}`;
+
+    try {
+      const channel = await createChannel({ slug: "fail-ingest" });
+      const token = await mintToken(channel.id);
+      await createEndpoint(channel.id, { url: "https://example.com/one" });
+
+      const response = await fetch(`${failBaseUrl}/ingest/fail-ingest`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}` },
+        body: "hi",
+      });
+      expect(response.status).not.toBe(202);
+
+      const activity = await fetch(`${failBaseUrl}/channels/${channel.id}/broadcasts`, authed());
+      const activityBody = (await activity.json()) as { items: unknown[] };
+      expect(activityBody.items).toHaveLength(0);
+    } finally {
+      await new Promise<void>((resolve) => failServer.close(() => resolve()));
+    }
   });
 
   it("creates no Deliveries and enqueues no jobs when the Channel has no enabled Endpoints", async () => {

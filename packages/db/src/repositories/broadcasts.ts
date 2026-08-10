@@ -106,6 +106,15 @@ export async function getBroadcastById(
   return row;
 }
 
+/** Removes one Broadcast; Deliveries and Attempts cascade (ADR 0007). */
+export async function deleteBroadcastById(db: Database, id: string): Promise<boolean> {
+  const deleted = await db
+    .delete(broadcasts)
+    .where(eq(broadcasts.id, id))
+    .returning({ id: broadcasts.id });
+  return deleted.length > 0;
+}
+
 /**
  * Retention prune (ADR 0002 / ADR 0007): delete Broadcasts with
  * `received_at` strictly before `cutoff`. Deliveries and Attempts cascade
