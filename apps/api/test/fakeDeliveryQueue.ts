@@ -8,4 +8,8 @@ export class FakeDeliveryQueue implements DeliveryQueue {
   async enqueue(job: DeliveryJobData): Promise<void> {
     this.enqueued.push(job);
   }
+
+  async enqueueBulk(jobs: DeliveryJobData[]): Promise<void> {
+    this.enqueued.push(...jobs);
+  }
 }

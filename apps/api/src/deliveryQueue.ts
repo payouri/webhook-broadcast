@@ -22,6 +22,7 @@ export function newRequestId(): string {
  */
 export interface DeliveryQueue {
   enqueue(job: DeliveryJobData): Promise<void>;
+  enqueueBulk(jobs: DeliveryJobData[]): Promise<void>;
 }
 
 /** Mirrors `DELIVERY_MAX_ATTEMPTS`'s env default (ADR 0003). */
@@ -43,17 +44,45 @@ export class BullMqDeliveryQueue implements DeliveryQueue {
     return this.queue;
   }
 
-  async enqueue(job: DeliveryJobData): Promise<void> {
-    // `jobId: deliveryId` makes re-enqueueing the same Delivery a no-op
-    // (BullMQ dedupes on job id) instead of risking a second concurrent job.
-    // `backoff: { type: "custom" }` defers to worker.ts's `backoffStrategy`,
-    // which reads the delay straight off a thrown `RetryableDeliveryError`
-    // (ADR 0003's policy lives in processDeliveryJob.ts, not here).
-    await this.queue.add("deliver", job, {
-      jobId: job.deliveryId,
+  private async removeFinishedJob(deliveryId: string): Promise<void> {
+    const existing = await this.queue.getJob(deliveryId);
+    if (!existing) {
+      return;
+    }
+    const state = await existing.getState();
+    if (state === "completed" || state === "failed") {
+      await this.queue.remove(deliveryId);
+    }
+  }
+
+  private jobAddOptions(deliveryId: string) {
+    return {
+      jobId: deliveryId,
       attempts: this.maxAttempts,
-      backoff: { type: "custom" },
-    });
+      backoff: { type: "custom" as const },
+    };
+  }
+
+  async enqueue(job: DeliveryJobData): Promise<void> {
+    // `jobId: deliveryId` dedupes concurrent jobs, but BullMQ silently no-ops
+    // `add` when that id already exists in a terminal state — remove it first
+    // so operator retry of a dead_lettered Delivery actually re-enqueues.
+    await this.removeFinishedJob(job.deliveryId);
+    await this.queue.add("deliver", job, this.jobAddOptions(job.deliveryId));
+  }
+
+  async enqueueBulk(jobs: DeliveryJobData[]): Promise<void> {
+    if (jobs.length === 0) {
+      return;
+    }
+    await Promise.all(jobs.map((job) => this.removeFinishedJob(job.deliveryId)));
+    await this.queue.addBulk(
+      jobs.map((job) => ({
+        name: "deliver",
+        data: job,
+        opts: this.jobAddOptions(job.deliveryId),
+      })),
+    );
   }
 
   async close(): Promise<void> {

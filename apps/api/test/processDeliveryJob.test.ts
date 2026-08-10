@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { randomUUID } from "node:crypto";
+import * as dbModule from "@webhook-broadcast/db";
 import {
   createDeliveriesForBroadcast,
   getDeliveryForProcessing,
@@ -11,7 +12,7 @@ import {
   schema,
 } from "@webhook-broadcast/db";
 import { eq } from "drizzle-orm";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { RetryableDeliveryError } from "../src/worker/errors.js";
 import { processDeliveryJob, type ProcessDeliveryDeps } from "../src/worker/processDeliveryJob.js";
 import { startTestDb, type TestDb } from "./testDb.js";
@@ -305,7 +306,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     expect((caught as RetryableDeliveryError).delayMs).toBe(60_000);
   });
 
-  it("is a no-op when the Delivery is not pending (idempotency guard)", async () => {
+  it("is a no-op when the Delivery is terminal (idempotency guard)", async () => {
     handler = (_req, res) => {
       res.writeHead(200);
       res.end();
@@ -324,6 +325,79 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     expect(calls).toBe(0);
     const record = await getDeliveryForProcessing(testDb.db, deliveryId);
     expect(record?.attemptCount).toBe(1);
+  });
+
+  it("resumes a stale in_progress Delivery on BullMQ redelivery", async () => {
+    handler = (_req, res) => {
+      res.writeHead(200);
+      res.end("ok");
+    };
+    const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl });
+    await testDb.db
+      .update(schema.deliveries)
+      .set({ status: "in_progress" })
+      .where(eq(schema.deliveries.id, deliveryId));
+
+    await processDeliveryJob(baseDeps(), deliveryId);
+
+    const record = await getDeliveryForProcessing(testDb.db, deliveryId);
+    expect(record?.status).toBe("succeeded");
+    expect(record?.attemptCount).toBe(1);
+  });
+
+  it("preserves the Broadcast content-type over Endpoint header overrides", async () => {
+    let seenContentType: string | undefined;
+    handler = (req, res) => {
+      seenContentType = req.headers["content-type"];
+      res.writeHead(200);
+      res.end("ok");
+    };
+    const { deliveryId } = await seedDelivery({
+      endpointUrl: stubUrl,
+      headers: { "content-type": "text/plain" },
+    });
+
+    await processDeliveryJob(baseDeps(), deliveryId);
+
+    expect(seenContentType).toBe("application/json");
+    const record = await getDeliveryForProcessing(testDb.db, deliveryId);
+    expect(record?.status).toBe("succeeded");
+  });
+
+  it("uses redirect manual on outbound fetch (SSRF hardening)", async () => {
+    let seenRedirect: RequestInit["redirect"];
+    const fetchImpl: typeof fetch = async (_url, init) => {
+      seenRedirect = init?.redirect;
+      return new Response("ok", { status: 200 });
+    };
+    const { deliveryId } = await seedDelivery({ endpointUrl: "http://127.0.0.1:9" });
+
+    await processDeliveryJob(baseDeps({ fetchImpl }), deliveryId);
+
+    expect(seenRedirect).toBe("manual");
+  });
+
+  it("releases a stuck in_progress Delivery when completeDelivery fails", async () => {
+    handler = (_req, res) => {
+      res.writeHead(200);
+      res.end("ok");
+    };
+    const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl });
+    const completeSpy = vi
+      .spyOn(dbModule, "completeDelivery")
+      .mockRejectedValueOnce(new Error("simulated db outage"));
+
+    await expect(processDeliveryJob(baseDeps(), deliveryId)).rejects.toThrow(
+      RetryableDeliveryError,
+    );
+
+    let record = await getDeliveryForProcessing(testDb.db, deliveryId);
+    expect(record?.status).toBe("pending");
+
+    completeSpy.mockRestore();
+    await processDeliveryJob(baseDeps(), deliveryId);
+    record = await getDeliveryForProcessing(testDb.db, deliveryId);
+    expect(record?.status).toBe("succeeded");
   });
 
   it("auto-disables an Endpoint after a continuous failure streak exceeds the window", async () => {

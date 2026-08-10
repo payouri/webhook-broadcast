@@ -55,6 +55,7 @@ export {
   createDeliveriesForBroadcast,
   getDeliveryForProcessing,
   markDeliveryInProgress,
+  resetInProgressDeliveryToPending,
   completeDelivery,
   listDeliveriesForBroadcast,
   getDeliveryDetailById,

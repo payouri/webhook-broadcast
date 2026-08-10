@@ -99,8 +99,10 @@ export async function getDeliveryForProcessing(
 }
 
 /**
- * Guarded on `status = 'pending'` so a duplicate/redelivered BullMQ job
- * can't push an already in-flight Delivery back to `in_progress`.
+ * Claims a Delivery for one Attempt. The normal path is `pending` →
+ * `in_progress`; a stale BullMQ redelivery after a worker crash (still
+ * `in_progress`) is re-admitted so the Attempt can resume instead of
+ * staying stuck forever.
  */
 export async function markDeliveryInProgress(
   db: Database,
@@ -111,6 +113,30 @@ export async function markDeliveryInProgress(
     .update(deliveries)
     .set({ status: "in_progress", updatedAt })
     .where(and(eq(deliveries.id, deliveryId), eq(deliveries.status, "pending")))
+    .returning({ id: deliveries.id });
+  if (rows.length > 0) {
+    return true;
+  }
+  const [existing] = await db
+    .select({ status: deliveries.status })
+    .from(deliveries)
+    .where(eq(deliveries.id, deliveryId));
+  return existing?.status === "in_progress";
+}
+
+/**
+ * Releases a stuck `in_progress` claim back to `pending` when the worker
+ * could not persist the Attempt outcome — keeps BullMQ redelivery viable.
+ */
+export async function resetInProgressDeliveryToPending(
+  db: Database,
+  deliveryId: string,
+  updatedAt: Date,
+): Promise<boolean> {
+  const rows = await db
+    .update(deliveries)
+    .set({ status: "pending", updatedAt })
+    .where(and(eq(deliveries.id, deliveryId), eq(deliveries.status, "in_progress")))
     .returning({ id: deliveries.id });
   return rows.length > 0;
 }

@@ -3,6 +3,7 @@ import {
   getDeliveryForProcessing,
   markDeliveryInProgress,
   maybeAutoDisableEndpoint,
+  resetInProgressDeliveryToPending,
   type Database,
 } from "@webhook-broadcast/db";
 import { RetryableDeliveryError } from "./errors.js";
@@ -61,10 +62,10 @@ export async function processDeliveryJob(
     // Delivery vanished (e.g. Broadcast retention swept it); nothing to do.
     return;
   }
-  if (record.status !== "pending") {
-    // Idempotency guard against a redelivered/duplicate job. A Delivery
-    // scheduled for retry is reset to `pending` below, so this still lets a
-    // legitimate next Attempt through.
+  if (record.status !== "pending" && record.status !== "in_progress") {
+    // Idempotency guard against a redelivered/duplicate job on a terminal
+    // Delivery. `in_progress` is admitted so a stale BullMQ redelivery can
+    // resume after a worker crash; retryable outcomes reset to `pending` below.
     return;
   }
 
@@ -95,11 +96,12 @@ export async function processDeliveryJob(
     const response = await doFetch(record.endpoint.url, {
       method: "POST",
       headers: {
-        "content-type": record.broadcast.contentType,
         ...record.endpoint.headers,
+        "content-type": record.broadcast.contentType,
       },
       body: record.broadcast.body,
       signal: controller.signal,
+      redirect: "manual",
     });
     statusCode = response.status;
     if (statusCode === 429 || statusCode === 503) {
@@ -139,15 +141,30 @@ export async function processDeliveryJob(
       ...(observability?.broadcastId ? { broadcastId: observability.broadcastId } : {}),
       ...(observability?.endpointId ? { endpointId: observability.endpointId } : {}),
     });
-    await completeDelivery(deps.db, {
-      deliveryId,
-      n,
-      statusCode,
-      durationMs,
-      error: status === "succeeded" ? null : error,
-      status,
-      at,
-    });
+    try {
+      await completeDelivery(deps.db, {
+        deliveryId,
+        n,
+        statusCode,
+        durationMs,
+        error: status === "succeeded" ? null : error,
+        status,
+        at,
+      });
+    } catch (dbErr) {
+      await resetInProgressDeliveryToPending(deps.db, deliveryId, at);
+      const message = dbErr instanceof Error ? dbErr.message : String(dbErr);
+      const delayMs = computeBackoffDelayMs({
+        attemptNumber: n,
+        baseMs: backoffBaseMs,
+        capMs: backoffMaxMs,
+        ...(deps.random ? { random: deps.random } : {}),
+      });
+      throw new RetryableDeliveryError(
+        `Delivery ${deliveryId} Attempt ${n} could not persist outcome (${message}); retrying in ${delayMs}ms`,
+        delayMs,
+      );
+    }
   };
 
   if (statusCode !== null && statusCode >= 200 && statusCode < 300) {
