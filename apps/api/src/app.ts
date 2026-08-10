@@ -10,12 +10,14 @@ import { registerEndpointRoutes } from "./admin/endpoints.js";
 import { registerChannelTokenRoutes } from "./admin/tokens.js";
 import { registerBroadcastRoutes } from "./admin/broadcasts.js";
 import { registerIngestRoutes } from "./ingest/routes.js";
+import type { DeliveryQueue } from "./deliveryQueue.js";
 
 /** Mirrors ADR 0008's `INGEST_MAX_BODY_BYTES` default. */
 const DEFAULT_INGEST_MAX_BODY_BYTES = 1_048_576;
 
 export interface AppDeps {
   db: Database;
+  deliveryQueue: DeliveryQueue;
   operatorApiKey: string;
   cookieName: string;
   ingestMaxBodyBytes?: number;
@@ -30,6 +32,7 @@ export function createApp(deps: AppDeps): Koa {
   const ingestRouter = new Router();
   registerIngestRoutes(ingestRouter, {
     db: deps.db,
+    deliveryQueue: deps.deliveryQueue,
     maxBodyBytes: deps.ingestMaxBodyBytes ?? DEFAULT_INGEST_MAX_BODY_BYTES,
     headerAllowlist: deps.ingestHeaderAllowlist ?? [],
     headerDenylist: deps.ingestHeaderDenylist ?? [],

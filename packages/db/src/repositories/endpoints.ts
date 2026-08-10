@@ -141,6 +141,21 @@ export async function listEndpoints(
   return { items, nextCursor };
 }
 
+/**
+ * The fan-out snapshot at accept time (ADR: Broadcast "fan-out targets are
+ * the Endpoints enabled on that Channel at accept time") — unpaginated,
+ * since ingest needs every enabled Endpoint in one shot to build Deliveries.
+ */
+export async function listEnabledEndpointsByChannel(
+  db: Database,
+  channelId: string,
+): Promise<EndpointRow[]> {
+  return db
+    .select()
+    .from(endpoints)
+    .where(and(eq(endpoints.channelId, channelId), eq(endpoints.enabled, true)));
+}
+
 export async function updateEndpoint(
   db: Database,
   channelId: string,

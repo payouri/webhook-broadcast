@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type {
+  BroadcastDetail,
   BroadcastListItem,
   Channel,
   ChannelTokenCreated,
@@ -110,6 +111,7 @@ function ChannelActivityTab({ channelId }: { channelId: string }) {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const loadFirstPage = useCallback(async () => {
     try {
@@ -163,10 +165,22 @@ function ChannelActivityTab({ channelId }: { channelId: string }) {
         <>
           <ul className="activity-list">
             {items.map((item) => (
-              <li key={item.id} className="activity-row">
-                <span className="activity-time">{new Date(item.receivedAt).toLocaleString()}</span>
-                <span className="activity-preview">{item.bodyPreview || "(empty body)"}</span>
-                <span className="muted activity-fanout">{fanoutLabel(item.fanout)}</span>
+              <li key={item.id}>
+                <button
+                  type="button"
+                  className="activity-row"
+                  aria-expanded={expandedId === item.id}
+                  onClick={() => setExpandedId((current) => (current === item.id ? null : item.id))}
+                >
+                  <span className="activity-time">
+                    {new Date(item.receivedAt).toLocaleString()}
+                  </span>
+                  <span className="activity-preview">{item.bodyPreview || "(empty body)"}</span>
+                  <span className="muted activity-fanout">{fanoutLabel(item.fanout)}</span>
+                </button>
+                {expandedId === item.id && (
+                  <BroadcastDetailPanel channelId={channelId} broadcastId={item.id} />
+                )}
               </li>
             ))}
           </ul>
@@ -183,6 +197,85 @@ function ChannelActivityTab({ channelId }: { channelId: string }) {
         </>
       )}
     </section>
+  );
+}
+
+function deliveryStatusLabel(status: BroadcastDetail["deliveries"][number]["status"]): string {
+  return status.replace("_", " ");
+}
+
+/** Broadcast detail (issue #19): inbound payload plus every fanned-out Delivery. */
+function BroadcastDetailPanel({
+  channelId,
+  broadcastId,
+}: {
+  channelId: string;
+  broadcastId: string;
+}) {
+  const [detail, setDetail] = useState<BroadcastDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDetail(null);
+    setError(null);
+    api
+      .getBroadcastDetail(channelId, broadcastId)
+      .then((result) => {
+        if (!cancelled) {
+          setDetail(result);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load Broadcast");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [channelId, broadcastId]);
+
+  return (
+    <div className="broadcast-detail">
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+      {!detail && !error && <p className="muted">Loading…</p>}
+      {detail && (
+        <>
+          <p className="muted broadcast-detail-content-type">{detail.contentType}</p>
+          <pre className="broadcast-body">{detail.body || "(empty body)"}</pre>
+          {detail.deliveries.length === 0 ? (
+            <p className="muted empty-state">
+              No Endpoints were enabled on this Channel when the Broadcast was accepted.
+            </p>
+          ) : (
+            <ul className="delivery-list">
+              {detail.deliveries.map((delivery) => (
+                <li key={delivery.id} className="delivery-row">
+                  <span className={`delivery-status delivery-status-${delivery.status}`}>
+                    {deliveryStatusLabel(delivery.status)}
+                  </span>
+                  <span className="delivery-endpoint">
+                    {delivery.endpointName ?? delivery.endpointUrl}
+                  </span>
+                  <span className="muted delivery-meta">
+                    {delivery.lastStatusCode !== null ? `HTTP ${delivery.lastStatusCode}` : "—"}
+                    {delivery.lastDurationMs !== null ? ` · ${delivery.lastDurationMs}ms` : ""}
+                  </span>
+                  {delivery.lastError && (
+                    <span className="error-text delivery-error">{delivery.lastError}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 

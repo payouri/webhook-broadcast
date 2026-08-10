@@ -292,15 +292,113 @@ button:disabled {
 }
 
 .activity-row {
+  width: 100%;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
   background: var(--bg);
+  color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 0.9rem;
+  font-weight: 400;
+  text-align: left;
+}
+
+.activity-row:hover {
+  border-color: var(--primary);
+}
+
+.broadcast-detail {
+  margin-top: 4px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.broadcast-detail-content-type {
+  font-size: 0.8rem;
+  margin: 0 0 8px;
+}
+
+.broadcast-body {
+  margin: 0 0 12px;
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.delivery-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.delivery-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.delivery-endpoint {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.delivery-meta {
+  white-space: nowrap;
+}
+
+.delivery-error {
+  flex-basis: 100%;
+}
+
+.delivery-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.delivery-status-pending,
+.delivery-status-in_progress {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.delivery-status-succeeded {
+  background: #dcfce7;
+  color: var(--success);
+}
+
+.delivery-status-failed,
+.delivery-status-dead_lettered {
+  background: #fee2e2;
+  color: var(--danger);
 }
 
 .activity-time {

@@ -38,3 +38,46 @@ export const broadcastListQuerySchema = z.object({
 });
 
 export type BroadcastListQuery = z.infer<typeof broadcastListQuerySchema>;
+
+/** Mirrors ADR 0007's `delivery_status` Postgres enum. */
+export const deliveryStatusSchema = z.enum([
+  "pending",
+  "in_progress",
+  "succeeded",
+  "failed",
+  "dead_lettered",
+]);
+
+export type DeliveryStatus = z.infer<typeof deliveryStatusSchema>;
+
+export const deliveryItemSchema = z.object({
+  id: idSchema,
+  endpointId: idSchema,
+  endpointName: z.string().nullable(),
+  endpointUrl: z.string(),
+  status: deliveryStatusSchema,
+  attemptCount: z.number().int().min(0),
+  lastStatusCode: z.number().int().nullable(),
+  lastDurationMs: z.number().int().nullable(),
+  lastError: z.string().nullable(),
+  updatedAt: dateTimeSchema,
+});
+
+export type DeliveryItem = z.infer<typeof deliveryItemSchema>;
+
+/**
+ * Broadcast detail (issue #19 AC): inbound payload plus every fanned-out
+ * Delivery. `body` is a UTF-8 decode of the raw bytes — good enough for the
+ * MVP demo's JSON/text payloads; binary bodies just render with replacement
+ * characters rather than breaking the response.
+ */
+export const broadcastDetailSchema = z.object({
+  id: idSchema,
+  channelId: idSchema,
+  receivedAt: dateTimeSchema,
+  contentType: z.string(),
+  body: z.string(),
+  deliveries: z.array(deliveryItemSchema),
+});
+
+export type BroadcastDetail = z.infer<typeof broadcastDetailSchema>;

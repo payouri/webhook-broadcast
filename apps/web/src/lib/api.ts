@@ -1,4 +1,5 @@
 import type {
+  BroadcastDetail,
   BroadcastList,
   Channel,
   ChannelList,
@@ -109,6 +110,8 @@ export const api = {
     request<BroadcastList>(
       `/channels/${channelId}/broadcasts${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
     ),
+  getBroadcastDetail: (channelId: string, broadcastId: string) =>
+    request<BroadcastDetail>(`/channels/${channelId}/broadcasts/${broadcastId}`),
   createChannelToken: (channelId: string) =>
     request<ChannelTokenCreated>(`/channels/${channelId}/tokens`, { method: "POST" }),
   revokeChannelToken: (channelId: string, tokenId: string) =>

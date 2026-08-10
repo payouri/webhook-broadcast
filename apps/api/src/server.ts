@@ -2,12 +2,15 @@ import { createServer } from "node:http";
 import { createDb } from "@webhook-broadcast/db";
 import { bootEnv } from "./config.js";
 import { createApp } from "./app.js";
+import { BullMqDeliveryQueue } from "./deliveryQueue.js";
 import { parseHeaderList } from "./ingest/headers.js";
 
 const env = bootEnv();
 const { db, pool } = createDb(env.DATABASE_URL);
+const deliveryQueue = new BullMqDeliveryQueue(env.REDIS_URL);
 const app = createApp({
   db,
+  deliveryQueue,
   operatorApiKey: env.OPERATOR_API_KEY,
   cookieName: env.COOKIE_NAME,
   ingestMaxBodyBytes: env.INGEST_MAX_BODY_BYTES,
@@ -23,7 +26,7 @@ server.listen(env.PORT, () => {
 function shutdown(signal: string): void {
   console.log(JSON.stringify({ msg: "api shutting down", signal }));
   server.close(() => {
-    void pool.end().finally(() => process.exit(0));
+    void Promise.all([pool.end(), deliveryQueue.close()]).finally(() => process.exit(0));
   });
 }
 

@@ -1,8 +1,9 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import type { Channel, ChannelTokenCreated } from "@webhook-broadcast/contract";
+import type { Channel, ChannelTokenCreated, Endpoint } from "@webhook-broadcast/contract";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
+import { FakeDeliveryQueue } from "./fakeDeliveryQueue.js";
 import { startTestDb, type TestDb } from "./testDb.js";
 
 const OPERATOR_API_KEY = "test-operator-key";
@@ -13,11 +14,14 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
   let testDb: TestDb;
   let server: Server;
   let baseUrl: string;
+  let deliveryQueue: FakeDeliveryQueue;
 
   beforeAll(async () => {
     testDb = await startTestDb();
+    deliveryQueue = new FakeDeliveryQueue();
     const app = createApp({
       db: testDb.db,
+      deliveryQueue,
       operatorApiKey: OPERATOR_API_KEY,
       cookieName: COOKIE_NAME,
       ingestMaxBodyBytes: MAX_BODY_BYTES,
@@ -32,6 +36,7 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
 
   afterEach(async () => {
     await testDb.reset();
+    deliveryQueue.enqueued.length = 0;
   });
 
   afterAll(async () => {
@@ -62,6 +67,21 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
     );
     const created = (await response.json()) as ChannelTokenCreated;
     return created.token;
+  }
+
+  async function createEndpoint(
+    channelId: string,
+    input: { url: string; enabled?: boolean },
+  ): Promise<Endpoint> {
+    const response = await fetch(
+      `${baseUrl}/channels/${channelId}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      }),
+    );
+    return (await response.json()) as Endpoint;
   }
 
   it("accepts a valid ingest with 202 and a Broadcast id, storing body and filtered headers", async () => {
@@ -197,5 +217,59 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
       body: "x".repeat(MAX_BODY_BYTES),
     });
     expect(response.status).toBe(202);
+  });
+
+  it("fans out exactly one Delivery + one queued job per enabled Endpoint, skipping disabled ones", async () => {
+    const channel = await createChannel({ slug: "orders" });
+    const token = await mintToken(channel.id);
+    const first = await createEndpoint(channel.id, { url: "https://example.com/one" });
+    const second = await createEndpoint(channel.id, { url: "https://example.com/two" });
+    await createEndpoint(channel.id, { url: "https://example.com/disabled", enabled: false });
+
+    const response = await fetch(`${baseUrl}/ingest/orders`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}` },
+      body: "hi",
+    });
+    expect(response.status).toBe(202);
+    const { id: broadcastId } = (await response.json()) as { id: string };
+
+    const detailResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts/${broadcastId}`,
+      authed(),
+    );
+    expect(detailResponse.status).toBe(200);
+    const detail = (await detailResponse.json()) as {
+      deliveries: { id: string; endpointId: string; status: string }[];
+    };
+
+    expect(detail.deliveries).toHaveLength(2);
+    expect(detail.deliveries.every((delivery) => delivery.status === "pending")).toBe(true);
+    expect(detail.deliveries.map((delivery) => delivery.endpointId).sort()).toEqual(
+      [first.id, second.id].sort(),
+    );
+    expect(deliveryQueue.enqueued.sort()).toEqual(
+      detail.deliveries.map((delivery) => delivery.id).sort(),
+    );
+  });
+
+  it("creates no Deliveries and enqueues no jobs when the Channel has no enabled Endpoints", async () => {
+    const channel = await createChannel({ slug: "orders" });
+    const token = await mintToken(channel.id);
+
+    const response = await fetch(`${baseUrl}/ingest/orders`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}` },
+      body: "hi",
+    });
+    const { id: broadcastId } = (await response.json()) as { id: string };
+
+    const detailResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts/${broadcastId}`,
+      authed(),
+    );
+    const detail = (await detailResponse.json()) as { deliveries: unknown[] };
+    expect(detail.deliveries).toHaveLength(0);
+    expect(deliveryQueue.enqueued).toHaveLength(0);
   });
 });

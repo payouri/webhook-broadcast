@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import type { Database } from "@webhook-broadcast/db";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
+import { FakeDeliveryQueue } from "./fakeDeliveryQueue.js";
 
 describe("API liveness and readiness probes", () => {
   let server: Server;
@@ -12,6 +13,7 @@ describe("API liveness and readiness probes", () => {
     // Liveness/readiness never touch Postgres, so a real pool is unnecessary here.
     const app = createApp({
       db: {} as Database,
+      deliveryQueue: new FakeDeliveryQueue(),
       operatorApiKey: "test-operator-key",
       cookieName: "wb_operator",
     });

@@ -2,18 +2,22 @@ import { randomUUID } from "node:crypto";
 import type Router from "@koa/router";
 import { errorBody, ingestAcceptedSchema } from "@webhook-broadcast/contract";
 import {
+  createDeliveriesForBroadcast,
   findChannelTokenByHash,
   getActiveChannelBySlug,
   insertBroadcast,
+  listEnabledEndpointsByChannel,
   type Database,
 } from "@webhook-broadcast/db";
 import { extractBearerToken } from "../admin/auth.js";
 import { hashChannelToken } from "../tokens.js";
+import type { DeliveryQueue } from "../deliveryQueue.js";
 import { filterHeaders } from "./headers.js";
 import { PayloadTooLargeError, readLimitedBody } from "./readLimitedBody.js";
 
 export interface IngestRouteConfig {
   db: Database;
+  deliveryQueue: DeliveryQueue;
   maxBodyBytes: number;
   headerAllowlist: string[];
   headerDenylist: string[];
@@ -83,6 +87,23 @@ export function registerIngestRoutes(router: Router, config: IngestRouteConfig):
       body,
       headers: filterHeaders(ctx.req.headers, config.headerAllowlist, config.headerDenylist),
     });
+
+    // Fan-out snapshot (CONTEXT.md's Broadcast/Delivery language): exactly
+    // one Delivery per Endpoint enabled on this Channel right now, each
+    // enqueued as its own job so the worker never processes more than one
+    // Endpoint's Attempt per job.
+    const enabledEndpoints = await listEnabledEndpointsByChannel(config.db, channel.id);
+    if (enabledEndpoints.length > 0) {
+      const createdDeliveries = await createDeliveriesForBroadcast(config.db, {
+        broadcastId: broadcast.id,
+        channelId: channel.id,
+        endpointIds: enabledEndpoints.map((endpoint) => endpoint.id),
+        now: new Date(),
+      });
+      await Promise.all(
+        createdDeliveries.map((delivery) => config.deliveryQueue.enqueue(delivery.id)),
+      );
+    }
 
     ctx.status = 202;
     ctx.body = ingestAcceptedSchema.parse({ id: broadcast.id });

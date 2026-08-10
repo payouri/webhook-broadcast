@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import type { BroadcastList, Channel, ChannelTokenCreated } from "@webhook-broadcast/contract";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
+import { FakeDeliveryQueue } from "./fakeDeliveryQueue.js";
 import { startTestDb, type TestDb } from "./testDb.js";
 
 const OPERATOR_API_KEY = "test-operator-key";
@@ -17,6 +18,7 @@ describe("Channel Activity — GET /channels/:channelId/broadcasts (admin HTTP s
     testDb = await startTestDb();
     const app = createApp({
       db: testDb.db,
+      deliveryQueue: new FakeDeliveryQueue(),
       operatorApiKey: OPERATOR_API_KEY,
       cookieName: COOKIE_NAME,
     });
@@ -132,5 +134,107 @@ describe("Channel Activity — GET /channels/:channelId/broadcasts (admin HTTP s
     );
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({ error: { code: "validation_failed" } });
+  });
+});
+
+describe("Broadcast detail — GET /channels/:channelId/broadcasts/:broadcastId (admin HTTP seam)", () => {
+  let testDb: TestDb;
+  let server: Server;
+  let baseUrl: string;
+
+  beforeAll(async () => {
+    testDb = await startTestDb();
+    const app = createApp({
+      db: testDb.db,
+      deliveryQueue: new FakeDeliveryQueue(),
+      operatorApiKey: OPERATOR_API_KEY,
+      cookieName: COOKIE_NAME,
+    });
+    server = createServer(app.callback());
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const { port } = server.address() as AddressInfo;
+    baseUrl = `http://127.0.0.1:${port}`;
+  }, 60_000);
+
+  afterEach(async () => {
+    await testDb.reset();
+  });
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await testDb.stop();
+  }, 30_000);
+
+  function authed(init: RequestInit = {}): RequestInit {
+    return { ...init, headers: { authorization: `Bearer ${OPERATOR_API_KEY}`, ...init.headers } };
+  }
+
+  async function createChannel(slug: string): Promise<Channel> {
+    const response = await fetch(
+      `${baseUrl}/channels`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ slug }),
+      }),
+    );
+    return (await response.json()) as Channel;
+  }
+
+  async function ingest(channelId: string, slug: string, body: string): Promise<string> {
+    const mintResponse = await fetch(
+      `${baseUrl}/channels/${channelId}/tokens`,
+      authed({ method: "POST" }),
+    );
+    const { token } = (await mintResponse.json()) as ChannelTokenCreated;
+    const response = await fetch(`${baseUrl}/ingest/${slug}`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body,
+    });
+    const accepted = (await response.json()) as { id: string };
+    return accepted.id;
+  }
+
+  it("404s for an unknown Channel", async () => {
+    const response = await fetch(
+      `${baseUrl}/channels/00000000-0000-0000-0000-000000000000/broadcasts/00000000-0000-0000-0000-000000000000`,
+      authed(),
+    );
+    expect(response.status).toBe(404);
+  });
+
+  it("404s for an unknown Broadcast on a known Channel", async () => {
+    const channel = await createChannel("orders");
+    const response = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts/00000000-0000-0000-0000-000000000000`,
+      authed(),
+    );
+    expect(response.status).toBe(404);
+  });
+
+  it("returns the full payload with an empty Delivery list when no Endpoints were enabled", async () => {
+    const channel = await createChannel("orders");
+    const broadcastId = await ingest(channel.id, "orders", JSON.stringify({ hello: "world" }));
+
+    const response = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts/${broadcastId}`,
+      authed(),
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      id: string;
+      channelId: string;
+      contentType: string;
+      body: string;
+      deliveries: unknown[];
+    };
+    expect(body).toMatchObject({
+      id: broadcastId,
+      channelId: channel.id,
+      contentType: "application/json",
+      body: JSON.stringify({ hello: "world" }),
+      deliveries: [],
+    });
   });
 });

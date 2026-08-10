@@ -94,6 +94,18 @@ export async function listBroadcastsByChannel(
   return { items, nextCursor };
 }
 
+export async function getBroadcastById(
+  db: Database,
+  channelId: string,
+  id: string,
+): Promise<BroadcastRow | undefined> {
+  const [row] = await db
+    .select()
+    .from(broadcasts)
+    .where(and(eq(broadcasts.channelId, channelId), eq(broadcasts.id, id)));
+  return row;
+}
+
 export interface FanoutSummaryRow {
   total: number;
   succeeded: number;

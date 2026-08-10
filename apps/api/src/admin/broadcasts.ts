@@ -2,14 +2,17 @@ import type Router from "@koa/router";
 import {
   broadcastListQuerySchema,
   errorBody,
+  type BroadcastDetail,
   type BroadcastList,
 } from "@webhook-broadcast/contract";
 import {
   decodeBroadcastCursor,
   encodeBroadcastCursor,
+  getBroadcastById,
   getChannelById,
   getFanoutSummariesByBroadcastIds,
   listBroadcastsByChannel,
+  listDeliveriesForBroadcast,
   EMPTY_FANOUT_SUMMARY,
   type Database,
 } from "@webhook-broadcast/db";
@@ -78,5 +81,55 @@ export function registerBroadcastRoutes(router: Router, db: Database): void {
     };
     ctx.status = 200;
     ctx.body = body;
+  });
+
+  /** Broadcast detail (issue #19): inbound payload plus every fanned-out Delivery. */
+  router.get("/channels/:channelId/broadcasts/:broadcastId", async (ctx) => {
+    const channelId = requireUuidParam(ctx, "channelId");
+    if (!channelId) {
+      return;
+    }
+    const broadcastId = requireUuidParam(ctx, "broadcastId");
+    if (!broadcastId) {
+      return;
+    }
+
+    const channel = await getChannelById(db, channelId);
+    if (!channel) {
+      ctx.status = 404;
+      ctx.body = errorBody("not_found", "channel not found");
+      return;
+    }
+
+    const broadcast = await getBroadcastById(db, channelId, broadcastId);
+    if (!broadcast) {
+      ctx.status = 404;
+      ctx.body = errorBody("not_found", "broadcast not found");
+      return;
+    }
+
+    const deliveries = await listDeliveriesForBroadcast(db, broadcast.id);
+
+    const detail: BroadcastDetail = {
+      id: broadcast.id,
+      channelId: broadcast.channelId,
+      receivedAt: broadcast.receivedAt.toISOString(),
+      contentType: broadcast.contentType,
+      body: broadcast.body.toString("utf8"),
+      deliveries: deliveries.map((delivery) => ({
+        id: delivery.id,
+        endpointId: delivery.endpointId,
+        endpointName: delivery.endpointName,
+        endpointUrl: delivery.endpointUrl,
+        status: delivery.status,
+        attemptCount: delivery.attemptCount,
+        lastStatusCode: delivery.lastStatusCode,
+        lastDurationMs: delivery.lastDurationMs,
+        lastError: delivery.lastError,
+        updatedAt: delivery.updatedAt.toISOString(),
+      })),
+    };
+    ctx.status = 200;
+    ctx.body = detail;
   });
 }

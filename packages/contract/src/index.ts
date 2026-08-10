@@ -46,12 +46,18 @@ export {
   broadcastListItemSchema,
   broadcastListSchema,
   broadcastListQuerySchema,
+  deliveryStatusSchema,
+  deliveryItemSchema,
+  broadcastDetailSchema,
 } from "./broadcast.js";
 export type {
   FanoutSummary,
   BroadcastListItem,
   BroadcastList,
   BroadcastListQuery,
+  DeliveryStatus,
+  DeliveryItem,
+  BroadcastDetail,
 } from "./broadcast.js";
 export { ingestAcceptedSchema } from "./ingest.js";
 export type { IngestAccepted } from "./ingest.js";

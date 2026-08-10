@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^12.1.0",
+    "@testcontainers/redis": "^12.1.0",
     "@types/koa": "^3.0.0",
     "@types/pg": "^8.0.0",
     "tsdown": ">=0.20.0 <1.0.0",

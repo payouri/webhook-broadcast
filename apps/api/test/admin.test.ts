@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import type { Channel, ChannelList } from "@webhook-broadcast/contract";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
+import { FakeDeliveryQueue } from "./fakeDeliveryQueue.js";
 import { startTestDb, type TestDb } from "./testDb.js";
 
 const OPERATOR_API_KEY = "test-operator-key";
@@ -24,6 +25,7 @@ describe("Admin auth + Channel CRUD (HTTP seam)", () => {
     testDb = await startTestDb();
     const app = createApp({
       db: testDb.db,
+      deliveryQueue: new FakeDeliveryQueue(),
       operatorApiKey: OPERATOR_API_KEY,
       cookieName: COOKIE_NAME,
     });

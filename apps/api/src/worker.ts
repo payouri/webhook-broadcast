@@ -1,15 +1,20 @@
-import { Worker } from "bullmq";
+import { Worker, type Job } from "bullmq";
+import { createDb } from "@webhook-broadcast/db";
 import { bootEnv } from "./config.js";
+import { DELIVERY_QUEUE_NAME, type DeliveryJobData } from "./deliveryQueue.js";
 import { createHealthServer } from "./healthServer.js";
+import { processDeliveryJob } from "./worker/processDeliveryJob.js";
 
 const env = bootEnv();
+const { db, pool } = createDb(env.DATABASE_URL);
 
-// Delivery job processing lands in a later slice; this stub proves the
-// worker process boots, connects to Redis, and drains cleanly on SIGTERM.
-const worker = new Worker(
-  "delivery",
-  async () => {
-    // no-op until delivery fan-out ships
+const worker = new Worker<DeliveryJobData>(
+  DELIVERY_QUEUE_NAME,
+  async (job: Job<DeliveryJobData>) => {
+    await processDeliveryJob(
+      { db, defaultTimeoutMs: env.DELIVERY_TIMEOUT_MS },
+      job.data.deliveryId,
+    );
   },
   {
     connection: { url: env.REDIS_URL },
@@ -30,6 +35,7 @@ function shutdown(signal: string): void {
   console.log(JSON.stringify({ msg: "worker shutting down", signal }));
   Promise.all([
     worker.close(),
+    pool.end(),
     new Promise<void>((resolve) => healthServer.close(() => resolve())),
   ]).then(() => process.exit(0));
 }
