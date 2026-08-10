@@ -24,6 +24,11 @@ describe("worker health server", () => {
     await expect(response.json()).resolves.toEqual({ status: "ok" });
   });
 
+  it("GET /metrics returns 404 when metrics are not wired", async () => {
+    const response = await fetch(`${baseUrl}/metrics`);
+    expect(response.status).toBe(404);
+  });
+
   it("unknown routes 404", async () => {
     const response = await fetch(`${baseUrl}/nope`);
     expect(response.status).toBe(404);

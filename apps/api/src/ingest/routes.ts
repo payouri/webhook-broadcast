@@ -12,6 +12,9 @@ import {
 import { extractBearerToken } from "../admin/auth.js";
 import { hashChannelToken } from "../tokens.js";
 import type { DeliveryQueue } from "../deliveryQueue.js";
+import { newRequestId } from "../deliveryQueue.js";
+import type { MetricsCollector } from "../observability/metrics.js";
+import { logStructured } from "../observability/logger.js";
 import { filterHeaders } from "./headers.js";
 import { PayloadTooLargeError, readLimitedBody } from "./readLimitedBody.js";
 
@@ -21,6 +24,7 @@ export interface IngestRouteConfig {
   maxBodyBytes: number;
   headerAllowlist: string[];
   headerDenylist: string[];
+  metrics?: MetricsCollector;
 }
 
 /**
@@ -88,6 +92,8 @@ export function registerIngestRoutes(router: Router, config: IngestRouteConfig):
       headers: filterHeaders(ctx.req.headers, config.headerAllowlist, config.headerDenylist),
     });
 
+    const requestId = newRequestId();
+
     // Fan-out snapshot (CONTEXT.md's Broadcast/Delivery language): exactly
     // one Delivery per Endpoint enabled on this Channel right now, each
     // enqueued as its own job so the worker never processes more than one
@@ -101,9 +107,26 @@ export function registerIngestRoutes(router: Router, config: IngestRouteConfig):
         now: new Date(),
       });
       await Promise.all(
-        createdDeliveries.map((delivery) => config.deliveryQueue.enqueue(delivery.id)),
+        createdDeliveries.map((delivery) =>
+          config.deliveryQueue.enqueue({
+            deliveryId: delivery.id,
+            requestId,
+            channelId: channel.id,
+            broadcastId: broadcast.id,
+            endpointId: delivery.endpointId,
+          }),
+        ),
       );
     }
+
+    config.metrics?.ingestAcceptedTotal.inc();
+    logStructured({
+      msg: "ingest accepted",
+      requestId,
+      channelId: channel.id,
+      broadcastId: broadcast.id,
+      deliveryCount: enabledEndpoints.length,
+    });
 
     ctx.status = 202;
     ctx.body = ingestAcceptedSchema.parse({ id: broadcast.id });

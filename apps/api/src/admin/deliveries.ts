@@ -9,6 +9,7 @@ import {
   type Database,
 } from "@webhook-broadcast/db";
 import type { DeliveryQueue } from "../deliveryQueue.js";
+import { newRequestId } from "../deliveryQueue.js";
 import { requireUuidParam } from "./validation.js";
 
 function toWireDeliveryDetail(row: DeliveryDetailRow): DeliveryDetail {
@@ -104,10 +105,23 @@ export function registerDeliveryRoutes(
       return;
     }
 
-    await deliveryQueue.enqueue(deliveryId);
-
     const row = await getDeliveryDetailById(db, deliveryId);
     if (!row) {
+      ctx.status = 404;
+      ctx.body = errorBody("not_found", "delivery not found");
+      return;
+    }
+
+    await deliveryQueue.enqueue({
+      deliveryId: row.id,
+      requestId: newRequestId(),
+      channelId: row.channelId,
+      broadcastId: row.broadcastId,
+      endpointId: row.endpointId,
+    });
+
+    const updated = await getDeliveryDetailById(db, deliveryId);
+    if (!updated) {
       // Vanished between the update and this read — extremely unlikely
       // (cascade delete on the parent Broadcast) but handled rather than 500ing.
       ctx.status = 404;
@@ -115,6 +129,6 @@ export function registerDeliveryRoutes(
       return;
     }
     ctx.status = 200;
-    ctx.body = toWireDeliveryDetail(row);
+    ctx.body = toWireDeliveryDetail(updated);
   });
 }

@@ -389,7 +389,9 @@ describe("Broadcast replay — POST .../broadcasts/:broadcastId/replay (admin HT
     const originalDetail = await getDetail(channel.id, originalId);
     expect(originalDetail.deliveries).toHaveLength(1);
 
-    expect(deliveryQueue.enqueued).toContain(replayDetail.deliveries[0]?.id);
+    expect(deliveryQueue.enqueued.map((job) => job.deliveryId)).toContain(
+      replayDetail.deliveries[0]?.id,
+    );
   });
 
   it("fans out to Endpoints enabled at replay time, not at original ingest time", async () => {

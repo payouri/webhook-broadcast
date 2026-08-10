@@ -85,6 +85,7 @@ describe("ingest → queue → worker → Attempt (process-boundary integration)
             backoffMaxMs: TEST_BACKOFF_MAX_MS,
           },
           job.data.deliveryId,
+          job.data,
         );
       },
       {

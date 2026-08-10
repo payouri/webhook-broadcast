@@ -12,6 +12,7 @@ import { registerBroadcastRoutes } from "./admin/broadcasts.js";
 import { registerDeliveryRoutes } from "./admin/deliveries.js";
 import { registerIngestRoutes } from "./ingest/routes.js";
 import type { DeliveryQueue } from "./deliveryQueue.js";
+import type { MetricsCollector } from "./observability/metrics.js";
 
 /** Mirrors ADR 0008's `INGEST_MAX_BODY_BYTES` default. */
 const DEFAULT_INGEST_MAX_BODY_BYTES = 1_048_576;
@@ -24,6 +25,8 @@ export interface AppDeps {
   ingestMaxBodyBytes?: number;
   ingestHeaderAllowlist?: string[];
   ingestHeaderDenylist?: string[];
+  metrics?: MetricsCollector;
+  renderMetrics?: () => Promise<string>;
 }
 
 export function createApp(deps: AppDeps): Koa {
@@ -37,6 +40,7 @@ export function createApp(deps: AppDeps): Koa {
     maxBodyBytes: deps.ingestMaxBodyBytes ?? DEFAULT_INGEST_MAX_BODY_BYTES,
     headerAllowlist: deps.ingestHeaderAllowlist ?? [],
     headerDenylist: deps.ingestHeaderDenylist ?? [],
+    ...(deps.metrics ? { metrics: deps.metrics } : {}),
   });
 
   const router = new Router();
@@ -51,6 +55,14 @@ export function createApp(deps: AppDeps): Koa {
     ctx.status = 200;
     ctx.body = readyResponseSchema.parse({ status: "ok", checks: {} });
   });
+
+  if (deps.renderMetrics) {
+    router.get("/metrics", async (ctx) => {
+      ctx.status = 200;
+      ctx.type = "text/plain; version=0.0.4; charset=utf-8";
+      ctx.body = await deps.renderMetrics!();
+    });
+  }
 
   registerAuthRoutes(router, { operatorApiKey: deps.operatorApiKey, cookieName: deps.cookieName });
 

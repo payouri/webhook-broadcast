@@ -7,6 +7,9 @@ import {
 } from "@webhook-broadcast/db";
 import { RetryableDeliveryError } from "./errors.js";
 import { computeBackoffDelayMs, isRetryableOutcome, parseRetryAfterMs } from "./retryPolicy.js";
+import type { DeliveryJobData } from "../deliveryQueue.js";
+import type { MetricsCollector, AttemptResultClass } from "../observability/metrics.js";
+import { logStructured } from "../observability/logger.js";
 
 /** Mirrors the `DELIVERY_*` env defaults in packages/contract/src/env.ts. */
 const DEFAULT_MAX_ATTEMPTS = 8;
@@ -28,6 +31,7 @@ export interface ProcessDeliveryDeps {
   /** Injectable for deterministic tests. */
   random?: () => number;
   now?: () => Date;
+  metrics?: MetricsCollector;
 }
 
 /**
@@ -43,6 +47,7 @@ export interface ProcessDeliveryDeps {
 export async function processDeliveryJob(
   deps: ProcessDeliveryDeps,
   deliveryId: string,
+  observability?: Pick<DeliveryJobData, "requestId" | "channelId" | "broadcastId" | "endpointId">,
 ): Promise<void> {
   const maxAttempts = deps.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
   const backoffBaseMs = deps.backoffBaseMs ?? DEFAULT_BACKOFF_BASE_MS;
@@ -67,6 +72,15 @@ export async function processDeliveryJob(
   if (!inProgress) {
     return;
   }
+
+  logStructured({
+    msg: "delivery attempt started",
+    deliveryId,
+    ...(observability?.requestId ? { requestId: observability.requestId } : {}),
+    ...(observability?.channelId ? { channelId: observability.channelId } : {}),
+    ...(observability?.broadcastId ? { broadcastId: observability.broadcastId } : {}),
+    ...(observability?.endpointId ? { endpointId: observability.endpointId } : {}),
+  });
 
   const timeoutMs = record.endpoint.timeoutMs ?? deps.defaultTimeoutMs;
   const controller = new AbortController();
@@ -109,35 +123,40 @@ export async function processDeliveryJob(
   const n = record.attemptCount + 1;
   const at = now();
 
+  const finishAttempt = async (
+    status: "succeeded" | "failed" | "dead_lettered" | "pending",
+    resultClass: AttemptResultClass,
+  ): Promise<void> => {
+    deps.metrics?.recordAttempt(resultClass, durationMs);
+    logStructured({
+      msg: "delivery attempt finished",
+      deliveryId,
+      result: resultClass,
+      durationMs,
+      statusCode,
+      ...(observability?.requestId ? { requestId: observability.requestId } : {}),
+      ...(observability?.channelId ? { channelId: observability.channelId } : {}),
+      ...(observability?.broadcastId ? { broadcastId: observability.broadcastId } : {}),
+      ...(observability?.endpointId ? { endpointId: observability.endpointId } : {}),
+    });
+    await completeDelivery(deps.db, {
+      deliveryId,
+      n,
+      statusCode,
+      durationMs,
+      error: status === "succeeded" ? null : error,
+      status,
+      at,
+    });
+  };
+
   if (statusCode !== null && statusCode >= 200 && statusCode < 300) {
-    await completeDelivery(deps.db, {
-      deliveryId,
-      n,
-      statusCode,
-      durationMs,
-      error: null,
-      status: "succeeded",
-      at,
-    });
+    await finishAttempt("succeeded", "succeeded");
     return;
   }
 
-  const terminalStatus = !isRetryableOutcome({ statusCode })
-    ? ("failed" as const)
-    : n >= maxAttempts
-      ? ("dead_lettered" as const)
-      : null;
-
-  if (terminalStatus === "failed") {
-    await completeDelivery(deps.db, {
-      deliveryId,
-      n,
-      statusCode,
-      durationMs,
-      error,
-      status: "failed",
-      at,
-    });
+  if (!isRetryableOutcome({ statusCode })) {
+    await finishAttempt("failed", "failed");
     await maybeAutoDisableEndpoint(deps.db, {
       endpointId: record.endpointId,
       autoDisableAfterMs: endpointAutoDisableAfterMs,
@@ -146,16 +165,8 @@ export async function processDeliveryJob(
     return;
   }
 
-  if (terminalStatus === "dead_lettered") {
-    await completeDelivery(deps.db, {
-      deliveryId,
-      n,
-      statusCode,
-      durationMs,
-      error,
-      status: "dead_lettered",
-      at,
-    });
+  if (n >= maxAttempts) {
+    await finishAttempt("dead_lettered", "dead_lettered");
     await maybeAutoDisableEndpoint(deps.db, {
       endpointId: record.endpointId,
       autoDisableAfterMs: endpointAutoDisableAfterMs,
@@ -164,15 +175,7 @@ export async function processDeliveryJob(
     return;
   }
 
-  await completeDelivery(deps.db, {
-    deliveryId,
-    n,
-    statusCode,
-    durationMs,
-    error,
-    status: "pending",
-    at,
-  });
+  await finishAttempt("pending", "retry");
   const delayMs = computeBackoffDelayMs({
     attemptNumber: n,
     baseMs: backoffBaseMs,

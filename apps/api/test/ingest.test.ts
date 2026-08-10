@@ -248,7 +248,7 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
     expect(detail.deliveries.map((delivery) => delivery.endpointId).sort()).toEqual(
       [first.id, second.id].sort(),
     );
-    expect(deliveryQueue.enqueued.sort()).toEqual(
+    expect(deliveryQueue.enqueued.map((job) => job.deliveryId).sort()).toEqual(
       detail.deliveries.map((delivery) => delivery.id).sort(),
     );
   });

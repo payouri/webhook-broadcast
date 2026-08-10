@@ -22,6 +22,7 @@ import {
   type Database,
 } from "@webhook-broadcast/db";
 import type { DeliveryQueue } from "../deliveryQueue.js";
+import { newRequestId } from "../deliveryQueue.js";
 import { requireUuidParam, toDetails } from "./validation.js";
 
 const BODY_PREVIEW_MAX_LENGTH = 200;
@@ -197,7 +198,17 @@ export function registerBroadcastRoutes(router: Router, config: BroadcastRouteCo
         endpointIds: enabledEndpoints.map((endpoint) => endpoint.id),
         now,
       });
-      await Promise.all(createdDeliveries.map((delivery) => deliveryQueue.enqueue(delivery.id)));
+      await Promise.all(
+        createdDeliveries.map((delivery) =>
+          deliveryQueue.enqueue({
+            deliveryId: delivery.id,
+            requestId: newRequestId(),
+            channelId: channel.id,
+            broadcastId: replay.id,
+            endpointId: delivery.endpointId,
+          }),
+        ),
+      );
     }
 
     ctx.status = 202;
