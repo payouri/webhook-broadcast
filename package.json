@@ -1,0 +1,32 @@
+{
+  "name": "webhook-broadcast",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@11.1.2",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "oxlint .",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "typecheck": "pnpm -r run typecheck",
+    "dev:api": "pnpm --filter @webhook-broadcast/api run dev:server",
+    "dev:worker": "pnpm --filter @webhook-broadcast/api run dev:worker",
+    "dev:web": "pnpm --filter @webhook-broadcast/web run dev",
+    "migrate": "tsx apps/api/src/migrate.ts",
+    "db:generate": "pnpm --filter @webhook-broadcast/db run db:generate"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "oxlint": "^1.0.0",
+    "prettier": "^3.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^6.0.0",
+    "vitest": "^4.0.0"
+  }
+}
