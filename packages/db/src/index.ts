@@ -16,3 +16,14 @@ export {
   type ChannelTokenSummaryRow,
   type ChannelCursor,
 } from "./repositories/channels.js";
+export {
+  EndpointUrlConflictError,
+  insertEndpoint,
+  getEndpointById,
+  listEndpoints,
+  updateEndpoint,
+  encodeEndpointCursor,
+  decodeEndpointCursor,
+  type EndpointRow,
+  type EndpointCursor,
+} from "./repositories/endpoints.js";

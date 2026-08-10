@@ -23,5 +23,19 @@ export type {
   ChannelListQuery,
   ChannelList,
 } from "./channel.js";
+export {
+  endpointSchema,
+  endpointCreateSchema,
+  endpointUpdateSchema,
+  endpointListQuerySchema,
+  endpointListSchema,
+} from "./endpoint.js";
+export type {
+  Endpoint,
+  EndpointCreate,
+  EndpointUpdate,
+  EndpointListQuery,
+  EndpointList,
+} from "./endpoint.js";
 export { loginRequestSchema, loginResponseSchema } from "./auth.js";
 export type { LoginRequest, LoginResponse } from "./auth.js";

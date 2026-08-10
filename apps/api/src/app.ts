@@ -6,6 +6,7 @@ import type { Database } from "@webhook-broadcast/db";
 import { createOperatorAuthMiddleware } from "./admin/auth.js";
 import { registerAuthRoutes } from "./admin/authRoutes.js";
 import { registerChannelRoutes } from "./admin/channels.js";
+import { registerEndpointRoutes } from "./admin/endpoints.js";
 
 export interface AppDeps {
   db: Database;
@@ -46,6 +47,7 @@ export function createApp(deps: AppDeps): Koa {
     ctx.body = { ok: true };
   });
   registerChannelRoutes(adminRouter, deps.db);
+  registerEndpointRoutes(adminRouter, deps.db);
   router.use(adminRouter.routes(), adminRouter.allowedMethods());
 
   app.use(async (ctx, next) => {

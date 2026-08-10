@@ -1,4 +1,10 @@
-import type { Channel, ChannelList, LoginResponse } from "@webhook-broadcast/contract";
+import type {
+  Channel,
+  ChannelList,
+  Endpoint,
+  EndpointList,
+  LoginResponse,
+} from "@webhook-broadcast/contract";
 
 export class ApiRequestError extends Error {
   constructor(
@@ -57,6 +63,22 @@ export interface ChannelPatch {
   enabled?: boolean;
 }
 
+export interface EndpointInput {
+  name?: string | undefined;
+  url: string;
+  timeoutMs?: number | undefined;
+  headers?: Record<string, string> | undefined;
+  enabled?: boolean | undefined;
+}
+
+export interface EndpointPatch {
+  name?: string | null;
+  url?: string;
+  timeoutMs?: number | null;
+  headers?: Record<string, string>;
+  enabled?: boolean;
+}
+
 export const api = {
   login: (apiKey: string) =>
     request<LoginResponse>("/auth/login", { method: "POST", body: JSON.stringify({ apiKey }) }),
@@ -70,4 +92,15 @@ export const api = {
     request<Channel>(`/channels/${channelId}`, { method: "PATCH", body: JSON.stringify(patch) }),
   deleteChannel: (channelId: string) =>
     request<void>(`/channels/${channelId}`, { method: "DELETE" }),
+  listEndpoints: (channelId: string) => request<EndpointList>(`/channels/${channelId}/endpoints`),
+  createEndpoint: (channelId: string, input: EndpointInput) =>
+    request<Endpoint>(`/channels/${channelId}/endpoints`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  updateEndpoint: (channelId: string, endpointId: string, patch: EndpointPatch) =>
+    request<Endpoint>(`/channels/${channelId}/endpoints/${endpointId}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
 };
