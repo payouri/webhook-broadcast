@@ -1,758 +1,1216 @@
-openapi: 3.1.0
+components:
+  schemas:
+    Attempt:
+      additionalProperties: false
+      properties:
+        at:
+          $ref: "#/components/schemas/DateTime"
+        durationMs:
+          $ref: "#/components/schemas/__schema68"
+        error:
+          $ref: "#/components/schemas/__schema69"
+        id:
+          $ref: "#/components/schemas/Id"
+        n:
+          $ref: "#/components/schemas/__schema66"
+        statusCode:
+          $ref: "#/components/schemas/__schema67"
+      required:
+        - id
+        - n
+        - statusCode
+        - durationMs
+        - error
+        - at
+      type: object
+    AttemptList:
+      additionalProperties: false
+      properties:
+        items:
+          $ref: "#/components/schemas/__schema65"
+        nextCursor:
+          $ref: "#/components/schemas/__schema70"
+      required:
+        - items
+        - nextCursor
+      type: object
+    BroadcastAccepted:
+      additionalProperties: false
+      properties:
+        id:
+          $ref: "#/components/schemas/__schema58"
+      required:
+        - id
+      type: object
+    BroadcastDetail:
+      additionalProperties: false
+      properties:
+        body:
+          $ref: "#/components/schemas/__schema49"
+        channelId:
+          $ref: "#/components/schemas/Id"
+        contentType:
+          $ref: "#/components/schemas/__schema48"
+        deliveries:
+          $ref: "#/components/schemas/__schema50"
+        id:
+          $ref: "#/components/schemas/Id"
+        receivedAt:
+          $ref: "#/components/schemas/DateTime"
+      required:
+        - id
+        - channelId
+        - receivedAt
+        - contentType
+        - body
+        - deliveries
+      type: object
+    BroadcastList:
+      additionalProperties: false
+      properties:
+        items:
+          $ref: "#/components/schemas/__schema40"
+        nextCursor:
+          $ref: "#/components/schemas/__schema47"
+      required:
+        - items
+        - nextCursor
+      type: object
+    BroadcastListItem:
+      additionalProperties: false
+      properties:
+        bodyPreview:
+          $ref: "#/components/schemas/__schema41"
+        channelId:
+          $ref: "#/components/schemas/Id"
+        fanout:
+          $ref: "#/components/schemas/FanoutSummary"
+        id:
+          $ref: "#/components/schemas/Id"
+        receivedAt:
+          $ref: "#/components/schemas/DateTime"
+      required:
+        - id
+        - channelId
+        - receivedAt
+        - bodyPreview
+        - fanout
+      type: object
+    Channel:
+      additionalProperties: false
+      properties:
+        createdAt:
+          $ref: "#/components/schemas/DateTime"
+        deletedAt:
+          $ref: "#/components/schemas/__schema24"
+        description:
+          $ref: "#/components/schemas/__schema19"
+        enabled:
+          $ref: "#/components/schemas/__schema20"
+        endpointCount:
+          $ref: "#/components/schemas/__schema21"
+        id:
+          $ref: "#/components/schemas/Id"
+        slug:
+          $ref: "#/components/schemas/__schema18"
+        tokens:
+          $ref: "#/components/schemas/__schema22"
+        updatedAt:
+          $ref: "#/components/schemas/DateTime"
+      required:
+        - id
+        - slug
+        - description
+        - enabled
+        - endpointCount
+        - tokens
+        - deletedAt
+        - createdAt
+        - updatedAt
+      type: object
+    ChannelCreate:
+      properties:
+        description:
+          $ref: "#/components/schemas/__schema1"
+        enabled:
+          $ref: "#/components/schemas/__schema2"
+        slug:
+          $ref: "#/components/schemas/__schema0"
+      required:
+        - slug
+      type: object
+    ChannelList:
+      additionalProperties: false
+      properties:
+        items:
+          $ref: "#/components/schemas/__schema17"
+        nextCursor:
+          $ref: "#/components/schemas/__schema25"
+      required:
+        - items
+        - nextCursor
+      type: object
+    ChannelTokenCreated:
+      additionalProperties: false
+      properties:
+        createdAt:
+          $ref: "#/components/schemas/DateTime"
+        id:
+          $ref: "#/components/schemas/Id"
+        token:
+          $ref: "#/components/schemas/__schema39"
+      required:
+        - id
+        - token
+        - createdAt
+      type: object
+    ChannelTokenSummary:
+      additionalProperties: false
+      properties:
+        createdAt:
+          $ref: "#/components/schemas/DateTime"
+        id:
+          $ref: "#/components/schemas/Id"
+        prefix:
+          $ref: "#/components/schemas/__schema23"
+      required:
+        - id
+        - prefix
+        - createdAt
+      type: object
+    ChannelUpdate:
+      properties:
+        description:
+          $ref: "#/components/schemas/__schema4"
+        enabled:
+          $ref: "#/components/schemas/__schema5"
+        slug:
+          $ref: "#/components/schemas/__schema3"
+      type: object
+    DateTime:
+      description: ISO-8601; Zod wire type z.iso.datetime()
+      format: date-time
+      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+      type: string
+    Delivery:
+      additionalProperties: false
+      properties:
+        attemptCount:
+          $ref: "#/components/schemas/__schema61"
+        broadcastId:
+          $ref: "#/components/schemas/Id"
+        channelId:
+          $ref: "#/components/schemas/Id"
+        endpointId:
+          $ref: "#/components/schemas/Id"
+        endpointName:
+          $ref: "#/components/schemas/__schema59"
+        endpointUrl:
+          $ref: "#/components/schemas/__schema60"
+        id:
+          $ref: "#/components/schemas/Id"
+        lastDurationMs:
+          $ref: "#/components/schemas/__schema63"
+        lastError:
+          $ref: "#/components/schemas/__schema64"
+        lastStatusCode:
+          $ref: "#/components/schemas/__schema62"
+        status:
+          $ref: "#/components/schemas/__schema53"
+        updatedAt:
+          $ref: "#/components/schemas/DateTime"
+      required:
+        - id
+        - broadcastId
+        - channelId
+        - endpointId
+        - endpointName
+        - endpointUrl
+        - status
+        - attemptCount
+        - lastStatusCode
+        - lastDurationMs
+        - lastError
+        - updatedAt
+      type: object
+    DeliveryItem:
+      additionalProperties: false
+      properties:
+        attemptCount:
+          $ref: "#/components/schemas/__schema54"
+        endpointId:
+          $ref: "#/components/schemas/Id"
+        endpointName:
+          $ref: "#/components/schemas/__schema51"
+        endpointUrl:
+          $ref: "#/components/schemas/__schema52"
+        id:
+          $ref: "#/components/schemas/Id"
+        lastDurationMs:
+          $ref: "#/components/schemas/__schema56"
+        lastError:
+          $ref: "#/components/schemas/__schema57"
+        lastStatusCode:
+          $ref: "#/components/schemas/__schema55"
+        status:
+          $ref: "#/components/schemas/__schema53"
+        updatedAt:
+          $ref: "#/components/schemas/DateTime"
+      required:
+        - id
+        - endpointId
+        - endpointName
+        - endpointUrl
+        - status
+        - attemptCount
+        - lastStatusCode
+        - lastDurationMs
+        - lastError
+        - updatedAt
+      type: object
+    Endpoint:
+      additionalProperties: false
+      properties:
+        autoDisabledAt:
+          $ref: "#/components/schemas/__schema34"
+        channelId:
+          $ref: "#/components/schemas/Id"
+        createdAt:
+          $ref: "#/components/schemas/DateTime"
+        enabled:
+          $ref: "#/components/schemas/__schema33"
+        headers:
+          $ref: "#/components/schemas/__schema32"
+        id:
+          $ref: "#/components/schemas/Id"
+        lastSuccessAt:
+          $ref: "#/components/schemas/__schema37"
+        name:
+          $ref: "#/components/schemas/__schema29"
+        p95Ms:
+          $ref: "#/components/schemas/__schema36"
+        successRate24h:
+          $ref: "#/components/schemas/__schema35"
+        timeoutMs:
+          $ref: "#/components/schemas/__schema31"
+        updatedAt:
+          $ref: "#/components/schemas/DateTime"
+        url:
+          $ref: "#/components/schemas/__schema30"
+      required:
+        - id
+        - channelId
+        - name
+        - url
+        - timeoutMs
+        - headers
+        - enabled
+        - createdAt
+        - updatedAt
+      type: object
+    EndpointCreate:
+      properties:
+        enabled:
+          $ref: "#/components/schemas/__schema11"
+        headers:
+          $ref: "#/components/schemas/__schema9"
+        name:
+          $ref: "#/components/schemas/__schema6"
+        timeoutMs:
+          $ref: "#/components/schemas/__schema8"
+        url:
+          $ref: "#/components/schemas/__schema7"
+      required:
+        - url
+      type: object
+    EndpointList:
+      additionalProperties: false
+      properties:
+        items:
+          $ref: "#/components/schemas/__schema28"
+        nextCursor:
+          $ref: "#/components/schemas/__schema38"
+      required:
+        - items
+        - nextCursor
+      type: object
+    EndpointUpdate:
+      properties:
+        enabled:
+          $ref: "#/components/schemas/__schema16"
+        headers:
+          $ref: "#/components/schemas/__schema15"
+        name:
+          $ref: "#/components/schemas/__schema12"
+        timeoutMs:
+          $ref: "#/components/schemas/__schema14"
+        url:
+          $ref: "#/components/schemas/__schema13"
+      type: object
+    ErrorEnvelope:
+      additionalProperties: false
+      properties:
+        error:
+          $ref: "#/components/schemas/__schema26"
+      required:
+        - error
+      type: object
+    FanoutSummary:
+      additionalProperties: false
+      properties:
+        deadLettered:
+          $ref: "#/components/schemas/__schema45"
+        failed:
+          $ref: "#/components/schemas/__schema44"
+        pending:
+          $ref: "#/components/schemas/__schema46"
+        succeeded:
+          $ref: "#/components/schemas/__schema43"
+        total:
+          $ref: "#/components/schemas/__schema42"
+      required:
+        - total
+        - succeeded
+        - failed
+        - deadLettered
+        - pending
+      type: object
+    Id:
+      format: uuid
+      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+      type: string
+    __schema0:
+      maxLength: 200
+      minLength: 1
+      pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+      type: string
+    __schema1:
+      type: string
+    __schema10:
+      additionalProperties:
+        type: string
+      propertyNames:
+        type: string
+      type: object
+    __schema11:
+      default: true
+      type: boolean
+    __schema12:
+      anyOf:
+        - minLength: 1
+          type: string
+        - type: "null"
+    __schema13:
+      format: uri
+      type: string
+    __schema14:
+      anyOf:
+        - maximum: 9007199254740991
+          minimum: 1
+          type: integer
+        - type: "null"
+    __schema15:
+      $ref: "#/components/schemas/__schema10"
+    __schema16:
+      type: boolean
+    __schema17:
+      items:
+        $ref: "#/components/schemas/Channel"
+      type: array
+    __schema18:
+      minLength: 1
+      type: string
+    __schema19:
+      anyOf:
+        - type: string
+        - type: "null"
+    __schema2:
+      default: true
+      type: boolean
+    __schema20:
+      type: boolean
+    __schema21:
+      maximum: 9007199254740991
+      minimum: 0
+      type: integer
+    __schema22:
+      items:
+        $ref: "#/components/schemas/ChannelTokenSummary"
+      type: array
+    __schema23:
+      description: First ~8 chars of the token for recognition; never full secret
+      type: string
+    __schema24:
+      anyOf:
+        - $ref: "#/components/schemas/DateTime"
+        - type: "null"
+    __schema25:
+      anyOf:
+        - type: string
+        - type: "null"
+    __schema26:
+      additionalProperties: false
+      properties:
+        code:
+          description: Stable machine code (e.g. validation_failed, not_found, unauthorized, conflict)
+          type: string
+        details:
+          $ref: "#/components/schemas/__schema27"
+          description: Present for validation_failed (Zod issues)
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    __schema27:
+      items:
+        additionalProperties: false
+        properties:
+          message:
+            type: string
+          path:
+            type: string
+        required:
+          - path
+          - message
+        type: object
+      type: array
+    __schema28:
+      items:
+        $ref: "#/components/schemas/Endpoint"
+      type: array
+    __schema29:
+      anyOf:
+        - type: string
+        - type: "null"
+    __schema3:
+      $ref: "#/components/schemas/__schema0"
+    __schema30:
+      format: uri
+      type: string
+    __schema31:
+      anyOf:
+        - maximum: 9007199254740991
+          minimum: 1
+          type: integer
+        - type: "null"
+    __schema32:
+      additionalProperties:
+        type: string
+      propertyNames:
+        type: string
+      type: object
+    __schema33:
+      type: boolean
+    __schema34:
+      anyOf:
+        - $ref: "#/components/schemas/DateTime"
+        - type: "null"
+    __schema35:
+      anyOf:
+        - maximum: 1
+          minimum: 0
+          type: number
+        - type: "null"
+    __schema36:
+      anyOf:
+        - maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: integer
+        - type: "null"
+    __schema37:
+      anyOf:
+        - $ref: "#/components/schemas/DateTime"
+        - type: "null"
+    __schema38:
+      anyOf:
+        - type: string
+        - type: "null"
+    __schema39:
+      description: Plaintext ingest token — shown once
+      type: string
+    __schema4:
+      anyOf:
+        - type: string
+        - type: "null"
+    __schema40:
+      items:
+        $ref: "#/components/schemas/BroadcastListItem"
+      type: array
+    __schema41:
+      type: string
+    __schema42:
+      maximum: 9007199254740991
+      minimum: 0
+      type: integer
+    __schema43:
+      maximum: 9007199254740991
+      minimum: 0
+      type: integer
+    __schema44:
+      maximum: 9007199254740991
+      minimum: 0
+      type: integer
+    __schema45:
+      maximum: 9007199254740991
+      minimum: 0
+      type: integer
+    __schema46:
+      description: pending + in_progress for list summaries
+      maximum: 9007199254740991
+      minimum: 0
+      type: integer
+    __schema47:
+      anyOf:
+        - type: string
+        - type: "null"
+    __schema48:
+      type: string
+    __schema49:
+      description: Raw inbound body (UTF-8 text for MVP sketch)
+      type: string
+    __schema5:
+      type: boolean
+    __schema50:
+      items:
+        $ref: "#/components/schemas/DeliveryItem"
+      type: array
+    __schema51:
+      anyOf:
+        - type: string
+        - type: "null"
+    __schema52:
+      type: string
+    __schema53:
+      enum:
+        - pending
+        - in_progress
+        - succeeded
+        - failed
+        - dead_lettered
+      type: string
+    __schema54:
+      maximum: 9007199254740991
+      minimum: 0
+      type: integer
+    __schema55:
+      anyOf:
+        - maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: integer
+        - type: "null"
+    __schema56:
+      anyOf:
+        - maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: integer
+        - type: "null"
+    __schema57:
+      anyOf:
+        - type: string
+        - type: "null"
+    __schema58:
+      $ref: "#/components/schemas/Id"
+      description: New Broadcast id from replay
+    __schema59:
+      anyOf:
+        - type: string
+        - type: "null"
+    __schema6:
+      minLength: 1
+      type: string
+    __schema60:
+      type: string
+    __schema61:
+      maximum: 9007199254740991
+      minimum: 0
+      type: integer
+    __schema62:
+      anyOf:
+        - maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: integer
+        - type: "null"
+    __schema63:
+      anyOf:
+        - maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: integer
+        - type: "null"
+    __schema64:
+      anyOf:
+        - type: string
+        - type: "null"
+    __schema65:
+      items:
+        $ref: "#/components/schemas/Attempt"
+      type: array
+    __schema66:
+      maximum: 9007199254740991
+      minimum: 1
+      type: integer
+    __schema67:
+      anyOf:
+        - maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: integer
+        - type: "null"
+    __schema68:
+      anyOf:
+        - maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: integer
+        - type: "null"
+    __schema69:
+      anyOf:
+        - type: string
+        - type: "null"
+    __schema7:
+      format: uri
+      type: string
+    __schema70:
+      anyOf:
+        - type: string
+        - type: "null"
+    __schema8:
+      maximum: 9007199254740991
+      minimum: 1
+      type: integer
+    __schema9:
+      $ref: "#/components/schemas/__schema10"
+  securitySchemes:
+    OperatorBearer:
+      bearerFormat: API key
+      description: Operator API key. Dashboard may send the same key via HttpOnly cookie `wb_operator` instead; middleware accepts either. Cookie is not a separate OAuth/user session.
+      scheme: bearer
+      type: http
+    OperatorCookie:
+      description: Optional alternate to OperatorBearer for the dashboard.
+      in: cookie
+      name: wb_operator
+      type: apiKey
 info:
+  description: Operator-facing admin contract emitted from Zod schemas in packages/contract. Ingest `POST /ingest/{slug}` is intentionally NOT in this document.
   title: webhook-broadcast Admin API
   version: 0.1.0
-  description: |
-    Operator-facing admin contract sketch (wayfinder). Source of truth will be Zod
-    schemas emitting this document; this file is the locked shape until codegen lands.
-    Ingest `POST /ingest/{slug}` is intentionally NOT in this document.
-servers:
-  - url: /
+openapi: 3.1.0
+paths:
+  /channels:
+    get:
+      operationId: listChannels
+      parameters:
+        - in: query
+          name: cursor
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            default: 50
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelList"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      summary: List channels
+      tags:
+        - channels
+    post:
+      operationId: createChannel
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChannelCreate"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+          description: Created
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      summary: Create channel
+      tags:
+        - channels
+  /channels/{channelId}:
+    delete:
+      operationId: deleteChannel
+      parameters:
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+      responses:
+        "204":
+          description: Soft-deleted
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      summary: Soft-delete channel (sets deletedAt)
+      tags:
+        - channels
+    get:
+      operationId: getChannel
+      parameters:
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      tags:
+        - channels
+    patch:
+      operationId: updateChannel
+      parameters:
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChannelUpdate"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      tags:
+        - channels
+  /channels/{channelId}/broadcasts:
+    get:
+      operationId: listChannelBroadcasts
+      parameters:
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+        - in: query
+          name: cursor
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            default: 50
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BroadcastList"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      summary: Channel activity (newest first)
+      tags:
+        - broadcasts
+  /channels/{channelId}/broadcasts/{broadcastId}:
+    get:
+      operationId: getBroadcastDetail
+      parameters:
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+        - in: path
+          name: broadcastId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BroadcastDetail"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      summary: Broadcast detail with fanned-out Deliveries
+      tags:
+        - broadcasts
+  /channels/{channelId}/broadcasts/{broadcastId}/replay:
+    post:
+      operationId: replayBroadcast
+      parameters:
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+        - in: path
+          name: broadcastId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BroadcastAccepted"
+          description: Accepted
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      summary: Accept a new Broadcast from stored payload (202 semantics)
+      tags:
+        - broadcasts
+  /channels/{channelId}/endpoints:
+    get:
+      operationId: listEndpoints
+      parameters:
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+        - in: query
+          name: cursor
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            default: 50
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EndpointList"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      tags:
+        - endpoints
+    post:
+      operationId: createEndpoint
+      parameters:
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EndpointCreate"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Endpoint"
+          description: Created
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      tags:
+        - endpoints
+  /channels/{channelId}/endpoints/{endpointId}:
+    get:
+      operationId: getEndpoint
+      parameters:
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+        - in: path
+          name: endpointId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Endpoint"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      tags:
+        - endpoints
+    patch:
+      operationId: updateEndpoint
+      parameters:
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+        - in: path
+          name: endpointId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EndpointUpdate"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Endpoint"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      tags:
+        - endpoints
+  /channels/{channelId}/tokens:
+    post:
+      operationId: createChannelToken
+      parameters:
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelTokenCreated"
+          description: Created
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      summary: Create ingest token; plaintext returned once
+      tags:
+        - tokens
+  /channels/{channelId}/tokens/{tokenId}:
+    delete:
+      operationId: revokeChannelToken
+      parameters:
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+        - in: path
+          name: tokenId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+      responses:
+        "204":
+          description: Revoked
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      tags:
+        - tokens
+  /deliveries/{deliveryId}:
+    get:
+      operationId: getDelivery
+      parameters:
+        - in: path
+          name: deliveryId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Delivery"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      tags:
+        - deliveries
+  /deliveries/{deliveryId}/attempts:
+    get:
+      operationId: listDeliveryAttempts
+      parameters:
+        - in: path
+          name: deliveryId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttemptList"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      tags:
+        - deliveries
+  /deliveries/{deliveryId}/retry:
+    post:
+      operationId: retryDelivery
+      parameters:
+        - in: path
+          name: deliveryId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Delivery"
+          description: Delivery re-queued as pending
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      summary: Re-enqueue a dead_lettered Delivery (409 if not dead_lettered)
+      tags:
+        - deliveries
 security:
   - OperatorBearer: []
+servers:
+  - url: /
 tags:
   - name: channels
   - name: endpoints
   - name: tokens
   - name: broadcasts
   - name: deliveries
-paths:
-  /channels:
-    get:
-      tags: [channels]
-      operationId: listChannels
-      summary: List channels
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ChannelList'
-        default:
-          $ref: '#/components/responses/Error'
-    post:
-      tags: [channels]
-      operationId: createChannel
-      summary: Create channel
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ChannelCreate'
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Channel'
-        default:
-          $ref: '#/components/responses/Error'
-
-  /channels/{channelId}:
-    parameters:
-      - $ref: '#/components/parameters/channelId'
-    get:
-      tags: [channels]
-      operationId: getChannel
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Channel'
-        default:
-          $ref: '#/components/responses/Error'
-    patch:
-      tags: [channels]
-      operationId: updateChannel
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ChannelUpdate'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Channel'
-        default:
-          $ref: '#/components/responses/Error'
-    delete:
-      tags: [channels]
-      operationId: deleteChannel
-      summary: Soft-delete channel (sets deletedAt)
-      responses:
-        '204':
-          description: Soft-deleted
-        default:
-          $ref: '#/components/responses/Error'
-
-  /channels/{channelId}/endpoints:
-    parameters:
-      - $ref: '#/components/parameters/channelId'
-    get:
-      tags: [endpoints]
-      operationId: listEndpoints
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EndpointList'
-        default:
-          $ref: '#/components/responses/Error'
-    post:
-      tags: [endpoints]
-      operationId: createEndpoint
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/EndpointCreate'
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Endpoint'
-        default:
-          $ref: '#/components/responses/Error'
-
-  /channels/{channelId}/endpoints/{endpointId}:
-    parameters:
-      - $ref: '#/components/parameters/channelId'
-      - $ref: '#/components/parameters/endpointId'
-    get:
-      tags: [endpoints]
-      operationId: getEndpoint
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Endpoint'
-        default:
-          $ref: '#/components/responses/Error'
-    patch:
-      tags: [endpoints]
-      operationId: updateEndpoint
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/EndpointUpdate'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Endpoint'
-        default:
-          $ref: '#/components/responses/Error'
-    delete:
-      tags: [endpoints]
-      operationId: deleteEndpoint
-      responses:
-        '204':
-          description: Deleted
-        default:
-          $ref: '#/components/responses/Error'
-
-  /channels/{channelId}/tokens:
-    parameters:
-      - $ref: '#/components/parameters/channelId'
-    post:
-      tags: [tokens]
-      operationId: createChannelToken
-      summary: Create ingest token; plaintext returned once
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ChannelTokenCreated'
-        default:
-          $ref: '#/components/responses/Error'
-
-  /channels/{channelId}/tokens/{tokenId}:
-    parameters:
-      - $ref: '#/components/parameters/channelId'
-      - $ref: '#/components/parameters/tokenId'
-    delete:
-      tags: [tokens]
-      operationId: revokeChannelToken
-      responses:
-        '204':
-          description: Revoked
-        default:
-          $ref: '#/components/responses/Error'
-
-  /channels/{channelId}/broadcasts:
-    parameters:
-      - $ref: '#/components/parameters/channelId'
-      - $ref: '#/components/parameters/cursor'
-      - $ref: '#/components/parameters/limit'
-    get:
-      tags: [broadcasts]
-      operationId: listChannelBroadcasts
-      summary: Channel activity (newest first)
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BroadcastList'
-        default:
-          $ref: '#/components/responses/Error'
-
-  /broadcasts/{broadcastId}:
-    parameters:
-      - $ref: '#/components/parameters/broadcastId'
-    get:
-      tags: [broadcasts]
-      operationId: getBroadcast
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Broadcast'
-        default:
-          $ref: '#/components/responses/Error'
-
-  /broadcasts/{broadcastId}/replay:
-    parameters:
-      - $ref: '#/components/parameters/broadcastId'
-    post:
-      tags: [broadcasts]
-      operationId: replayBroadcast
-      summary: Accept a new Broadcast from stored payload (202 semantics)
-      responses:
-        '202':
-          description: Accepted
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BroadcastAccepted'
-        default:
-          $ref: '#/components/responses/Error'
-
-  /broadcasts/{broadcastId}/deliveries:
-    parameters:
-      - $ref: '#/components/parameters/broadcastId'
-    get:
-      tags: [deliveries]
-      operationId: listBroadcastDeliveries
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeliveryList'
-        default:
-          $ref: '#/components/responses/Error'
-
-  /deliveries/{deliveryId}:
-    parameters:
-      - $ref: '#/components/parameters/deliveryId'
-    get:
-      tags: [deliveries]
-      operationId: getDelivery
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Delivery'
-        default:
-          $ref: '#/components/responses/Error'
-
-  /deliveries/{deliveryId}/attempts:
-    parameters:
-      - $ref: '#/components/parameters/deliveryId'
-    get:
-      tags: [deliveries]
-      operationId: listDeliveryAttempts
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AttemptList'
-        default:
-          $ref: '#/components/responses/Error'
-
-  /deliveries/{deliveryId}/retry:
-    parameters:
-      - $ref: '#/components/parameters/deliveryId'
-    post:
-      tags: [deliveries]
-      operationId: retryDelivery
-      summary: Re-enqueue a dead_lettered Delivery (409 if not dead_lettered)
-      responses:
-        '200':
-          description: Delivery re-queued as pending
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Delivery'
-        default:
-          $ref: '#/components/responses/Error'
-
-components:
-  securitySchemes:
-    OperatorBearer:
-      type: http
-      scheme: bearer
-      bearerFormat: API key
-      description: |
-        Operator API key. Dashboard may send the same key via HttpOnly cookie
-        `wb_operator` instead; middleware accepts either. Cookie is not a separate
-        OAuth/user session.
-    OperatorCookie:
-      type: apiKey
-      in: cookie
-      name: wb_operator
-      description: Optional alternate to OperatorBearer for the dashboard.
-
-  parameters:
-    channelId:
-      name: channelId
-      in: path
-      required: true
-      schema:
-        $ref: '#/components/schemas/Id'
-    endpointId:
-      name: endpointId
-      in: path
-      required: true
-      schema:
-        $ref: '#/components/schemas/Id'
-    tokenId:
-      name: tokenId
-      in: path
-      required: true
-      schema:
-        $ref: '#/components/schemas/Id'
-    broadcastId:
-      name: broadcastId
-      in: path
-      required: true
-      schema:
-        $ref: '#/components/schemas/Id'
-    deliveryId:
-      name: deliveryId
-      in: path
-      required: true
-      schema:
-        $ref: '#/components/schemas/Id'
-    cursor:
-      name: cursor
-      in: query
-      required: false
-      schema:
-        type: string
-      description: Opaque keyset cursor from a previous nextCursor
-    limit:
-      name: limit
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 50
-
-  responses:
-    Error:
-      description: Error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
-
-  schemas:
-    Id:
-      type: string
-      format: uuid
-
-    DateTime:
-      type: string
-      format: date-time
-      description: ISO-8601; Zod wire type z.iso.datetime()
-
-    ErrorEnvelope:
-      type: object
-      required: [error]
-      properties:
-        error:
-          type: object
-          required: [code, message]
-          properties:
-            code:
-              type: string
-              description: Stable machine code (e.g. validation_failed, not_found, unauthorized, conflict)
-            message:
-              type: string
-            details:
-              type: array
-              items:
-                type: object
-                required: [path, message]
-                properties:
-                  path:
-                    type: string
-                  message:
-                    type: string
-              description: Present for validation_failed (Zod issues)
-
-    ChannelTokenSummary:
-      type: object
-      required: [id, prefix, createdAt]
-      properties:
-        id:
-          $ref: '#/components/schemas/Id'
-        prefix:
-          type: string
-          description: First ~8 chars of the token for recognition; never full secret
-        createdAt:
-          $ref: '#/components/schemas/DateTime'
-
-    ChannelTokenCreated:
-      type: object
-      required: [id, token, createdAt]
-      properties:
-        id:
-          $ref: '#/components/schemas/Id'
-        token:
-          type: string
-          description: Plaintext ingest token — shown once
-        createdAt:
-          $ref: '#/components/schemas/DateTime'
-
-    Channel:
-      type: object
-      required: [id, slug, enabled, endpointCount, tokens, createdAt, updatedAt]
-      properties:
-        id:
-          $ref: '#/components/schemas/Id'
-        slug:
-          type: string
-          minLength: 1
-        description:
-          type: [string, 'null']
-        enabled:
-          type: boolean
-        endpointCount:
-          type: integer
-          minimum: 0
-        tokens:
-          type: array
-          items:
-            $ref: '#/components/schemas/ChannelTokenSummary'
-        deletedAt:
-          type: [string, 'null']
-          format: date-time
-        createdAt:
-          $ref: '#/components/schemas/DateTime'
-        updatedAt:
-          $ref: '#/components/schemas/DateTime'
-
-    ChannelCreate:
-      type: object
-      required: [slug]
-      properties:
-        slug:
-          type: string
-          minLength: 1
-        description:
-          type: string
-        enabled:
-          type: boolean
-          default: true
-
-    ChannelUpdate:
-      type: object
-      properties:
-        slug:
-          type: string
-          minLength: 1
-        description:
-          type: [string, 'null']
-        enabled:
-          type: boolean
-
-    ChannelList:
-      type: object
-      required: [items, nextCursor]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Channel'
-        nextCursor:
-          type: [string, 'null']
-
-    Endpoint:
-      type: object
-      required: [id, channelId, url, enabled, createdAt, updatedAt]
-      properties:
-        id:
-          $ref: '#/components/schemas/Id'
-        channelId:
-          $ref: '#/components/schemas/Id'
-        name:
-          type: [string, 'null']
-        url:
-          type: string
-          format: uri
-        timeoutMs:
-          type: [integer, 'null']
-          minimum: 1
-        headers:
-          type: object
-          additionalProperties:
-            type: string
-        enabled:
-          type: boolean
-        autoDisabledAt:
-          type: [string, 'null']
-          format: date-time
-        successRate24h:
-          type: [number, 'null']
-          minimum: 0
-          maximum: 1
-        p95Ms:
-          type: [integer, 'null']
-        lastSuccessAt:
-          type: [string, 'null']
-          format: date-time
-        createdAt:
-          $ref: '#/components/schemas/DateTime'
-        updatedAt:
-          $ref: '#/components/schemas/DateTime'
-
-    EndpointCreate:
-      type: object
-      required: [url]
-      properties:
-        name:
-          type: string
-        url:
-          type: string
-          format: uri
-        timeoutMs:
-          type: integer
-          minimum: 1
-        headers:
-          type: object
-          additionalProperties:
-            type: string
-        enabled:
-          type: boolean
-          default: true
-
-    EndpointUpdate:
-      type: object
-      properties:
-        name:
-          type: [string, 'null']
-        url:
-          type: string
-          format: uri
-        timeoutMs:
-          type: [integer, 'null']
-        headers:
-          type: object
-          additionalProperties:
-            type: string
-        enabled:
-          type: boolean
-
-    EndpointList:
-      type: object
-      required: [items, nextCursor]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Endpoint'
-        nextCursor:
-          type: [string, 'null']
-
-    FanoutSummary:
-      type: object
-      required: [total, succeeded, failed, deadLettered, pending]
-      properties:
-        total:
-          type: integer
-        succeeded:
-          type: integer
-        failed:
-          type: integer
-        deadLettered:
-          type: integer
-        pending:
-          type: integer
-          description: pending + in_progress for list summaries
-
-    Broadcast:
-      type: object
-      required: [id, channelId, receivedAt, contentType, body, fanout]
-      properties:
-        id:
-          $ref: '#/components/schemas/Id'
-        channelId:
-          $ref: '#/components/schemas/Id'
-        receivedAt:
-          $ref: '#/components/schemas/DateTime'
-        contentType:
-          type: string
-        body:
-          type: string
-          description: Raw inbound body (UTF-8 text for MVP sketch)
-        headers:
-          type: object
-          additionalProperties:
-            type: string
-          description: Stored inbound headers after allow/deny filter
-        fanout:
-          $ref: '#/components/schemas/FanoutSummary'
-
-    BroadcastListItem:
-      type: object
-      required: [id, channelId, receivedAt, bodyPreview, fanout]
-      properties:
-        id:
-          $ref: '#/components/schemas/Id'
-        channelId:
-          $ref: '#/components/schemas/Id'
-        receivedAt:
-          $ref: '#/components/schemas/DateTime'
-        bodyPreview:
-          type: string
-        fanout:
-          $ref: '#/components/schemas/FanoutSummary'
-
-    BroadcastList:
-      type: object
-      required: [items, nextCursor]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/BroadcastListItem'
-        nextCursor:
-          type: [string, 'null']
-
-    BroadcastAccepted:
-      type: object
-      required: [id]
-      properties:
-        id:
-          $ref: '#/components/schemas/Id'
-          description: New Broadcast id from replay
-
-    DeliveryStatus:
-      type: string
-      enum: [pending, in_progress, succeeded, failed, dead_lettered]
-
-    Delivery:
-      type: object
-      required:
-        [
-          id,
-          broadcastId,
-          endpointId,
-          channelId,
-          endpointName,
-          endpointUrl,
-          status,
-          attemptCount,
-          updatedAt,
-        ]
-      properties:
-        id:
-          $ref: '#/components/schemas/Id'
-        broadcastId:
-          $ref: '#/components/schemas/Id'
-        endpointId:
-          $ref: '#/components/schemas/Id'
-        channelId:
-          $ref: '#/components/schemas/Id'
-        endpointName:
-          type: [string, 'null']
-        endpointUrl:
-          type: string
-        status:
-          $ref: '#/components/schemas/DeliveryStatus'
-        attemptCount:
-          type: integer
-          minimum: 0
-        lastStatusCode:
-          type: [integer, 'null']
-        lastDurationMs:
-          type: [integer, 'null']
-        lastError:
-          type: [string, 'null']
-        updatedAt:
-          $ref: '#/components/schemas/DateTime'
-
-    DeliveryList:
-      type: object
-      required: [items, nextCursor]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Delivery'
-        nextCursor:
-          type: [string, 'null']
-
-    Attempt:
-      type: object
-      required: [id, n, at]
-      properties:
-        id:
-          $ref: '#/components/schemas/Id'
-        n:
-          type: integer
-          minimum: 1
-        statusCode:
-          type: [integer, 'null']
-        durationMs:
-          type: [integer, 'null']
-        error:
-          type: [string, 'null']
-        at:
-          $ref: '#/components/schemas/DateTime'
-
-    AttemptList:
-      type: object
-      required: [items, nextCursor]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Attempt'
-        nextCursor:
-          type: [string, 'null']

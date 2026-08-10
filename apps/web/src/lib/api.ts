@@ -1,15 +1,5 @@
-import type {
-  AttemptList,
-  BroadcastDetail,
-  BroadcastList,
-  Channel,
-  ChannelList,
-  ChannelTokenCreated,
-  DeliveryDetail,
-  Endpoint,
-  EndpointList,
-  LoginResponse,
-} from "@webhook-broadcast/contract";
+import type { LoginResponse } from "@webhook-broadcast/contract";
+import { getAdminFetchClient } from "@webhook-broadcast/contract/client";
 
 export class ApiRequestError extends Error {
   constructor(
@@ -26,12 +16,28 @@ interface ErrorResponseBody {
   error?: { code?: string; message?: string };
 }
 
+async function unwrap<T>(result: { data?: T; error?: unknown; response: Response }): Promise<T> {
+  if (result.response.status === 204) {
+    return undefined as T;
+  }
+
+  if (result.error || !result.response.ok) {
+    const errorBody = result.error as ErrorResponseBody | undefined;
+    throw new ApiRequestError(
+      result.response.status,
+      errorBody?.error?.code ?? "unknown",
+      errorBody?.error?.message ?? result.response.statusText,
+    );
+  }
+
+  return result.data as T;
+}
+
 /**
- * Same-origin fetch (see apps/web/vite.config.ts dev proxy and
- * apps/web/nginx.conf) — the HttpOnly session cookie only survives the trip
- * when the browser treats the admin API as same-site.
+ * Dashboard-only auth routes — intentionally outside the published admin OpenAPI
+ * contract (see apps/api/src/admin/authRoutes.ts).
  */
-async function request<TResponse>(path: string, init: RequestInit = {}): Promise<TResponse> {
+async function authRequest<TResponse>(path: string, init: RequestInit = {}): Promise<TResponse> {
   const response = await fetch(path, {
     ...init,
     credentials: "include",
@@ -86,45 +92,115 @@ export interface EndpointPatch {
 
 export const api = {
   login: (apiKey: string) =>
-    request<LoginResponse>("/auth/login", { method: "POST", body: JSON.stringify({ apiKey }) }),
-  logout: () => request<void>("/auth/logout", { method: "POST" }),
-  session: () => request<{ ok: true }>("/auth/session"),
-  listChannels: () => request<ChannelList>("/channels"),
-  createChannel: (input: ChannelInput) =>
-    request<Channel>("/channels", { method: "POST", body: JSON.stringify(input) }),
-  getChannel: (channelId: string) => request<Channel>(`/channels/${channelId}`),
-  updateChannel: (channelId: string, patch: ChannelPatch) =>
-    request<Channel>(`/channels/${channelId}`, { method: "PATCH", body: JSON.stringify(patch) }),
-  deleteChannel: (channelId: string) =>
-    request<void>(`/channels/${channelId}`, { method: "DELETE" }),
-  listEndpoints: (channelId: string) => request<EndpointList>(`/channels/${channelId}/endpoints`),
-  createEndpoint: (channelId: string, input: EndpointInput) =>
-    request<Endpoint>(`/channels/${channelId}/endpoints`, {
+    authRequest<LoginResponse>("/auth/login", {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ apiKey }),
     }),
-  updateEndpoint: (channelId: string, endpointId: string, patch: EndpointPatch) =>
-    request<Endpoint>(`/channels/${channelId}/endpoints/${endpointId}`, {
-      method: "PATCH",
-      body: JSON.stringify(patch),
-    }),
-  listBroadcasts: (channelId: string, cursor?: string) =>
-    request<BroadcastList>(
-      `/channels/${channelId}/broadcasts${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+  logout: () => authRequest<void>("/auth/logout", { method: "POST" }),
+  session: () => authRequest<{ ok: true }>("/auth/session"),
+  listChannels: async () => unwrap(await getAdminFetchClient().GET("/channels")),
+  createChannel: async (input: ChannelInput) =>
+    unwrap(
+      await getAdminFetchClient().POST("/channels", {
+        body: {
+          slug: input.slug,
+          ...(input.description !== undefined ? { description: input.description } : {}),
+          ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
+        },
+      }),
     ),
-  getBroadcastDetail: (channelId: string, broadcastId: string) =>
-    request<BroadcastDetail>(`/channels/${channelId}/broadcasts/${broadcastId}`),
-  replayBroadcast: (channelId: string, broadcastId: string) =>
-    request<{ id: string }>(`/channels/${channelId}/broadcasts/${broadcastId}/replay`, {
-      method: "POST",
-    }),
-  getDeliveryDetail: (deliveryId: string) => request<DeliveryDetail>(`/deliveries/${deliveryId}`),
-  listDeliveryAttempts: (deliveryId: string) =>
-    request<AttemptList>(`/deliveries/${deliveryId}/attempts`),
-  retryDelivery: (deliveryId: string) =>
-    request<DeliveryDetail>(`/deliveries/${deliveryId}/retry`, { method: "POST" }),
-  createChannelToken: (channelId: string) =>
-    request<ChannelTokenCreated>(`/channels/${channelId}/tokens`, { method: "POST" }),
-  revokeChannelToken: (channelId: string, tokenId: string) =>
-    request<void>(`/channels/${channelId}/tokens/${tokenId}`, { method: "DELETE" }),
+  getChannel: async (channelId: string) =>
+    unwrap(
+      await getAdminFetchClient().GET("/channels/{channelId}", { params: { path: { channelId } } }),
+    ),
+  updateChannel: async (channelId: string, patch: ChannelPatch) =>
+    unwrap(
+      await getAdminFetchClient().PATCH("/channels/{channelId}", {
+        params: { path: { channelId } },
+        body: patch,
+      }),
+    ),
+  deleteChannel: async (channelId: string) =>
+    unwrap(
+      await getAdminFetchClient().DELETE("/channels/{channelId}", {
+        params: { path: { channelId } },
+      }),
+    ),
+  listEndpoints: async (channelId: string) =>
+    unwrap(
+      await getAdminFetchClient().GET("/channels/{channelId}/endpoints", {
+        params: { path: { channelId } },
+      }),
+    ),
+  createEndpoint: async (channelId: string, input: EndpointInput) =>
+    unwrap(
+      await getAdminFetchClient().POST("/channels/{channelId}/endpoints", {
+        params: { path: { channelId } },
+        body: {
+          url: input.url,
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {}),
+          ...(input.headers !== undefined ? { headers: input.headers } : {}),
+          ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
+        },
+      }),
+    ),
+  updateEndpoint: async (channelId: string, endpointId: string, patch: EndpointPatch) =>
+    unwrap(
+      await getAdminFetchClient().PATCH("/channels/{channelId}/endpoints/{endpointId}", {
+        params: { path: { channelId, endpointId } },
+        body: patch,
+      }),
+    ),
+  listBroadcasts: async (channelId: string, cursor?: string) =>
+    unwrap(
+      await getAdminFetchClient().GET("/channels/{channelId}/broadcasts", {
+        params: {
+          path: { channelId },
+          query: cursor ? { cursor } : {},
+        },
+      }),
+    ),
+  getBroadcastDetail: async (channelId: string, broadcastId: string) =>
+    unwrap(
+      await getAdminFetchClient().GET("/channels/{channelId}/broadcasts/{broadcastId}", {
+        params: { path: { channelId, broadcastId } },
+      }),
+    ),
+  replayBroadcast: async (channelId: string, broadcastId: string) =>
+    unwrap(
+      await getAdminFetchClient().POST("/channels/{channelId}/broadcasts/{broadcastId}/replay", {
+        params: { path: { channelId, broadcastId } },
+      }),
+    ),
+  getDeliveryDetail: async (deliveryId: string) =>
+    unwrap(
+      await getAdminFetchClient().GET("/deliveries/{deliveryId}", {
+        params: { path: { deliveryId } },
+      }),
+    ),
+  listDeliveryAttempts: async (deliveryId: string) =>
+    unwrap(
+      await getAdminFetchClient().GET("/deliveries/{deliveryId}/attempts", {
+        params: { path: { deliveryId } },
+      }),
+    ),
+  retryDelivery: async (deliveryId: string) =>
+    unwrap(
+      await getAdminFetchClient().POST("/deliveries/{deliveryId}/retry", {
+        params: { path: { deliveryId } },
+      }),
+    ),
+  createChannelToken: async (channelId: string) =>
+    unwrap(
+      await getAdminFetchClient().POST("/channels/{channelId}/tokens", {
+        params: { path: { channelId } },
+      }),
+    ),
+  revokeChannelToken: async (channelId: string, tokenId: string) =>
+    unwrap(
+      await getAdminFetchClient().DELETE("/channels/{channelId}/tokens/{tokenId}", {
+        params: { path: { channelId, tokenId } },
+      }),
+    ),
 };

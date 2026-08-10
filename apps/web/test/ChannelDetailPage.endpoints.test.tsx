@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChannelDetailPage } from "../src/pages/ChannelDetailPage.js";
+import { requestMethod, readJsonBody, requestPath, stubFetchMock } from "./fetchMock.js";
 
 const CHANNEL_ID = "11111111-1111-1111-1111-111111111111";
 const ENDPOINT_ID = "22222222-2222-2222-2222-222222222222";
@@ -68,33 +69,34 @@ describe("Channel Detail — Endpoints tab", () => {
 
   beforeEach(() => {
     endpoints = [endpointBody()];
-    fetchMock = vi.fn((input: string | URL | Request, init?: RequestInit) => {
-      const url = typeof input === "string" ? input : input.toString();
-      const method = init?.method ?? "GET";
+    fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
 
-      if (url === `/channels/${CHANNEL_ID}` && method === "GET") {
-        return Promise.resolve(jsonResponse(200, channelBody()));
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return jsonResponse(200, channelBody());
       }
-      if (url === `/channels/${CHANNEL_ID}/endpoints` && method === "GET") {
-        return Promise.resolve(jsonResponse(200, { items: endpoints, nextCursor: null }));
+      if (path === `/channels/${CHANNEL_ID}/endpoints` && method === "GET") {
+        return jsonResponse(200, { items: endpoints, nextCursor: null });
       }
-      if (url === `/channels/${CHANNEL_ID}/endpoints` && method === "POST") {
+      if (path === `/channels/${CHANNEL_ID}/endpoints` && method === "POST") {
+        const body = (await readJsonBody(input, init)) as Partial<EndpointJson>;
         const created = endpointBody({
           id: "33333333-3333-3333-3333-333333333333",
-          ...JSON.parse(init?.body as string),
+          ...body,
         });
         endpoints = [...endpoints, created];
-        return Promise.resolve(jsonResponse(201, created));
+        return jsonResponse(201, created);
       }
-      if (url === `/channels/${CHANNEL_ID}/endpoints/${ENDPOINT_ID}` && method === "PATCH") {
-        const patch = JSON.parse(init?.body as string) as Partial<EndpointJson>;
+      if (path === `/channels/${CHANNEL_ID}/endpoints/${ENDPOINT_ID}` && method === "PATCH") {
+        const patch = (await readJsonBody(input, init)) as Partial<EndpointJson>;
         const updated: EndpointJson = { ...endpoints[0]!, ...patch };
         endpoints = [updated, ...endpoints.slice(1)];
-        return Promise.resolve(jsonResponse(200, updated));
+        return jsonResponse(200, updated);
       }
-      throw new Error(`unexpected fetch: ${method} ${url}`);
+      throw new Error(`unexpected fetch: ${method} ${path}`);
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetchMock(fetchMock);
   });
 
   afterEach(() => {
@@ -142,10 +144,13 @@ describe("Channel Detail — Endpoints tab", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add Endpoint" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        `/channels/${CHANNEL_ID}/endpoints`,
-        expect.objectContaining({ method: "POST" }),
-      );
+      expect(
+        fetchMock.mock.calls.some(
+          ([input, init]) =>
+            requestPath(input) === `/channels/${CHANNEL_ID}/endpoints` &&
+            requestMethod(input, init) === "POST",
+        ),
+      ).toBe(true);
     });
     expect(await screen.findByText("https://example.com/new")).toBeTruthy();
   });
@@ -163,10 +168,13 @@ describe("Channel Detail — Endpoints tab", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        `/channels/${CHANNEL_ID}/endpoints/${ENDPOINT_ID}`,
-        expect.objectContaining({ method: "PATCH" }),
-      );
+      expect(
+        fetchMock.mock.calls.some(
+          ([input, init]) =>
+            requestPath(input) === `/channels/${CHANNEL_ID}/endpoints/${ENDPOINT_ID}` &&
+            requestMethod(input, init) === "PATCH",
+        ),
+      ).toBe(true);
     });
     expect(await screen.findByText("Renamed")).toBeTruthy();
   });

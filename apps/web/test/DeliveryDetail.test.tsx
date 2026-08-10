@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DeliveryDetail } from "../src/pages/DeliveryDetail.js";
+import { requestMethod, requestPath, stubFetchMock } from "./fetchMock.js";
 
 const DELIVERY_ID = "44444444-4444-4444-4444-444444444444";
 
@@ -33,7 +34,7 @@ describe("DeliveryDetail — Attempt timeline and Retry action (issue #21)", () 
 
   beforeEach(() => {
     fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetchMock(fetchMock);
   });
 
   afterEach(() => {
@@ -43,8 +44,8 @@ describe("DeliveryDetail — Attempt timeline and Retry action (issue #21)", () 
 
   it("shows Endpoint identity and status, and loads the Attempt timeline on expand", async () => {
     fetchMock.mockImplementation((input: string | URL | Request) => {
-      const url = typeof input === "string" ? input : input.toString();
-      if (url.endsWith(`/deliveries/${DELIVERY_ID}/attempts`)) {
+      const path = requestPath(input);
+      if (path === `/deliveries/${DELIVERY_ID}/attempts`) {
         return Promise.resolve(
           jsonResponse(200, {
             items: [
@@ -69,7 +70,7 @@ describe("DeliveryDetail — Attempt timeline and Retry action (issue #21)", () 
           }),
         );
       }
-      throw new Error(`unexpected fetch: ${url}`);
+      throw new Error(`unexpected fetch: ${path}`);
     });
 
     render(<DeliveryDetail delivery={baseDelivery()} onRetried={() => undefined} />);
@@ -86,15 +87,15 @@ describe("DeliveryDetail — Attempt timeline and Retry action (issue #21)", () 
 
   it("shows a Retry action only when dead_lettered, and calls onRetried after a successful retry", async () => {
     fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
-      const url = typeof input === "string" ? input : input.toString();
-      const method = init?.method ?? "GET";
-      if (url.endsWith(`/deliveries/${DELIVERY_ID}/attempts`)) {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+      if (path === `/deliveries/${DELIVERY_ID}/attempts`) {
         return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
       }
-      if (url.endsWith(`/deliveries/${DELIVERY_ID}/retry`) && method === "POST") {
+      if (path === `/deliveries/${DELIVERY_ID}/retry` && method === "POST") {
         return Promise.resolve(jsonResponse(200, baseDelivery({ status: "pending" })));
       }
-      throw new Error(`unexpected fetch: ${method} ${url}`);
+      throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
     const onRetried = vi.fn();
@@ -111,11 +112,11 @@ describe("DeliveryDetail — Attempt timeline and Retry action (issue #21)", () 
 
   it("hides the Retry action for a succeeded Delivery", async () => {
     fetchMock.mockImplementation((input: string | URL | Request) => {
-      const url = typeof input === "string" ? input : input.toString();
-      if (url.endsWith(`/deliveries/${DELIVERY_ID}/attempts`)) {
+      const path = requestPath(input);
+      if (path === `/deliveries/${DELIVERY_ID}/attempts`) {
         return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
       }
-      throw new Error(`unexpected fetch: ${url}`);
+      throw new Error(`unexpected fetch: ${path}`);
     });
 
     render(

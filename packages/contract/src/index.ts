@@ -65,3 +65,5 @@ export { ingestAcceptedSchema } from "./ingest.js";
 export type { IngestAccepted } from "./ingest.js";
 export { deliveryDetailSchema, attemptSchema, attemptListSchema } from "./delivery.js";
 export type { DeliveryDetail, Attempt, AttemptList } from "./delivery.js";
+export { emitAdminOpenApiDocument, adminOpenApiPaths } from "./admin/openapi.js";
+export { toCanonicalAdminOpenApiYaml, parseAdminOpenApiYaml } from "./admin/yaml.js";

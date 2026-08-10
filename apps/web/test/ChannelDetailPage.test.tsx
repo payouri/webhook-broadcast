@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChannelDetailPage } from "../src/pages/ChannelDetailPage.js";
+import { requestMethod, requestPath, stubFetchMock } from "./fetchMock.js";
 
 const CHANNEL_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -31,7 +32,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
 
   beforeEach(() => {
     fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetchMock(fetchMock);
   });
 
   afterEach(() => {
@@ -41,13 +42,13 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
 
   it("lists Broadcasts with receivedAt, body preview, and fan-out on the Activity tab", async () => {
     fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
-      const url = typeof input === "string" ? input : input.toString();
-      const method = init?.method ?? "GET";
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
 
-      if (url.endsWith(`/channels/${CHANNEL_ID}`) && method === "GET") {
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
         return Promise.resolve(jsonResponse(200, baseChannel()));
       }
-      if (url.includes(`/channels/${CHANNEL_ID}/broadcasts`) && method === "GET") {
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
         return Promise.resolve(
           jsonResponse(200, {
             items: [
@@ -63,7 +64,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
           }),
         );
       }
-      throw new Error(`unexpected fetch: ${method} ${url}`);
+      throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
     render(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
@@ -76,16 +77,16 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
 
   it("shows an empty state when there are no Broadcasts yet", async () => {
     fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
-      const url = typeof input === "string" ? input : input.toString();
-      const method = init?.method ?? "GET";
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
 
-      if (url.endsWith(`/channels/${CHANNEL_ID}`) && method === "GET") {
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
         return Promise.resolve(jsonResponse(200, baseChannel()));
       }
-      if (url.includes(`/channels/${CHANNEL_ID}/broadcasts`) && method === "GET") {
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
         return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
       }
-      throw new Error(`unexpected fetch: ${method} ${url}`);
+      throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
     render(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
@@ -99,10 +100,10 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
     let mintedOnServer = false;
 
     fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
-      const url = typeof input === "string" ? input : input.toString();
-      const method = init?.method ?? "GET";
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
 
-      if (url.endsWith(`/channels/${CHANNEL_ID}`) && method === "GET") {
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
         return Promise.resolve(
           jsonResponse(
             200,
@@ -114,10 +115,10 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
           ),
         );
       }
-      if (url.includes(`/channels/${CHANNEL_ID}/broadcasts`) && method === "GET") {
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
         return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
       }
-      if (url.endsWith(`/channels/${CHANNEL_ID}/tokens`) && method === "POST") {
+      if (path === `/channels/${CHANNEL_ID}/tokens` && method === "POST") {
         mintedOnServer = true;
         return Promise.resolve(
           jsonResponse(201, {
@@ -127,11 +128,11 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
           }),
         );
       }
-      if (url.endsWith(`/channels/${CHANNEL_ID}/tokens/${tokenId}`) && method === "DELETE") {
+      if (path === `/channels/${CHANNEL_ID}/tokens/${tokenId}` && method === "DELETE") {
         mintedOnServer = false;
         return Promise.resolve(new Response(null, { status: 204 }));
       }
-      throw new Error(`unexpected fetch: ${method} ${url}`);
+      throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
     render(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
@@ -156,13 +157,13 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
     let replayCalled = false;
 
     fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
-      const url = typeof input === "string" ? input : input.toString();
-      const method = init?.method ?? "GET";
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
 
-      if (url.endsWith(`/channels/${CHANNEL_ID}`) && method === "GET") {
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
         return Promise.resolve(jsonResponse(200, baseChannel()));
       }
-      if (url.endsWith(`/channels/${CHANNEL_ID}/broadcasts`) && method === "GET") {
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
         return Promise.resolve(
           jsonResponse(200, {
             items: [
@@ -178,7 +179,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
           }),
         );
       }
-      if (url.endsWith(`/channels/${CHANNEL_ID}/broadcasts/${broadcastId}`) && method === "GET") {
+      if (path === `/channels/${CHANNEL_ID}/broadcasts/${broadcastId}` && method === "GET") {
         return Promise.resolve(
           jsonResponse(200, {
             id: broadcastId,
@@ -191,13 +192,13 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
         );
       }
       if (
-        url.endsWith(`/channels/${CHANNEL_ID}/broadcasts/${broadcastId}/replay`) &&
+        path === `/channels/${CHANNEL_ID}/broadcasts/${broadcastId}/replay` &&
         method === "POST"
       ) {
         replayCalled = true;
         return Promise.resolve(jsonResponse(202, { id: replayId }));
       }
-      throw new Error(`unexpected fetch: ${method} ${url}`);
+      throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
     render(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);

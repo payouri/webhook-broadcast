@@ -1,33 +1,43 @@
 import { z } from "zod";
 
-export const idSchema = z.uuid();
-export const dateTimeSchema = z.iso.datetime();
+export const idSchema = z.uuid().meta({ id: "Id" });
+export const dateTimeSchema = z.iso
+  .datetime()
+  .meta({ id: "DateTime", description: "ISO-8601; Zod wire type z.iso.datetime()" });
 
-export const channelTokenSummarySchema = z.object({
-  id: idSchema,
-  prefix: z.string(),
-  createdAt: dateTimeSchema,
-});
+export const channelTokenSummarySchema = z
+  .object({
+    id: idSchema,
+    prefix: z
+      .string()
+      .meta({ description: "First ~8 chars of the token for recognition; never full secret" }),
+    createdAt: dateTimeSchema,
+  })
+  .meta({ id: "ChannelTokenSummary" });
 
-export const channelTokenCreatedSchema = z.object({
-  id: idSchema,
-  token: z.string(),
-  createdAt: dateTimeSchema,
-});
+export const channelTokenCreatedSchema = z
+  .object({
+    id: idSchema,
+    token: z.string().meta({ description: "Plaintext ingest token — shown once" }),
+    createdAt: dateTimeSchema,
+  })
+  .meta({ id: "ChannelTokenCreated" });
 
 export type ChannelTokenCreated = z.infer<typeof channelTokenCreatedSchema>;
 
-export const channelSchema = z.object({
-  id: idSchema,
-  slug: z.string().min(1),
-  description: z.string().nullable(),
-  enabled: z.boolean(),
-  endpointCount: z.number().int().min(0),
-  tokens: z.array(channelTokenSummarySchema),
-  deletedAt: dateTimeSchema.nullable(),
-  createdAt: dateTimeSchema,
-  updatedAt: dateTimeSchema,
-});
+export const channelSchema = z
+  .object({
+    id: idSchema,
+    slug: z.string().min(1),
+    description: z.string().nullable(),
+    enabled: z.boolean(),
+    endpointCount: z.number().int().min(0),
+    tokens: z.array(channelTokenSummarySchema),
+    deletedAt: dateTimeSchema.nullable(),
+    createdAt: dateTimeSchema,
+    updatedAt: dateTimeSchema,
+  })
+  .meta({ id: "Channel" });
 
 export type Channel = z.infer<typeof channelSchema>;
 
@@ -38,11 +48,13 @@ const slugSchema = z
   .max(200)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "slug must be lowercase kebab-case (a-z, 0-9, -)");
 
-export const channelCreateSchema = z.object({
-  slug: slugSchema,
-  description: z.string().optional(),
-  enabled: z.boolean().default(true),
-});
+export const channelCreateSchema = z
+  .object({
+    slug: slugSchema,
+    description: z.string().optional(),
+    enabled: z.boolean().default(true),
+  })
+  .meta({ id: "ChannelCreate" });
 
 export type ChannelCreate = z.infer<typeof channelCreateSchema>;
 
@@ -54,7 +66,8 @@ export const channelUpdateSchema = z
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "at least one field must be provided",
-  });
+  })
+  .meta({ id: "ChannelUpdate" });
 
 export type ChannelUpdate = z.infer<typeof channelUpdateSchema>;
 
@@ -65,9 +78,11 @@ export const channelListQuerySchema = z.object({
 
 export type ChannelListQuery = z.infer<typeof channelListQuerySchema>;
 
-export const channelListSchema = z.object({
-  items: z.array(channelSchema),
-  nextCursor: z.string().nullable(),
-});
+export const channelListSchema = z
+  .object({
+    items: z.array(channelSchema),
+    nextCursor: z.string().nullable(),
+  })
+  .meta({ id: "ChannelList" });
 
 export type ChannelList = z.infer<typeof channelListSchema>;

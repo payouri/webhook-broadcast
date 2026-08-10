@@ -5,15 +5,25 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./env": "./src/env.ts"
+    "./env": "./src/env.ts",
+    "./client": "./src/generated/admin-client.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "emit:openapi": "tsx scripts/emit-admin-openapi.ts",
+    "check:openapi": "tsx scripts/check-admin-openapi-drift.ts",
+    "generate:client": "tsx scripts/generate-admin-client.ts",
+    "codegen": "pnpm run emit:openapi && pnpm run generate:client"
   },
   "dependencies": {
-    "zod": "^4.0.0"
+    "openapi-fetch": "^0.17.0",
+    "zod": "^4.0.0",
+    "zod-openapi": "^6.0.0"
   },
   "devDependencies": {
-    "typescript": "^6.0.0"
+    "openapi-typescript": "^7.13.0",
+    "tsx": "^4.0.0",
+    "typescript": "^6.0.0",
+    "yaml": "^2.9.0"
   }
 }

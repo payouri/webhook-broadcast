@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/App.js";
+import { requestMethod, requestPath, stubFetchMock } from "./fetchMock.js";
 
 function jsonResponse(status: number, body: unknown, headers: HeadersInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -15,7 +16,7 @@ describe("dashboard smoke flow", () => {
 
   beforeEach(() => {
     fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetchMock(fetchMock);
   });
 
   afterEach(() => {
@@ -35,18 +36,18 @@ describe("dashboard smoke flow", () => {
 
   it("logs in, then shows the Channel directory populated from the API", async () => {
     fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
-      const url = typeof input === "string" ? input : input.toString();
-      const method = init?.method ?? "GET";
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
 
-      if (url.endsWith("/auth/session")) {
+      if (path === "/auth/session") {
         return Promise.resolve(
           jsonResponse(401, { error: { code: "unauthorized", message: "no session" } }),
         );
       }
-      if (url.endsWith("/auth/login") && method === "POST") {
+      if (path === "/auth/login" && method === "POST") {
         return Promise.resolve(jsonResponse(200, { ok: true }));
       }
-      if (url.endsWith("/channels") && method === "GET") {
+      if (path === "/channels" && method === "GET") {
         return Promise.resolve(
           jsonResponse(200, {
             items: [
@@ -66,7 +67,7 @@ describe("dashboard smoke flow", () => {
           }),
         );
       }
-      throw new Error(`unexpected fetch: ${method} ${url}`);
+      throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
     render(<App />);
