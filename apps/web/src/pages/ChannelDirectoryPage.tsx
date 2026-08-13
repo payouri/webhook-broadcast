@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Channel } from "@webhook-broadcast/contract";
 import { InlineLoadError } from "../components/InlineLoadError.js";
+import { EnabledStatusBadge } from "../components/StatusBadge.js";
 import { api } from "../lib/api.js";
 import { FRESHNESS_POLL_MS, queryErrorMessage } from "../lib/freshness.js";
 
@@ -93,7 +94,7 @@ export function ChannelDirectoryPage({
                   className="channel-row"
                   onClick={() => onOpenChannel(channel.id)}
                 >
-                  <span className={`status-dot ${channel.enabled ? "status-on" : "status-off"}`} />
+                  <EnabledStatusBadge enabled={channel.enabled} />
                   <span className="channel-slug">{channel.slug}</span>
                   <span className="muted channel-description">
                     {channel.description ?? "No description"}

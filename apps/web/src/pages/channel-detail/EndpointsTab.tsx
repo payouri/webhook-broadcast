@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Endpoint } from "@webhook-broadcast/contract";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
+import { EnabledStatusBadge } from "../../components/StatusBadge.js";
 import { api } from "../../lib/api.js";
 import { FRESHNESS_POLL_MS, queryErrorMessage } from "../../lib/freshness.js";
 import { EndpointForm } from "./EndpointForm.js";
@@ -74,14 +75,15 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
                     className="channel-row"
                     onClick={() => setEditingId(endpoint.id)}
                   >
-                    <span
-                      className={`status-dot ${endpoint.enabled ? "status-on" : "status-off"}`}
+                    <EnabledStatusBadge
+                      enabled={endpoint.enabled}
+                      autoDisabledAt={endpoint.autoDisabledAt}
                     />
                     <span className="channel-slug">{endpoint.name ?? endpoint.url}</span>
                     <span className="muted channel-description">{endpoint.url}</span>
                     <span className="channel-meta">
                       {endpoint.autoDisabledAt
-                        ? `auto-disabled ${new Date(endpoint.autoDisabledAt).toLocaleString()}`
+                        ? `since ${new Date(endpoint.autoDisabledAt).toLocaleString()}`
                         : endpoint.timeoutMs
                           ? `${endpoint.timeoutMs}ms`
                           : "default timeout"}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Channel } from "@webhook-broadcast/contract";
+import { EnabledStatusBadge } from "../components/StatusBadge.js";
 import { api } from "../lib/api.js";
 import { ChannelActivityTab } from "./channel-detail/ChannelActivityTab.js";
 import { ChannelDangerZonePanel } from "./channel-detail/ChannelDangerZonePanel.js";
@@ -50,7 +51,7 @@ export function ChannelDetailPage({
       {channel && (
         <>
           <header className="channel-header">
-            <span className={`status-dot ${channel.enabled ? "status-on" : "status-off"}`} />
+            <EnabledStatusBadge enabled={channel.enabled} />
             <h2>{channel.slug}</h2>
             {channel.allowUnauthenticatedIngest && (
               <span

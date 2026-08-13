@@ -1,12 +1,9 @@
 import { useState } from "react";
 import type { Attempt, BroadcastDetail } from "@webhook-broadcast/contract";
+import { DeliveryStatusBadge } from "../components/StatusBadge.js";
 import { api } from "../lib/api.js";
 
 type DeliveryItem = BroadcastDetail["deliveries"][number];
-
-function deliveryStatusLabel(status: DeliveryItem["status"]): string {
-  return status.replace("_", " ");
-}
 
 /**
  * Delivery detail (issue #21): Endpoint identity + status are already on the
@@ -64,9 +61,7 @@ export function DeliveryDetail({
   return (
     <li className="delivery-row-wrapper">
       <button type="button" className="delivery-row" aria-expanded={expanded} onClick={toggle}>
-        <span className={`delivery-status delivery-status-${delivery.status}`}>
-          {deliveryStatusLabel(delivery.status)}
-        </span>
+        <DeliveryStatusBadge status={delivery.status} />
         <span className="delivery-endpoint">{delivery.endpointName ?? delivery.endpointUrl}</span>
         <span className="muted delivery-meta">
           {delivery.lastStatusCode !== null ? `HTTP ${delivery.lastStatusCode}` : "—"}
