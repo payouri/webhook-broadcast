@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, eq } from "drizzle-orm";
 import type { Database } from "../client.js";
-import { attempts, broadcasts, deliveries, endpoints } from "../schema.js";
+import { attempts, broadcasts, channels, deliveries, endpoints } from "../schema.js";
 
 export type DeliveryStatus = (typeof deliveries.$inferSelect)["status"];
 
@@ -52,7 +52,13 @@ export interface DeliveryForProcessing {
   status: DeliveryStatus;
   attemptCount: number;
   endpoint: { url: string; headers: Record<string, string>; timeoutMs: number | null };
-  broadcast: { contentType: string; body: Buffer };
+  broadcast: {
+    contentType: string;
+    body: Buffer;
+    headers: Record<string, string | string[]>;
+  };
+  /** Issue #37: the Channel's forwardable inbound-header allow-list. */
+  channel: { forwardHeaders: string[] };
 }
 
 /**
@@ -75,10 +81,13 @@ export async function getDeliveryForProcessing(
       endpointTimeoutMs: endpoints.timeoutMs,
       broadcastContentType: broadcasts.contentType,
       broadcastBody: broadcasts.body,
+      broadcastHeaders: broadcasts.headers,
+      channelForwardHeaders: channels.forwardHeaders,
     })
     .from(deliveries)
     .innerJoin(endpoints, eq(endpoints.id, deliveries.endpointId))
     .innerJoin(broadcasts, eq(broadcasts.id, deliveries.broadcastId))
+    .innerJoin(channels, eq(channels.id, deliveries.channelId))
     .where(eq(deliveries.id, deliveryId));
 
   if (!row) {
@@ -94,7 +103,12 @@ export async function getDeliveryForProcessing(
       headers: row.endpointHeaders,
       timeoutMs: row.endpointTimeoutMs,
     },
-    broadcast: { contentType: row.broadcastContentType, body: row.broadcastBody },
+    broadcast: {
+      contentType: row.broadcastContentType,
+      body: row.broadcastBody,
+      headers: row.broadcastHeaders,
+    },
+    channel: { forwardHeaders: row.channelForwardHeaders },
   };
 }
 

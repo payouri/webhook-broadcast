@@ -275,6 +275,67 @@ describe("Admin auth + Channel CRUD (HTTP seam)", () => {
       await expect(missResponse.json()).resolves.toMatchObject({ items: [], nextCursor: null });
     });
 
+    it("creates a Channel with a forwardHeaders allow-list and lets it be forwarded/updated (issue #37)", async () => {
+      const createResponse = await fetch(
+        `${baseUrl}/channels`,
+        authed({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug: "unipile", forwardHeaders: ["x-signature"] }),
+        }),
+      );
+      expect(createResponse.status).toBe(201);
+      const created = (await createResponse.json()) as Channel;
+      expect(created.forwardHeaders).toEqual(["x-signature"]);
+
+      const listResponse = await fetch(`${baseUrl}/channels`, authed());
+      const list = (await listResponse.json()) as ChannelList;
+      expect(list.items.find((item) => item.id === created.id)).toMatchObject({
+        forwardHeaders: ["x-signature"],
+      });
+
+      const patchResponse = await fetch(
+        `${baseUrl}/channels/${created.id}`,
+        authed({
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ forwardHeaders: ["x-signature", "x-request-id"] }),
+        }),
+      );
+      expect(patchResponse.status).toBe(200);
+      await expect(patchResponse.json()).resolves.toMatchObject({
+        forwardHeaders: ["x-signature", "x-request-id"],
+      });
+    });
+
+    it("defaults a new Channel's forwardHeaders to empty (unchanged behaviour)", async () => {
+      const response = await fetch(
+        `${baseUrl}/channels`,
+        authed({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug: "plain" }),
+        }),
+      );
+      const created = (await response.json()) as Channel;
+      expect(created.forwardHeaders).toEqual([]);
+    });
+
+    it("rejects forwarding the ingest authorization header even if explicitly named (issue #37)", async () => {
+      const response = await fetch(
+        `${baseUrl}/channels`,
+        authed({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug: "no-auth-forward", forwardHeaders: ["Authorization"] }),
+        }),
+      );
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        error: { code: "validation_failed" },
+      });
+    });
+
     it("rejects an invalid slug with a validation_failed envelope", async () => {
       const response = await fetch(
         `${baseUrl}/channels`,

@@ -34,6 +34,7 @@ function toWireChannel(
     slug: row.slug,
     description: row.description,
     enabled: row.enabled,
+    forwardHeaders: row.forwardHeaders,
     endpointCount,
     tokens: tokens.map((token) => ({
       id: token.id,
@@ -101,6 +102,7 @@ export function registerChannelRoutes(router: Router, db: Database): void {
         slug: parsedBody.data.slug,
         description: parsedBody.data.description ?? null,
         enabled: parsedBody.data.enabled,
+        forwardHeaders: parsedBody.data.forwardHeaders,
         createdAt: now,
         updatedAt: now,
       });

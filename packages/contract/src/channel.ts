@@ -25,12 +25,32 @@ export const channelTokenCreatedSchema = z
 
 export type ChannelTokenCreated = z.infer<typeof channelTokenCreatedSchema>;
 
+/**
+ * Issue #37: an inbound header name a Channel may forward to its
+ * Endpoints on delivery. "authorization" is refused here — that header
+ * carries the Channel's own ingest token (ADR 0002), and forwarding it
+ * would hand every fan-out Endpoint write access on the Channel.
+ */
+const forwardHeaderNameSchema = z
+  .string()
+  .min(1)
+  .refine((name) => name.trim().toLowerCase() !== "authorization", {
+    message:
+      "authorization cannot be forwarded (it carries the Channel's ingest token, not a sender credential)",
+  });
+
+const forwardHeadersSchema = z.array(forwardHeaderNameSchema);
+
 export const channelSchema = z
   .object({
     id: idSchema,
     slug: z.string().min(1),
     description: z.string().nullable(),
     enabled: z.boolean(),
+    forwardHeaders: forwardHeadersSchema.meta({
+      description:
+        "Allow-listed inbound header names forwarded to every Endpoint on delivery. Empty by default.",
+    }),
     endpointCount: z.number().int().min(0),
     tokens: z.array(channelTokenSummarySchema),
     deletedAt: dateTimeSchema.nullable(),
@@ -53,6 +73,7 @@ export const channelCreateSchema = z
     slug: slugSchema,
     description: z.string().optional(),
     enabled: z.boolean().default(true),
+    forwardHeaders: forwardHeadersSchema.default([]),
   })
   .meta({ id: "ChannelCreate" });
 
@@ -63,6 +84,7 @@ export const channelUpdateSchema = z
     slug: slugSchema.optional(),
     description: z.string().nullable().optional(),
     enabled: z.boolean().optional(),
+    forwardHeaders: forwardHeadersSchema.optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "at least one field must be provided",

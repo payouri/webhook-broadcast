@@ -64,6 +64,8 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     endpointUrl: string;
     timeoutMs?: number | null;
     headers?: Record<string, string>;
+    forwardHeaders?: string[];
+    broadcastHeaders?: Record<string, string | string[]>;
   }): Promise<{ deliveryId: string; endpointId: string; channelId: string }> {
     const now = new Date();
     const channel = await insertChannel(testDb.db, {
@@ -71,6 +73,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       slug: `channel-${randomUUID()}`,
       description: null,
       enabled: true,
+      forwardHeaders: input.forwardHeaders ?? [],
       createdAt: now,
       updatedAt: now,
     });
@@ -91,7 +94,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       receivedAt: now,
       contentType: "application/json",
       body: Buffer.from(JSON.stringify({ hello: "world" })),
-      headers: {},
+      headers: input.broadcastHeaders ?? {},
     });
     const [delivery] = await createDeliveriesForBroadcast(testDb.db, {
       broadcastId: broadcast.id,
@@ -362,6 +365,81 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     expect(seenContentType).toBe("application/json");
     const record = await getDeliveryForProcessing(testDb.db, deliveryId);
     expect(record?.status).toBe("succeeded");
+  });
+
+  it("forwards only the Channel's allow-listed inbound headers (issue #37)", async () => {
+    let seenHeaders: Record<string, string | undefined> = {};
+    handler = (req, res) => {
+      seenHeaders = { ...req.headers } as Record<string, string | undefined>;
+      res.writeHead(200);
+      res.end("ok");
+    };
+    const { deliveryId } = await seedDelivery({
+      endpointUrl: stubUrl,
+      forwardHeaders: ["x-signature"],
+      broadcastHeaders: { "x-signature": "abc123", "x-other": "should-not-forward" },
+    });
+
+    await processDeliveryJob(baseDeps(), deliveryId);
+
+    expect(seenHeaders["x-signature"]).toBe("abc123");
+    expect(seenHeaders["x-other"]).toBeUndefined();
+  });
+
+  it("forwards nothing when the Channel's forwardHeaders allow-list is empty (default, unchanged)", async () => {
+    let seenHeaders: Record<string, string | undefined> = {};
+    handler = (req, res) => {
+      seenHeaders = { ...req.headers } as Record<string, string | undefined>;
+      res.writeHead(200);
+      res.end("ok");
+    };
+    const { deliveryId } = await seedDelivery({
+      endpointUrl: stubUrl,
+      broadcastHeaders: { "x-signature": "abc123" },
+    });
+
+    await processDeliveryJob(baseDeps(), deliveryId);
+
+    expect(seenHeaders["x-signature"]).toBeUndefined();
+  });
+
+  it("lets an explicit Endpoint header win over a forwarded inbound header of the same name", async () => {
+    let seenHeaders: Record<string, string | undefined> = {};
+    handler = (req, res) => {
+      seenHeaders = { ...req.headers } as Record<string, string | undefined>;
+      res.writeHead(200);
+      res.end("ok");
+    };
+    const { deliveryId } = await seedDelivery({
+      endpointUrl: stubUrl,
+      headers: { "x-signature": "operator-configured" },
+      forwardHeaders: ["x-signature"],
+      broadcastHeaders: { "x-signature": "attacker-influenced" },
+    });
+
+    await processDeliveryJob(baseDeps(), deliveryId);
+
+    expect(seenHeaders["x-signature"]).toBe("operator-configured");
+  });
+
+  it("never forwards the Channel's own ingest authorization header even if allow-listed", async () => {
+    let seenHeaders: Record<string, string | undefined> = {};
+    handler = (req, res) => {
+      seenHeaders = { ...req.headers } as Record<string, string | undefined>;
+      res.writeHead(200);
+      res.end("ok");
+    };
+    const { deliveryId } = await seedDelivery({
+      endpointUrl: stubUrl,
+      // Bypasses the contract-level rejection to exercise the worker's own
+      // backstop, in case a Channel row ever carries this some other way.
+      forwardHeaders: ["authorization"],
+      broadcastHeaders: { authorization: "Bearer channel-ingest-token" },
+    });
+
+    await processDeliveryJob(baseDeps(), deliveryId);
+
+    expect(seenHeaders.authorization).toBeUndefined();
   });
 
   it("uses redirect manual on outbound fetch (SSRF hardening)", async () => {

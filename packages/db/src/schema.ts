@@ -32,6 +32,13 @@ export const channels = pgTable("channel", {
   slug: text("slug").notNull().unique(),
   description: text("description"),
   enabled: boolean("enabled").notNull().default(true),
+  /**
+   * Issue #37: allow-listed inbound header names forwarded to every
+   * Endpoint on delivery. Empty by default (current behaviour unchanged).
+   * Case-insensitive names; "authorization" is never forwarded even if
+   * present here (ADR 0002's ingest token lives there).
+   */
+  forwardHeaders: jsonb("forward_headers").notNull().default([]).$type<string[]>(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),

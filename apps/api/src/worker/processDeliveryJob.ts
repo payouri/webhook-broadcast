@@ -13,6 +13,7 @@ import {
   DEFAULT_ENDPOINT_AUTO_DISABLE_AFTER_MS,
 } from "@webhook-broadcast/contract/env";
 import { RetryableDeliveryError } from "./errors.js";
+import { selectForwardableHeaders } from "./forwardHeaders.js";
 import { computeBackoffDelayMs, isRetryableOutcome, parseRetryAfterMs } from "./retryPolicy.js";
 import type { DeliveryJobData } from "../deliveryQueue.js";
 import type { MetricsCollector, AttemptResultClass } from "../observability/metrics.js";
@@ -93,9 +94,17 @@ export async function processDeliveryJob(
   const startedAt = process.hrtime.bigint();
   try {
     const doFetch = deps.fetchImpl ?? fetch;
+    const forwardedHeaders = selectForwardableHeaders(
+      record.broadcast.headers,
+      record.channel.forwardHeaders,
+    );
     const response = await doFetch(record.endpoint.url, {
       method: "POST",
       headers: {
+        // Forwarded inbound headers (issue #37) come first so operator-
+        // configured `endpoint.headers` — and the content-type below —
+        // always win on a name collision.
+        ...forwardedHeaders,
         ...record.endpoint.headers,
         "content-type": record.broadcast.contentType,
       },

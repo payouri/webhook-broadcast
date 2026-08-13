@@ -8,6 +8,7 @@ export interface ChannelRow {
   slug: string;
   description: string | null;
   enabled: boolean;
+  forwardHeaders: string[];
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -33,12 +34,16 @@ export async function insertChannel(
     slug: string;
     description: string | null;
     enabled: boolean;
+    forwardHeaders?: string[] | undefined;
     createdAt: Date;
     updatedAt: Date;
   },
 ): Promise<ChannelRow> {
   try {
-    const [row] = await db.insert(channels).values(input).returning();
+    const [row] = await db
+      .insert(channels)
+      .values({ ...input, forwardHeaders: input.forwardHeaders ?? [] })
+      .returning();
     if (!row) {
       throw new Error("insert returned no row");
     }
@@ -140,6 +145,7 @@ export async function updateChannel(
     slug?: string | undefined;
     description?: string | null | undefined;
     enabled?: boolean | undefined;
+    forwardHeaders?: string[] | undefined;
     updatedAt: Date;
   },
 ): Promise<ChannelRow | undefined> {

@@ -1,0 +1,1 @@
+ALTER TABLE "channel" ADD COLUMN "forward_headers" jsonb DEFAULT '[]'::jsonb NOT NULL;
