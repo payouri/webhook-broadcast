@@ -156,7 +156,9 @@ services:
         # healthy serves the SPA against an upstream that 502s.
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      # 127.0.0.1, not localhost: that resolves to ::1 first in this image and
+      # nginx listens on IPv4 only, so `localhost` gets connection-refused.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
       interval: 10s
       timeout: 5s
       retries: 5
