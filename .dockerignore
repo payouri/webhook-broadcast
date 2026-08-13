@@ -1,6 +1,14 @@
 **/node_modules
 **/dist
+**/coverage
 .git
+.github
 .env
 .scratch
-.claude/worktrees
+.claude
+.agents
+.cursor
+.impeccable
+docs
+prototypes
+**/*.md
