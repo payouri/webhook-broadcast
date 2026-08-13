@@ -152,13 +152,22 @@ importers:
       drizzle-orm:
         specifier: '>=0.45.0 <1.0.0'
         version: 0.45.2(@types/pg@8.21.0)(pg@8.22.0)
+      drizzle-zod:
+        specifier: ^0.8.3
+        version: 0.8.3(drizzle-orm@0.45.2(@types/pg@8.21.0)(pg@8.22.0))(zod@4.4.3)
       pg:
         specifier: ^8.0.0
         version: 8.22.0
+      zod:
+        specifier: ^4.0.0
+        version: 4.4.3
     devDependencies:
       '@types/pg':
         specifier: ^8.0.0
         version: 8.21.0
+      '@webhook-broadcast/contract':
+        specifier: workspace:*
+        version: link:../contract
       drizzle-kit:
         specifier: '>=0.30.0 <1.0.0'
         version: 0.31.10
@@ -1771,6 +1780,12 @@ packages:
         optional: true
       sqlite3:
         optional: true
+
+  drizzle-zod@0.8.3:
+    resolution: {integrity: sha512-66yVOuvGhKJnTdiqj1/Xaaz9/qzOdRJADpDa68enqS6g3t0kpNkwNYjUuaeXgZfO/UWuIM9HIhSlJ6C5ZraMww==}
+    peerDependencies:
+      drizzle-orm: '>=0.36.0'
+      zod: ^3.25.0 || ^4.0.0
 
   dts-resolver@3.0.0:
     resolution: {integrity: sha512-1T1f+z+4tl9XD+m+0HBgWoL/nm0bOIffyWaUuUSBlFg/86IWvfx+wjNaO/ybU0AJzG9/Mi5hBUgGV6zCmWEN7Q==}
@@ -4128,6 +4143,11 @@ snapshots:
     optionalDependencies:
       '@types/pg': 8.21.0
       pg: 8.22.0
+
+  drizzle-zod@0.8.3(drizzle-orm@0.45.2(@types/pg@8.21.0)(pg@8.22.0))(zod@4.4.3):
+    dependencies:
+      drizzle-orm: 0.45.2(@types/pg@8.21.0)(pg@8.22.0)
+      zod: 4.4.3
 
   dts-resolver@3.0.0: {}
 

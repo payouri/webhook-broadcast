@@ -2,6 +2,24 @@ export * as schema from "./schema.js";
 export { createDb, type Database } from "./client.js";
 export { runMigrations } from "./migrate.js";
 export {
+  channelRowSchema,
+  channelTokenRowSchema,
+  operatorTokenRowSchema,
+  endpointRowSchema,
+  broadcastRowSchema,
+  deliveryRowSchema,
+  attemptRowSchema,
+  deliveryStatusSchema as deliveryStatusZodSchema,
+  type ChannelZodRow,
+  type ChannelTokenZodRow,
+  type OperatorTokenZodRow,
+  type EndpointZodRow,
+  type BroadcastZodRow,
+  type DeliveryZodRow,
+  type AttemptZodRow,
+  type DeliveryStatusZod,
+} from "./zod.js";
+export {
   ChannelSlugConflictError,
   OpenIngestSlugTooShortError,
   insertChannel,
