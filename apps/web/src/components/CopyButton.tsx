@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Check, Copy, TriangleAlert } from "lucide-react";
 
 type CopyState = "idle" | "copied" | "failed";
 
@@ -15,6 +16,9 @@ type CopyState = "idle" | "copied" | "failed";
  * and a button that appears to do nothing at all on click leaves the operator
  * unable to tell whether the string reached the clipboard — "failure is
  * information" (`PRODUCT.md`).
+ *
+ * The glyph changes with the outcome as well as the label, so the confirmation
+ * is legible in the same glance that the click ended in.
  */
 export function CopyButton({ value, label = "Copy" }: { value: string; label?: string }) {
   const [state, setState] = useState<CopyState>("idle");
@@ -44,9 +48,11 @@ export function CopyButton({ value, label = "Copy" }: { value: string; label?: s
   }
 
   const stateLabel = { idle: label, copied: "Copied", failed: "Copy failed" }[state];
+  const Glyph = { idle: Copy, copied: Check, failed: TriangleAlert }[state];
 
   return (
-    <button type="button" className="button-ghost" onClick={() => void handleCopy()}>
+    <button type="button" className="control" onClick={() => void handleCopy()}>
+      <Glyph size={13} strokeWidth={1.75} aria-hidden="true" />
       {stateLabel}
     </button>
   );

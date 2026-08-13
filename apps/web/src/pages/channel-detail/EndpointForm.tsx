@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from "react";
+import { Check, X } from "lucide-react";
 import type { Endpoint } from "@webhook-broadcast/contract";
+import { Switch } from "../../components/Switch.js";
 
 export interface EndpointFormValues {
   name: string | null;
@@ -71,50 +73,57 @@ export function EndpointForm({
   }
 
   return (
-    <form className="stack" onSubmit={(event) => void handleSubmit(event)}>
-      <label htmlFor={`endpoint-url-${initial?.id ?? "new"}`}>URL</label>
-      <input
-        id={`endpoint-url-${initial?.id ?? "new"}`}
-        value={url}
-        onChange={(event) => setUrl(event.target.value)}
-        placeholder="https://example.com/webhook"
-        required
-      />
-
-      <label htmlFor={`endpoint-name-${initial?.id ?? "new"}`}>Name</label>
-      <input
-        id={`endpoint-name-${initial?.id ?? "new"}`}
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        placeholder="Optional"
-      />
-
-      <label htmlFor={`endpoint-timeout-${initial?.id ?? "new"}`}>Timeout (ms)</label>
-      <input
-        id={`endpoint-timeout-${initial?.id ?? "new"}`}
-        type="number"
-        min={1}
-        value={timeoutMs}
-        onChange={(event) => setTimeoutMs(event.target.value)}
-        placeholder="Falls back to the global default"
-      />
-
-      <label htmlFor={`endpoint-headers-${initial?.id ?? "new"}`}>Headers (JSON)</label>
-      <textarea
-        id={`endpoint-headers-${initial?.id ?? "new"}`}
-        value={headersText}
-        onChange={(event) => setHeadersText(event.target.value)}
-        rows={3}
-      />
-
-      <label className="checkbox-row">
+    <form className="field-stack" onSubmit={(event) => void handleSubmit(event)}>
+      <div className="field">
+        <label htmlFor={`endpoint-url-${initial?.id ?? "new"}`}>URL</label>
         <input
-          type="checkbox"
-          checked={enabled}
-          onChange={(event) => setEnabled(event.target.checked)}
+          id={`endpoint-url-${initial?.id ?? "new"}`}
+          className="data"
+          value={url}
+          onChange={(event) => setUrl(event.target.value)}
+          placeholder="https://example.com/webhook"
+          required
         />
-        Enabled
-      </label>
+      </div>
+
+      {/* Two short fields on one line, which is what keeps the form from
+          reading as an undifferentiated column of identical wells. */}
+      <div className="field-pair">
+        <div className="field">
+          <label htmlFor={`endpoint-name-${initial?.id ?? "new"}`}>Name</label>
+          <input
+            id={`endpoint-name-${initial?.id ?? "new"}`}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Optional"
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor={`endpoint-timeout-${initial?.id ?? "new"}`}>Timeout (ms)</label>
+          <input
+            id={`endpoint-timeout-${initial?.id ?? "new"}`}
+            type="number"
+            min={1}
+            value={timeoutMs}
+            onChange={(event) => setTimeoutMs(event.target.value)}
+            placeholder="Global default"
+          />
+        </div>
+      </div>
+
+      <div className="field">
+        <label htmlFor={`endpoint-headers-${initial?.id ?? "new"}`}>Headers (JSON)</label>
+        <textarea
+          id={`endpoint-headers-${initial?.id ?? "new"}`}
+          className="data"
+          value={headersText}
+          onChange={(event) => setHeadersText(event.target.value)}
+          rows={3}
+        />
+      </div>
+
+      <Switch label="Enabled" checked={enabled} onChange={setEnabled} />
 
       {error && (
         <p className="error-text" role="alert">
@@ -123,11 +132,17 @@ export function EndpointForm({
       )}
 
       <div className="inline-form">
-        <button type="submit" disabled={saving || url.length === 0}>
+        <button
+          type="submit"
+          className="control control-primary"
+          disabled={saving || url.length === 0}
+        >
+          <Check size={13} strokeWidth={2} aria-hidden="true" />
           {saving ? "Saving…" : submitLabel}
         </button>
         {onCancel && (
-          <button type="button" className="button-ghost" onClick={onCancel}>
+          <button type="button" className="control" onClick={onCancel}>
+            <X size={13} strokeWidth={2} aria-hidden="true" />
             Cancel
           </button>
         )}

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Check, Info, SlidersHorizontal, TriangleAlert } from "lucide-react";
 import { MIN_OPEN_INGEST_SLUG_LENGTH, type Channel } from "@webhook-broadcast/contract";
+import { SectionTitle } from "../../components/SectionTitle.js";
+import { Switch } from "../../components/Switch.js";
 import { api } from "../../lib/api.js";
 import { ingestUrl } from "../../lib/ingestUrl.js";
 
@@ -63,85 +66,92 @@ export function ChannelSettingsForm({
   }
 
   return (
-    <form className="card stack" onSubmit={(event) => void handleSubmit(event)}>
-      {/* The Settings tab's first panel had no heading at all (issue #49),
-          unlike its siblings below (Ingest tokens, Delete Channel) — this
-          gives the tab a consistent, ranked set of Title-role headings
-          instead of one unlabeled form followed by two labeled panels. */}
-      <h2 className="section-title">Settings</h2>
-      <label htmlFor="settings-slug">Slug</label>
-      <input
-        id="settings-slug"
-        value={slug}
-        onChange={(event) => setSlug(event.target.value)}
-        required
-      />
+    <form className="plate field-stack" onSubmit={(event) => void handleSubmit(event)}>
+      <SectionTitle icon={<SlidersHorizontal size={13} strokeWidth={2} />}>Settings</SectionTitle>
+
+      <div className="field">
+        <label htmlFor="settings-slug">Slug</label>
+        <input
+          id="settings-slug"
+          value={slug}
+          onChange={(event) => setSlug(event.target.value)}
+          required
+        />
+      </div>
       {/* Only the changed case is stated here: while the slug is untouched the
-          Channel's ingest URL is already on screen in the panel above, and
+          Channel's ingest URL is already on screen in the plate above, and
           repeating it verbatim under the field adds a third copy of the same
           string to this tab. */}
-      {/* An advisory about a consequence, not a validation error (issue #51):
-          Signal Cut and `role="alert"` are both wrong here. The Quarantine
-          Rule reserves Signal Cut for a failure or a validation error, and a
-          live region would re-announce this whole warning on every keystroke
-          since its content (the URL) changes with the slug field. */}
+      {/* An advisory about a consequence, not a validation error: Lamp Cut and
+          `role="alert"` are both wrong here. The Quarantine Rule reserves Lamp
+          Cut for a failure or a validation error, and a live region would
+          re-announce this whole warning on every keystroke, since its content
+          (the URL) changes with the slug field. */}
       {slug !== channel.slug && (
-        <p className="advisory-text">
-          Renaming the slug changes the ingest URL to <code>{ingestUrl(slug || "…")}</code>.
-          Producers still posting to <code>{ingestUrl(channel.slug)}</code> will stop being
-          accepted.
+        <p className="advisory">
+          <Info className="advisory-icon" size={14} strokeWidth={2} aria-hidden="true" />
+          <span>
+            Renaming the slug changes the ingest URL to <code>{ingestUrl(slug || "…")}</code>.
+            Producers still posting to <code>{ingestUrl(channel.slug)}</code> will stop being
+            accepted.
+          </span>
         </p>
       )}
 
-      <label htmlFor="settings-description">Description</label>
-      <textarea
-        id="settings-description"
-        value={description}
-        onChange={(event) => setDescription(event.target.value)}
-        rows={3}
-      />
-
-      <label className="checkbox-row">
-        <input
-          type="checkbox"
-          checked={enabled}
-          onChange={(event) => setEnabled(event.target.checked)}
+      <div className="field">
+        <label htmlFor="settings-description">Description</label>
+        <textarea
+          id="settings-description"
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          rows={3}
         />
-        Enabled
-      </label>
-      {!enabled && channel.enabled && enabledEndpointCount !== null && enabledEndpointCount > 0 && (
-        <p className="error-text" role="alert">
-          Disabling this Channel stops fan-out to {enabledEndpointCount} enabled{" "}
-          {enabledEndpointCount === 1 ? "Endpoint" : "Endpoints"}.
-        </p>
-      )}
+      </div>
 
-      <label className="checkbox-row">
-        <input
-          type="checkbox"
+      <div className="switch-group">
+        <Switch label="Enabled" checked={enabled} onChange={setEnabled} />
+        {!enabled &&
+          channel.enabled &&
+          enabledEndpointCount !== null &&
+          enabledEndpointCount > 0 && (
+            <p className="error-text" role="alert">
+              <TriangleAlert size={14} strokeWidth={2} aria-hidden="true" />
+              Disabling this Channel stops fan-out to {enabledEndpointCount} enabled{" "}
+              {enabledEndpointCount === 1 ? "Endpoint" : "Endpoints"}.
+            </p>
+          )}
+
+        <Switch
+          label="Accept unauthenticated ingest"
           checked={allowUnauthenticatedIngest}
-          onChange={(event) => setAllowUnauthenticatedIngest(event.target.checked)}
+          onChange={setAllowUnauthenticatedIngest}
         />
-        Accept unauthenticated ingest
-      </label>
-      {allowUnauthenticatedIngest && (
-        <p className="muted">
-          POST /ingest/{slug || "…"} will accept events without an ingest token. The slug is then
-          the only thing gating this Channel&apos;s fan-out; use a long, unguessable slug (at least{" "}
-          {MIN_OPEN_INGEST_SLUG_LENGTH} characters).
-        </p>
-      )}
+        {allowUnauthenticatedIngest && (
+          <p className="advisory">
+            <Info className="advisory-icon" size={14} strokeWidth={2} aria-hidden="true" />
+            <span>
+              POST /ingest/{slug || "…"} will accept events without an ingest token. The slug is
+              then the only thing gating this Channel&apos;s fan-out; use a long, unguessable slug
+              (at least {MIN_OPEN_INGEST_SLUG_LENGTH} characters).
+            </span>
+          </p>
+        )}
+      </div>
 
       {error && (
         <p className="error-text" role="alert">
+          <TriangleAlert size={14} strokeWidth={2} aria-hidden="true" />
           {error}
         </p>
       )}
       {saved && !error && <p className="success-text">Saved.</p>}
 
-      <button type="submit" disabled={saving}>
-        {saving ? "Saving…" : "Save changes"}
-      </button>
+      <div className="inline-form">
+        <button type="submit" className="control control-primary" disabled={saving}>
+          <Check size={13} strokeWidth={2} aria-hidden="true" />
+          {saving ? "Saving…" : "Save changes"}
+        </button>
+      </div>
     </form>
   );
 }

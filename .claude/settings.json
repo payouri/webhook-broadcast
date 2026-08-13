@@ -2,6 +2,9 @@
     "allowedMcpServers": [
         {
             "serverName": "github"
+        },
+        {
+            "serverName": "chrome-devtools"
         }
     ],
     "disableClaudeAiConnectors": true,

@@ -7,7 +7,7 @@ import {
   ChannelHealthBadge,
   DeliveryStatusBadge,
   EnabledStatusBadge,
-  StatusBadge,
+  StatusLamp,
 } from "../src/components/StatusBadge.js";
 
 /** CONTEXT.md's Delivery lifecycle, and the label each status is shown as. */
@@ -22,17 +22,24 @@ const DELIVERY_STATUS_LABELS: Array<[DeliveryStatus, string]> = [
 /**
  * Single status vocabulary (issue #43): every status carries a readable text
  * label, so these assertions read the label text — never a color/class —
- * and check that `pending` vs `in_progress` differ in form (outline vs
- * filled), not merely in color.
+ * and check that `pending` vs `in_progress` differ in form (hollow vs lit),
+ * not merely in color.
  */
-describe("StatusBadge — one status vocabulary, never color alone", () => {
+describe("StatusLamp — one status vocabulary, never color alone", () => {
   afterEach(() => {
     cleanup();
   });
 
   it("always renders the label as visible text", () => {
-    render(<StatusBadge label="Enabled" tone="success" form="filled" />);
+    render(<StatusLamp label="Enabled" tone="live" form="lit" glyph="ok" />);
     expect(screen.getByText("Enabled")).toBeTruthy();
+  });
+
+  it("carries a glyph alongside the label, so shape is a third non-color carrier", () => {
+    // Form (lit vs hollow) and color are the other two. The glyph is what keeps
+    // two same-tone, same-form states distinguishable at a glance.
+    const { container } = render(<StatusLamp label="Enabled" tone="live" form="lit" glyph="ok" />);
+    expect(container.querySelector(".lamp-glass svg")).toBeTruthy();
   });
 
   it("labels Channel/Endpoint enabled state in words, not only a color dot", () => {
@@ -60,37 +67,29 @@ describe("StatusBadge — one status vocabulary, never color alone", () => {
   it("gives `pending` and `in_progress` different form classes, not just color", () => {
     render(<DeliveryStatusBadge status="pending" />);
     const pending = screen.getByText("pending");
-    expect(pending.className).toContain("status-badge-outlined");
-    expect(pending.className).not.toContain("status-badge-filled");
+    expect(pending.className).toContain("lamp-hollow");
+    expect(pending.className).not.toContain("lamp-lit");
     cleanup();
 
     render(<DeliveryStatusBadge status="in_progress" />);
     const inProgress = screen.getByText("in progress");
-    expect(inProgress.className).toContain("status-badge-filled");
-    expect(inProgress.className).not.toContain("status-badge-outlined");
+    expect(inProgress.className).toContain("lamp-lit");
+    expect(inProgress.className).not.toContain("lamp-hollow");
   });
 
   it("draws every Delivery status from DESIGN.md's status tones and no others", () => {
-    // DESIGN.md §2 keeps Signal Live and Signal Cut as "the only saturated
-    // colors permitted outside the accent" and declares a secondary accent
-    // "deliberately absent", so these three tones are the whole vocabulary —
-    // and none of them is the interface accent, which under the One Voice Rule
-    // may only ever mean "the operator did this or chose this". A status that
-    // reached for a fourth tone (as the indigo `pending` pill effectively did)
-    // fails here.
+    // DESIGN.md keeps Lamp Live and Lamp Cut as the only saturated colors
+    // permitted outside the accent and declares a secondary accent deliberately
+    // absent, so these three tones are the whole vocabulary — and none of them
+    // is the interface accent, which under the One Voice Rule may only ever mean
+    // "the operator did this or chose this". A status that reached for a fourth
+    // tone fails here.
+    const TONES = ["lamp-live", "lamp-neutral", "lamp-cut"];
     for (const [status, label] of DELIVERY_STATUS_LABELS) {
       cleanup();
       render(<DeliveryStatusBadge status={status} />);
-      const tones = [...screen.getByText(label).classList].filter(
-        (name) =>
-          name.startsWith("status-badge-") &&
-          !name.endsWith("filled") &&
-          !name.endsWith("outlined"),
-      );
+      const tones = [...screen.getByText(label).classList].filter((name) => TONES.includes(name));
       expect(tones).toHaveLength(1);
-      expect(["status-badge-success", "status-badge-neutral", "status-badge-danger"]).toContain(
-        tones[0],
-      );
     }
   });
 
@@ -102,8 +101,8 @@ describe("StatusBadge — one status vocabulary, never color alone", () => {
         />,
       );
       const badge = screen.getByText("No Endpoints");
-      expect(badge.className).toContain("status-badge-neutral");
-      expect(badge.className).toContain("status-badge-outlined");
+      expect(badge.className).toContain("lamp-neutral");
+      expect(badge.className).toContain("lamp-hollow");
     });
 
     it("reads Signal Cut, naming the dead-lettered count, when any Delivery dead-lettered", () => {
@@ -113,8 +112,8 @@ describe("StatusBadge — one status vocabulary, never color alone", () => {
         />,
       );
       const badge = screen.getByText("1 dead-lettered");
-      expect(badge.className).toContain("status-badge-danger");
-      expect(badge.className).toContain("status-badge-filled");
+      expect(badge.className).toContain("lamp-cut");
+      expect(badge.className).toContain("lamp-lit");
     });
 
     it("reads Signal Live, naming the succeeded count, once fan-out has Endpoints and nothing dead-lettered", () => {
@@ -124,8 +123,8 @@ describe("StatusBadge — one status vocabulary, never color alone", () => {
         />,
       );
       const badge = screen.getByText("2/2 succeeded");
-      expect(badge.className).toContain("status-badge-success");
-      expect(badge.className).toContain("status-badge-filled");
+      expect(badge.className).toContain("lamp-live");
+      expect(badge.className).toContain("lamp-lit");
     });
 
     it("stays Signal Live for a merely failed (not yet dead-lettered) Delivery — retries remain", () => {
@@ -135,7 +134,7 @@ describe("StatusBadge — one status vocabulary, never color alone", () => {
         />,
       );
       const badge = screen.getByText("1/2 succeeded");
-      expect(badge.className).toContain("status-badge-success");
+      expect(badge.className).toContain("lamp-live");
     });
   });
 
@@ -150,8 +149,8 @@ describe("StatusBadge — one status vocabulary, never color alone", () => {
         />,
       );
       const badge = screen.getByText("No activity");
-      expect(badge.className).toContain("status-badge-neutral");
-      expect(badge.className).toContain("status-badge-outlined");
+      expect(badge.className).toContain("lamp-neutral");
+      expect(badge.className).toContain("lamp-hollow");
     });
 
     it("labels zero recent failures as healthy, distinct in text and tone from a failing Channel", () => {
@@ -164,8 +163,8 @@ describe("StatusBadge — one status vocabulary, never color alone", () => {
         />,
       );
       const healthy = screen.getByText("No failures (24h)");
-      expect(healthy.className).toContain("status-badge-success");
-      expect(healthy.className).toContain("status-badge-filled");
+      expect(healthy.className).toContain("lamp-live");
+      expect(healthy.className).toContain("lamp-lit");
       cleanup();
 
       render(
@@ -177,8 +176,8 @@ describe("StatusBadge — one status vocabulary, never color alone", () => {
         />,
       );
       const failing = screen.getByText("3 failing (24h)");
-      expect(failing.className).toContain("status-badge-danger");
-      expect(failing.className).toContain("status-badge-filled");
+      expect(failing.className).toContain("lamp-cut");
+      expect(failing.className).toContain("lamp-lit");
     });
 
     it("carries the failure count in its text, not only in color", () => {
@@ -203,8 +202,8 @@ describe("StatusBadge — one status vocabulary, never color alone", () => {
         />,
       );
       const badge = screen.getByText("2 auto-disabled");
-      expect(badge.className).toContain("status-badge-danger");
-      expect(badge.className).toContain("status-badge-filled");
+      expect(badge.className).toContain("lamp-cut");
+      expect(badge.className).toContain("lamp-lit");
     });
 
     it("combines both facts when a Channel has recent failures and an auto-disabled Endpoint", () => {
@@ -233,9 +232,9 @@ describe("StatusBadge — one status vocabulary, never color alone", () => {
         />,
       );
       const badge = screen.getByText("2 failing (24h) · 1 auto-disabled");
-      expect(badge.className).toContain("status-badge-neutral");
-      expect(badge.className).toContain("status-badge-outlined");
-      expect(badge.className).not.toContain("status-badge-danger");
+      expect(badge.className).toContain("lamp-neutral");
+      expect(badge.className).toContain("lamp-hollow");
+      expect(badge.className).not.toContain("lamp-cut");
     });
 
     it("still names an auto-disabled Endpoint once the Channel's Broadcasts have aged out of retention", () => {
@@ -253,7 +252,7 @@ describe("StatusBadge — one status vocabulary, never color alone", () => {
         />,
       );
       const badge = screen.getByText("1 auto-disabled");
-      expect(badge.className).toContain("status-badge-danger");
+      expect(badge.className).toContain("lamp-cut");
       expect(screen.queryByText("No activity")).toBeNull();
     });
   });

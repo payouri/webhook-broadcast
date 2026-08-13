@@ -103,7 +103,9 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
 
     expect(await screen.findByText("hello-world")).toBeTruthy();
-    expect(screen.getByText("no Endpoints yet")).toBeTruthy();
+    // The row's leading lamp is the one place the fan-out result is stated; the
+    // trailing duplicate of it was removed, not the fact itself.
+    expect(screen.getByText("No Endpoints")).toBeTruthy();
   });
 
   it("shows an empty state when there are no Broadcasts yet", async () => {

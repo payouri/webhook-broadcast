@@ -45,7 +45,7 @@ function channelItem(
 
 /** Channel slugs in DOM order — the directory must not re-sort the ranked response. */
 function renderedSlugsInOrder(): string[] {
-  return Array.from(document.querySelectorAll(".channel-slug")).map((node) =>
+  return Array.from(document.querySelectorAll(".row-name")).map((node) =>
     (node.textContent ?? "").trim(),
   );
 }
@@ -334,7 +334,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
     expect(screen.getByText("2 auto-disabled")).toBeTruthy();
 
     // Disabled is a choice, broken is not: identical-shaped counts, distinct tone.
-    expect(screen.getByText("4 failing (24h)").className).toContain("status-badge-danger");
-    expect(screen.getByText("3 failing (24h)").className).toContain("status-badge-neutral");
+    expect(screen.getByText("4 failing (24h)").className).toContain("lamp-cut");
+    expect(screen.getByText("3 failing (24h)").className).toContain("lamp-neutral");
   });
 });

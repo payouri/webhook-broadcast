@@ -1,11 +1,14 @@
 import { useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
+import { Activity, ArrowLeft, Plug, SlidersHorizontal } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { channelQueryKey, isChannelNotFound, useChannelQuery } from "../lib/channelQuery.js";
 import { queryErrorMessage } from "../lib/freshness.js";
 import { EnabledStatusBadge } from "../components/StatusBadge.js";
 import { InlineLoadError } from "../components/InlineLoadError.js";
 import { NotFoundPanel } from "../components/NotFoundPanel.js";
+import { SkeletonRows } from "../components/SkeletonRows.js";
 import { ChannelActivityTab } from "./channel-detail/ChannelActivityTab.js";
 import { ChannelDangerZonePanel } from "./channel-detail/ChannelDangerZonePanel.js";
 import { ChannelSettingsForm } from "./channel-detail/ChannelSettingsForm.js";
@@ -20,6 +23,13 @@ const TAB_LABEL: Record<Tab, string> = {
   activity: "Activity",
   endpoints: "Endpoints",
   settings: "Settings",
+};
+/* One glyph per tab, so the strip is recognizable by shape before it is read:
+   a signal trace for Activity, a patch plug for Endpoints, faders for Settings. */
+const TAB_ICON: Record<Tab, LucideIcon> = {
+  activity: Activity,
+  endpoints: Plug,
+  settings: SlidersHorizontal,
 };
 
 function isTab(value: string | undefined): value is Tab {
@@ -82,27 +92,31 @@ export function ChannelDetailPage() {
 
   return (
     <div className="stack">
-      <Link to="/" className="button-ghost">
-        ← Back to Channels
-      </Link>
+      {/* Wrapped, so the control is sized by its own label rather than stretched
+          to the column width by the stack's cross-axis stretch. */}
+      <div className="back-bar">
+        <Link to="/" className="control">
+          <ArrowLeft size={14} strokeWidth={1.75} aria-hidden="true" />
+          Back to Channels
+        </Link>
+      </div>
 
       {error && <InlineLoadError message={error} onRetry={() => void channelQuery.refetch()} />}
-      {!channel && !error && <p className="muted">Loading…</p>}
+      {!channel && !error && <SkeletonRows count={2} label="Loading Channel" />}
 
       {channel && (
         <>
           <header className="channel-header">
             <EnabledStatusBadge enabled={channel.enabled} />
-            {/* This view's one h1 (issue #51): the Channel slug names the view,
-                so it must not sit at the same heading level as the panel
-                headings (Activity, Endpoints, Ingest tokens, …) beneath it. */}
+            {/* This view's one h1: the Channel slug names the view, so it must
+                not sit at the same heading level as the legends beneath it. */}
             <h1>{channel.slug}</h1>
             {channel.allowUnauthenticatedIngest && (
               // The security-relevant fact this tag names lives in visible text
-              // below (IngestUrlPanel), not only in a `title` attribute (issue
-              // #51): a `title` is invisible to keyboard/touch and inconsistently
-              // announced by screen readers. `aria-describedby` links the two for
-              // assistive tech that supports it, on top of plain reading order.
+              // below (IngestUrlPanel), not only in a `title` attribute: a
+              // `title` is invisible to keyboard/touch and inconsistently
+              // announced by screen readers. `aria-describedby` links the two
+              // for assistive tech that supports it, on top of reading order.
               <span className="muted" aria-describedby="unauthenticated-ingest-note">
                 unauthenticated ingest
               </span>
@@ -112,16 +126,20 @@ export function ChannelDetailPage() {
           <IngestUrlPanel channel={channel} />
 
           <nav className="tabs">
-            {TABS.map((candidateTab) => (
-              <button
-                key={candidateTab}
-                type="button"
-                className={`tab ${tab === candidateTab ? "tab-active" : ""}`}
-                onClick={() => goToTab(candidateTab)}
-              >
-                {TAB_LABEL[candidateTab]}
-              </button>
-            ))}
+            {TABS.map((candidateTab) => {
+              const Glyph = TAB_ICON[candidateTab];
+              return (
+                <button
+                  key={candidateTab}
+                  type="button"
+                  className={`tab ${tab === candidateTab ? "tab-active" : ""}`}
+                  onClick={() => goToTab(candidateTab)}
+                >
+                  <Glyph size={13} strokeWidth={2} aria-hidden="true" />
+                  {TAB_LABEL[candidateTab]}
+                </button>
+              );
+            })}
           </nav>
 
           {tab === "activity" && (
@@ -133,14 +151,24 @@ export function ChannelDetailPage() {
           )}
           {tab === "endpoints" && <EndpointsTab channelId={channelId} />}
           {tab === "settings" && (
-            <>
+            /*
+             * Two columns on a wide viewport. The plates here are prose- and
+             * field-shaped, so each caps well short of the content column, and
+             * stacking all three left a third of the page as abandoned ground.
+             * The split is also a real grouping: what the Channel *is* on the
+             * left, what grants access to it and what destroys it on the right.
+             * Collapses to one column below 1000px.
+             */
+            <div className="settings-grid">
               <ChannelSettingsForm
                 channel={channel}
                 onSaved={(updated) => queryClient.setQueryData(channelQueryKey(channelId), updated)}
               />
-              <ChannelTokensPanel channelId={channelId} />
-              <ChannelDangerZonePanel channel={channel} onDeleted={() => navigate("/")} />
-            </>
+              <div className="stack">
+                <ChannelTokensPanel channelId={channelId} />
+                <ChannelDangerZonePanel channel={channel} onDeleted={() => navigate("/")} />
+              </div>
+            </div>
           )}
         </>
       )}

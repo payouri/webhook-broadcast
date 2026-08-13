@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
+import { ChevronDown, ChevronRight, Filter, Inbox } from "lucide-react";
 import type { BroadcastListItem } from "@webhook-broadcast/contract";
+import { EmptyState } from "../../components/EmptyState.js";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
+import { SkeletonRows } from "../../components/SkeletonRows.js";
 import { BroadcastFanoutBadge } from "../../components/StatusBadge.js";
 import {
   ACTIVITY_FILTER_PARAM,
@@ -18,20 +21,12 @@ import {
 } from "../../lib/freshness.js";
 import { BroadcastDetailPanel } from "./BroadcastDetailPanel.js";
 
-function fanoutLabel(fanout: BroadcastListItem["fanout"]): string {
-  if (fanout.total === 0) {
-    return "no Endpoints yet";
-  }
-  return `${fanout.succeeded}/${fanout.total} succeeded${
-    fanout.deadLettered > 0 ? `, ${fanout.deadLettered} dead-lettered` : ""
-  }`;
-}
-
 /**
- * States its current option at rest — the active choice carries Patch Plum text,
- * a Patch Plum border, and a heavier weight, not something discovered by
- * hovering (DESIGN.md §5: "Nothing is discovered by hovering"). `aria-pressed`
- * carries the same fact for assistive tech.
+ * States its current option at rest — the active choice carries the accent as
+ * text, border, and ground, plus a heavier weight, not something discovered by
+ * hovering. `aria-pressed` carries the same fact for assistive tech, and the CSS
+ * keys the active look off that attribute rather than a parallel class, so the
+ * two can never disagree.
  */
 function ActivityFilterToggle({
   filter,
@@ -44,7 +39,7 @@ function ActivityFilterToggle({
     <div className="activity-filter" role="group" aria-label="Filter Activity by Delivery status">
       <button
         type="button"
-        className={`filter-toggle ${filter === "all" ? "filter-toggle-active" : ""}`}
+        className="control control-filter"
         aria-pressed={filter === "all"}
         onClick={() => onChange("all")}
       >
@@ -52,10 +47,11 @@ function ActivityFilterToggle({
       </button>
       <button
         type="button"
-        className={`filter-toggle ${filter === "failed" ? "filter-toggle-active" : ""}`}
+        className="control control-filter"
         aria-pressed={filter === "failed"}
         onClick={() => onChange("failed")}
       >
+        <Filter size={13} strokeWidth={1.75} aria-hidden="true" />
         Failures only
       </button>
     </div>
@@ -164,70 +160,90 @@ export function ChannelActivityTab({
   }
 
   return (
-    // A list-only region (issue #49): the filter toggle and "Load more"
-    // button are controls over the list, not prose or a form, so this stays
-    // unwrapped like Channels/Endpoints — and at full tabular width, since
-    // this is the busiest list in the product.
+    // A list-only region: the filter and "Load more" are controls over the list,
+    // not prose or a form, so this stays unwrapped like Channels/Endpoints — and
+    // at full tabular width, since this is the busiest list in the product.
     <section className="list-section">
-      <h2 className="section-title">Activity</h2>
+      {/* The tab strip immediately above already reads ACTIVITY, and this is the
+          tab's only section, so a visible legend here would state the same word
+          twice, 40px apart, under two near-identical scored rules. The heading
+          stays in the outline for assistive tech, where it is not a repeat but
+          the only thing naming this region. */}
+      <h2 className="visually-hidden">Activity</h2>
       <ActivityFilterToggle filter={filter} onChange={setFilter} />
       {error && <InlineLoadError message={error} onRetry={retry} />}
-      {items === null && !error && <p className="muted">Loading…</p>}
+      {items === null && !error && <SkeletonRows count={4} label="Loading Activity" />}
       {items !== null && items.length === 0 && (
-        <p className="muted empty-state">
+        <EmptyState icon={<Inbox size={20} strokeWidth={1.5} />}>
           No Broadcasts yet. Send a request to <code>POST /ingest/&lt;slug&gt;</code> with a Channel
           token.
-        </p>
+        </EmptyState>
       )}
       {items !== null && items.length > 0 && visibleItems !== null && (
         <>
           {visibleItems.length === 0 ? (
-            <p className="muted empty-state">
+            <EmptyState icon={<Filter size={20} strokeWidth={1.5} />}>
               No Broadcasts in the loaded Activity have a failed or dead-lettered Delivery.
               {nextCursor ? " Load more to look further back." : ""}
-            </p>
+            </EmptyState>
           ) : (
-            <ul className="activity-list">
-              {visibleItems.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    className="activity-row"
-                    aria-expanded={expandedBroadcastId === item.id}
-                    onClick={() => onToggleBroadcast(item.id)}
-                  >
-                    {/* The one row family that had no status element at all
-                        (2026-08-13 critique): a dead-lettered fan-out used to
-                        render as the same muted grey as the timestamp beside
-                        it. This stamp lands in the same fixed leading column
-                        as every other row's (`--status-stamp-column`). */}
-                    <BroadcastFanoutBadge fanout={item.fanout} />
-                    <span className="activity-time">
-                      {new Date(item.receivedAt).toLocaleString()}
-                    </span>
-                    <span className="activity-preview">{item.bodyPreview || "(empty body)"}</span>
-                    <span className="muted activity-fanout">{fanoutLabel(item.fanout)}</span>
-                  </button>
-                  {expandedBroadcastId === item.id && (
-                    <BroadcastDetailPanel
-                      channelId={channelId}
-                      broadcastId={item.id}
-                      onReplayed={() => void activityQuery.refetch()}
-                    />
-                  )}
-                </li>
-              ))}
+            <ul className="row-list">
+              {visibleItems.map((item) => {
+                const expanded = expandedBroadcastId === item.id;
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      className="row row-activity"
+                      aria-expanded={expanded}
+                      onClick={() => onToggleBroadcast(item.id)}
+                    >
+                      {/* The one row family that had no status element at all: a
+                          dead-lettered fan-out used to render as the same muted
+                          grey as the timestamp beside it. This lamp lands in the
+                          same fixed leading column as every other row's. */}
+                      <BroadcastFanoutBadge fanout={item.fanout} />
+                      <span className="activity-time">
+                        {new Date(item.receivedAt).toLocaleString()}
+                      </span>
+                      <span className="activity-preview">{item.bodyPreview || "(empty body)"}</span>
+                      {/* No trailing fan-out text: the lamp in the leading column
+                          already states it, word for word ("3/4 SUCCEEDED"), and
+                          printing it twice per row is the loudest repetition on
+                          the busiest list in the product. What is left here is
+                          the one thing the lamp cannot say: whether this row
+                          opens, and whether it is open now. */}
+                      <span className="muted activity-fanout">
+                        {expanded ? (
+                          <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" />
+                        ) : (
+                          <ChevronRight size={14} strokeWidth={1.75} aria-hidden="true" />
+                        )}
+                      </span>
+                    </button>
+                    {expanded && (
+                      <BroadcastDetailPanel
+                        channelId={channelId}
+                        broadcastId={item.id}
+                        onReplayed={() => void activityQuery.refetch()}
+                      />
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
           {nextCursor && (
-            <button
-              type="button"
-              className="button-ghost"
-              onClick={() => void handleLoadMore()}
-              disabled={loadingMore}
-            >
-              {loadingMore ? "Loading…" : "Load more"}
-            </button>
+            <div className="back-bar">
+              <button
+                type="button"
+                className="control"
+                onClick={() => void handleLoadMore()}
+                disabled={loadingMore}
+              >
+                {loadingMore ? "Loading…" : "Load more"}
+              </button>
+            </div>
           )}
         </>
       )}

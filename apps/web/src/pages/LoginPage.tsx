@@ -1,7 +1,17 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Radio } from "lucide-react";
 import { api } from "../lib/api.js";
+import { ThemeToggle } from "../components/ThemeToggle.js";
 
-export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
+export function LoginPage({
+  onLoggedIn,
+  theme,
+  onCycleTheme,
+}: {
+  onLoggedIn: () => void;
+  theme: "system" | "light" | "dark";
+  onCycleTheme: () => void;
+}) {
   const [apiKey, setApiKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -26,9 +36,17 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
 
   return (
     <main className="centered">
-      <form className="card login-card" onSubmit={(event) => void handleSubmit(event)}>
-        <h1>webhook-broadcast</h1>
-        <p className="muted">Find your key in the OPERATOR_API_KEY environment variable.</p>
+      <form className="plate login-card" onSubmit={(event) => void handleSubmit(event)}>
+        <div className="login-header">
+          <h1>
+            <Radio className="app-brand-mark" size={20} strokeWidth={2} aria-hidden="true" />
+            webhook-broadcast
+          </h1>
+          {/* The theme is a preference of this browser, available before there is
+              a session to attach it to. */}
+          <ThemeToggle theme={theme} onCycle={onCycleTheme} />
+        </div>
+        <p className="prose">Find your key in the OPERATOR_API_KEY environment variable.</p>
         <label htmlFor="apiKey">Operator API key</label>
         <input
           id="apiKey"
@@ -43,7 +61,11 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
             {error}
           </p>
         )}
-        <button type="submit" disabled={submitting || apiKey.length === 0}>
+        <button
+          type="submit"
+          className="control control-primary"
+          disabled={submitting || apiKey.length === 0}
+        >
           {submitting ? "Signing in…" : "Sign in"}
         </button>
       </form>

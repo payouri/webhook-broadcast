@@ -1,8 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
+import { Inbox, Plus, Radio } from "lucide-react";
 import type { Channel } from "@webhook-broadcast/contract";
+import { EmptyState } from "../components/EmptyState.js";
 import { InlineLoadError } from "../components/InlineLoadError.js";
+import { SectionTitle } from "../components/SectionTitle.js";
+import { SkeletonRows } from "../components/SkeletonRows.js";
 import { ChannelHealthBadge, EnabledStatusBadge } from "../components/StatusBadge.js";
 import { channelActivityHref } from "../lib/activityFilter.js";
 import { api } from "../lib/api.js";
@@ -58,18 +62,21 @@ export function ChannelDirectoryPage() {
 
   return (
     <div className="stack">
-      {/* Every route needs exactly one h1 describing that view (issue #51); this
-          one is visually hidden because the panel headings below it already
-          give the directory its on-screen structure. */}
+      {/* Every route needs exactly one h1 describing that view; this one is
+          visually hidden because the engraved legends below already give the
+          directory its on-screen structure. */}
       <h1 className="visually-hidden">Channel directory</h1>
-      {/* `stack` carries the heading-to-content gap that `.card h2`'s
-          margin used to supply before the Title role moved onto
-          `.section-title` (issue #49); every other `.card` panel in the app
-          already pairs the two classes. */}
-      <section className="card stack">
-        <h2 className="section-title">New Channel</h2>
+
+      {/* `plate-wide` because this plate's content is a horizontal form, not
+          prose: at the 72ch prose cap its three controls squeezed to ~208px each
+          and the slug placeholder, which is where the format rule is stated, was
+          clipped mid-sentence. */}
+      <section className="plate plate-wide stack">
+        <SectionTitle icon={<Plus size={13} strokeWidth={2} />}>New Channel</SectionTitle>
         <form className="inline-form" onSubmit={(event) => void handleCreate(event)}>
           <input
+            id="new-channel-slug"
+            name="slug"
             aria-label="Slug"
             placeholder="slug (lowercase kebab-case, e.g. unipile-dev)"
             value={slug}
@@ -78,12 +85,18 @@ export function ChannelDirectoryPage() {
             title="Lowercase letters, digits, and hyphens only (e.g. unipile-dev)"
           />
           <input
+            id="new-channel-description"
+            name="description"
             aria-label="Description"
             placeholder="Description (optional)"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
-          <button type="submit" disabled={creating || slug.length === 0}>
+          <button
+            type="submit"
+            className="control control-primary"
+            disabled={creating || slug.length === 0}
+          >
             {creating ? "Creating…" : "Create Channel"}
           </button>
         </form>
@@ -94,31 +107,33 @@ export function ChannelDirectoryPage() {
         )}
       </section>
 
-      {/* A list-only region (issue #49): no form, no prose, nothing a `.card`
-          panel's border and 70ch prose cap would earn it — just a heading
-          and the row list, at the full tabular width `.app-main` allows. */}
+      {/* A list-only region: no form, no prose, nothing a plate's border and
+          prose cap would earn it. Just a legend and the row list, at the full
+          tabular width the column allows. */}
       <section className="list-section">
-        <h2 className="section-title">Channels</h2>
+        <SectionTitle icon={<Radio size={13} strokeWidth={2} />}>Channels</SectionTitle>
         {error && <InlineLoadError message={error} onRetry={() => void channelsQuery.refetch()} />}
-        {channels === null && !error && <p className="muted">Loading…</p>}
+        {channels === null && !error && <SkeletonRows label="Loading Channels" />}
         {channels !== null && channels.length === 0 && (
-          <p className="muted empty-state">No Channels yet. Create one above.</p>
+          <EmptyState icon={<Inbox size={20} strokeWidth={1.5} />}>
+            No Channels yet. Create one above.
+          </EmptyState>
         )}
         {channels !== null && channels.length > 0 && (
-          <ul className="channel-list">
+          <ul className="row-list">
             {channels.map((channel) => (
               <li key={channel.id}>
                 {/* A Channel with recent failures lands straight on the filtered
-                    Activity view (issue #51): the count this row names and the
-                    Broadcasts behind it are one navigation apart. */}
+                    Activity view: the count this row names and the Broadcasts
+                    behind it are one navigation apart. */}
                 <button
                   type="button"
-                  className="channel-row"
+                  className="row row-channel"
                   onClick={() => navigate(channelActivityHref(channel))}
                 >
                   <EnabledStatusBadge enabled={channel.enabled} />
-                  <span className="channel-slug">{channel.slug}</span>
-                  <span className="muted channel-description">
+                  <span className="row-name">{channel.slug}</span>
+                  <span className="muted row-truncate">
                     {channel.description ?? "No description"}
                   </span>
                   <ChannelHealthBadge
@@ -127,7 +142,7 @@ export function ChannelDirectoryPage() {
                     recentFailedDeliveryCount={channel.recentFailedDeliveryCount}
                     autoDisabledEndpointCount={channel.autoDisabledEndpointCount}
                   />
-                  <span className="channel-meta">
+                  <span className="row-meta">
                     {channel.endpointCount} Endpoint{channel.endpointCount === 1 ? "" : "s"}
                   </span>
                 </button>

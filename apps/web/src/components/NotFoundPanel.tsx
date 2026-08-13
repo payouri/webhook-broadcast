@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link } from "react-router";
+import { ArrowLeft, SearchX } from "lucide-react";
 
 /**
  * Inline "this address has no view" panel with a way back to the directory
@@ -14,15 +15,21 @@ export function NotFoundPanel({ message, title }: { message: string; title: stri
 
   return (
     <div className="stack">
-      {/* This view's one h1 (issue #51): used both for the catch-all route and
-          for an unknown Channel id, so either way this is the view's heading. */}
+      {/* This view's one h1: used both for the catch-all route and for an
+          unknown Channel id, so either way this is the view's heading. */}
       <h1 className="notfound-title">{title}</h1>
-      <p className="muted empty-state" role="alert">
+      <p className="empty-state" role="alert">
+        <span className="empty-state-icon" aria-hidden="true">
+          <SearchX size={20} strokeWidth={1.5} />
+        </span>
         {message}
       </p>
-      <Link to="/" className="button-ghost">
-        ← Back to Channels
-      </Link>
+      <div className="back-bar">
+        <Link to="/" className="control">
+          <ArrowLeft size={14} strokeWidth={1.75} aria-hidden="true" />
+          Back to Channels
+        </Link>
+      </div>
     </div>
   );
 }

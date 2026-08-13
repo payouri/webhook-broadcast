@@ -1,5 +1,7 @@
+import { Info, Link2 } from "lucide-react";
 import type { Channel } from "@webhook-broadcast/contract";
 import { CopyButton } from "../../components/CopyButton.js";
+import { SectionTitle } from "../../components/SectionTitle.js";
 import { ingestUrl } from "../../lib/ingestUrl.js";
 
 /**
@@ -19,16 +21,19 @@ export function IngestUrlPanel({ channel }: { channel: Channel }) {
   const url = ingestUrl(channel.slug);
 
   return (
-    <section className="card stack">
-      <h2 className="section-title">Ingest URL</h2>
+    <section className="plate plate-wide stack">
+      <SectionTitle icon={<Link2 size={13} strokeWidth={2} />}>Ingest URL</SectionTitle>
       <div className="copy-row">
         <code>{url}</code>
         <CopyButton value={url} />
       </div>
       {channel.allowUnauthenticatedIngest && (
-        <p className="muted" id="unauthenticated-ingest-note">
-          Unauthenticated ingest is enabled for this Channel. This URL alone is accepted, no bearer
-          token required.
+        <p className="advisory" id="unauthenticated-ingest-note">
+          <Info className="advisory-icon" size={14} strokeWidth={2} aria-hidden="true" />
+          <span>
+            Unauthenticated ingest is enabled for this Channel. This URL alone is accepted, no
+            bearer token required.
+          </span>
         </p>
       )}
     </section>

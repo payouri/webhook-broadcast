@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { ChevronDown, ChevronRight, Inbox, Repeat } from "lucide-react";
 import type { Attempt, BroadcastDetail } from "@webhook-broadcast/contract";
+import { EmptyState } from "../components/EmptyState.js";
 import { DeliveryStatusBadge } from "../components/StatusBadge.js";
 import { api } from "../lib/api.js";
 
@@ -74,7 +76,7 @@ export function DeliveryDetail({
 
   return (
     <li>
-      <button type="button" className="delivery-row" aria-expanded={expanded} onClick={toggle}>
+      <button type="button" className="row row-delivery" aria-expanded={expanded} onClick={toggle}>
         <DeliveryStatusBadge status={delivery.status} />
         <span className="delivery-endpoint">{delivery.endpointName ?? delivery.endpointUrl}</span>
         <span className="muted delivery-meta">
@@ -84,11 +86,16 @@ export function DeliveryDetail({
             <MissingStatusCode />
           )}
           {delivery.lastDurationMs !== null ? ` · ${delivery.lastDurationMs}ms` : ""}
+          {expanded ? (
+            <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" />
+          ) : (
+            <ChevronRight size={14} strokeWidth={1.75} aria-hidden="true" />
+          )}
         </span>
       </button>
 
       {expanded && (
-        <div className="delivery-detail">
+        <div className="well well-delivery">
           <p className="muted delivery-endpoint-url">{delivery.endpointUrl}</p>
 
           {error && (
@@ -100,14 +107,16 @@ export function DeliveryDetail({
             <p className="error-text delivery-error">{delivery.lastError}</p>
           )}
 
-          {attempts === null && !error && <p className="muted">Loading Attempts…</p>}
+          {attempts === null && !error && (
+            <p className="muted loading-delayed">Loading Attempts…</p>
+          )}
           {attempts !== null && attempts.length === 0 && (
-            <p className="muted empty-state">No Attempts yet.</p>
+            <EmptyState icon={<Inbox size={20} strokeWidth={1.5} />}>No Attempts yet.</EmptyState>
           )}
           {attempts !== null && attempts.length > 0 && (
-            <ul className="attempt-list">
+            <ul className="row-list row-list-tight">
               {attempts.map((attempt) => (
-                <li key={attempt.id} className="attempt-row">
+                <li key={attempt.id} className="row-attempt">
                   <span className="attempt-n">#{attempt.n}</span>
                   <span className="muted">{new Date(attempt.at).toLocaleString()}</span>
                   <span>
@@ -127,9 +136,17 @@ export function DeliveryDetail({
           )}
 
           {delivery.status === "dead_lettered" && (
-            <button type="button" onClick={() => void handleRetry()} disabled={retrying}>
-              {retrying ? "Retrying…" : "Retry"}
-            </button>
+            <div className="inline-form">
+              <button
+                type="button"
+                className="control control-primary"
+                onClick={() => void handleRetry()}
+                disabled={retrying}
+              >
+                <Repeat size={13} strokeWidth={1.75} aria-hidden="true" />
+                {retrying ? "Retrying…" : "Retry"}
+              </button>
+            </div>
           )}
         </div>
       )}

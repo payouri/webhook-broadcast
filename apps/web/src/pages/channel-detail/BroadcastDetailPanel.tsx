@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Inbox, RotateCcw } from "lucide-react";
+import { EmptyState } from "../../components/EmptyState.js";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
+import { SkeletonRows } from "../../components/SkeletonRows.js";
 import { api } from "../../lib/api.js";
 import {
   freshnessRefetchInterval,
@@ -50,23 +53,24 @@ export function BroadcastDetailPanel({
   }
 
   return (
-    <div className="broadcast-detail">
+    <div className="well well-broadcast">
       {error && <InlineLoadError message={error} onRetry={() => void broadcastQuery.refetch()} />}
-      {!detail && !error && <p className="muted">Loading…</p>}
+      {!detail && !error && <SkeletonRows count={2} label="Loading Broadcast" />}
       {detail && (
         <>
           <p className="muted broadcast-detail-content-type">{detail.contentType}</p>
-          <pre className="broadcast-body">{detail.body || "(empty body)"}</pre>
+          <pre className="payload data">{detail.body || "(empty body)"}</pre>
 
           {/* Replay (issue #22): re-fans the stored payload out to Endpoints
               enabled right now; no new ingest needed. */}
           <div className="broadcast-replay">
             <button
               type="button"
-              className="button-ghost"
+              className="control"
               onClick={() => void handleReplay()}
               disabled={replaying}
             >
+              <RotateCcw size={13} strokeWidth={1.75} aria-hidden="true" />
               {replaying ? "Replaying…" : "Replay"}
             </button>
             {replayError && (
@@ -80,11 +84,11 @@ export function BroadcastDetailPanel({
           </div>
 
           {detail.deliveries.length === 0 ? (
-            <p className="muted empty-state">
+            <EmptyState icon={<Inbox size={20} strokeWidth={1.5} />}>
               No Endpoints were enabled on this Channel when the Broadcast was accepted.
-            </p>
+            </EmptyState>
           ) : (
-            <ul className="delivery-list">
+            <ul className="row-list row-list-tight">
               {detail.deliveries.map((delivery) => (
                 <DeliveryDetail
                   key={delivery.id}

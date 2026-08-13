@@ -1,34 +1,51 @@
 ---
 name: webhook-broadcast
-description: Operator console for a single-tenant webhook multiplexer, built as a lit switchboard rather than a dark monitoring wall.
+description: Operator console for a single-tenant webhook multiplexer, built as a machined faceplate rather than a rounded-rectangle admin template.
 colors:
-  paper: "oklch(97.2% 0.006 75)"
-  surface: "oklch(99% 0.004 75)"
-  surface-sunk: "oklch(95.4% 0.007 75)"
-  hairline: "oklch(89% 0.008 75)"
-  hairline-strong: "oklch(80.5% 0.01 75)"
-  ink: "oklch(24% 0.012 75)"
-  ink-muted: "oklch(52% 0.012 75)"
-  patch-plum: "oklch(46% 0.14 325)"
-  patch-plum-deep: "oklch(39% 0.13 325)"
-  patch-plum-wash: "oklch(95% 0.03 325)"
-  signal-live: "oklch(52% 0.13 150)"
-  signal-live-wash: "oklch(94% 0.04 150)"
-  signal-cut: "oklch(50% 0.17 27)"
-  signal-cut-wash: "oklch(94% 0.045 27)"
+  plate: "oklch(96.6% 0.004 195)"
+  face: "oklch(99.2% 0.002 195)"
+  well: "oklch(94% 0.006 195)"
+  score: "oklch(88% 0.007 195)"
+  score-strong: "oklch(79% 0.009 195)"
+  ink: "oklch(23% 0.010 195)"
+  ink-muted: "oklch(50% 0.010 195)"
+  anodize: "oklch(48% 0.115 195)"
+  anodize-pressed: "oklch(40% 0.105 195)"
+  anodize-wash: "oklch(93% 0.028 195)"
+  anodize-ink: "oklch(99% 0.004 195)"
+  lamp-live: "oklch(52% 0.14 152)"
+  lamp-live-glass: "oklch(93% 0.045 152)"
+  lamp-cut: "oklch(51% 0.19 27)"
+  lamp-cut-glass: "oklch(93% 0.05 27)"
+colorsDark:
+  plate: "oklch(20% 0.008 195)"
+  face: "oklch(24.5% 0.008 195)"
+  well: "oklch(16.5% 0.008 195)"
+  score: "oklch(31% 0.010 195)"
+  score-strong: "oklch(41% 0.011 195)"
+  ink: "oklch(93% 0.004 195)"
+  ink-muted: "oklch(67% 0.008 195)"
+  anodize: "oklch(68% 0.105 195)"
+  anodize-pressed: "oklch(58% 0.1 195)"
+  anodize-wash: "oklch(29% 0.035 195)"
+  anodize-ink: "oklch(17% 0.02 195)"
+  lamp-live: "oklch(72% 0.14 152)"
+  lamp-live-glass: "oklch(28% 0.05 152)"
+  lamp-cut: "oklch(70% 0.16 27)"
+  lamp-cut-glass: "oklch(28% 0.06 27)"
 typography:
   headline:
     fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
-    fontSize: "1.25rem"
-    fontWeight: 600
-    lineHeight: 1.25
-    letterSpacing: "-0.01em"
+    fontSize: "1.4375rem"
+    fontWeight: 650
+    lineHeight: 1.2
+    letterSpacing: "-0.015em"
   title:
     fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
     fontSize: "1rem"
     fontWeight: 600
     lineHeight: 1.3
-    letterSpacing: "normal"
+    letterSpacing: "-0.005em"
   body:
     fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
     fontSize: "0.9375rem"
@@ -39,7 +56,7 @@ typography:
     fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
     fontSize: "0.8125rem"
     fontWeight: 500
-    lineHeight: 1.4
+    lineHeight: 1.2
     letterSpacing: "normal"
   data:
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
@@ -47,248 +64,324 @@ typography:
     fontWeight: 400
     lineHeight: 1.45
     letterSpacing: "normal"
-  stamp:
+  engraved:
     fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
     fontSize: "0.6875rem"
     fontWeight: 600
     lineHeight: 1
-    letterSpacing: "0.04em"
+    letterSpacing: "0.07em"
+    textTransform: "uppercase"
 rounded:
-  sm: "4px"
-  md: "8px"
-  lg: "12px"
-  pill: "999px"
+  control: "2px"
+  plate: "3px"
+  lamp: "50%"
 spacing:
-  xs: "4px"
+  2xs: "4px"
+  xs: "6px"
   sm: "8px"
   md: "12px"
   lg: "16px"
   xl: "24px"
-  xxl: "32px"
+  2xl: "32px"
 components:
-  button-primary:
-    backgroundColor: "{colors.patch-plum}"
-    textColor: "{colors.surface}"
-    typography: "{typography.label}"
-    rounded: "{rounded.md}"
-    padding: "9px 16px"
-  button-primary-hover:
-    backgroundColor: "{colors.patch-plum-deep}"
-  button-ghost:
-    backgroundColor: "{colors.surface}"
+  control:
+    backgroundColor: "{colors.face}"
     textColor: "{colors.ink}"
+    borderColor: "{colors.score-strong}"
     typography: "{typography.label}"
-    rounded: "{rounded.md}"
-    padding: "9px 16px"
-  button-ghost-hover:
-    backgroundColor: "{colors.surface-sunk}"
-  input:
-    backgroundColor: "{colors.surface}"
+    rounded: "{rounded.control}"
+    padding: "8px 14px"
+    boxShadow: "inset 0 1px 0 {lip.light}, 0 1px 0 {lip.shade}"
+  control-hover:
+    backgroundColor: "{colors.well}"
+    borderColor: "{colors.ink-muted}"
+  control-active:
+    backgroundColor: "{colors.well}"
+    boxShadow: "inset 0 2px 3px {lip.shade-deep}"
+  control-primary:
+    backgroundColor: "{colors.anodize}"
+    borderColor: "{colors.anodize}"
+    textColor: "{colors.anodize-ink}"
+    fontWeight: 600
+  control-commit:
+    backgroundColor: "{colors.face}"
+    textColor: "{colors.anodize}"
+    borderColor: "{colors.anodize}"
+    fontWeight: 600
+  field:
+    backgroundColor: "{colors.well}"
     textColor: "{colors.ink}"
+    borderColor: "{colors.score-strong}"
     typography: "{typography.body}"
-    rounded: "{rounded.md}"
-    padding: "9px 12px"
-  tab:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink-muted}"
-    typography: "{typography.label}"
-    rounded: "0"
-    padding: "8px 4px"
-  tab-active:
-    textColor: "{colors.patch-plum}"
+    rounded: "{rounded.control}"
+    padding: "8px 10px"
+    boxShadow: "inset 0 1px 2px {lip.shade}"
+  switch-plate:
+    backgroundColor: "{colors.well}"
+    borderColor: "{colors.score-strong}"
+    rounded: "{rounded.control}"
+    size: "34px 20px"
+  switch-plate-checked:
+    backgroundColor: "{colors.anodize}"
+    borderColor: "{colors.anodize}"
+  plate:
+    backgroundColor: "{colors.face}"
+    borderColor: "{colors.score}"
+    rounded: "{rounded.plate}"
+    padding: "20px"
+    boxShadow: "inset 0 1px 0 {lip.light}"
+  well:
+    backgroundColor: "{colors.well}"
+    borderColor: "{colors.score}"
+    rounded: "{rounded.plate}"
+    padding: "12px"
+    boxShadow: "inset 0 1px 2px {lip.shade}"
   row:
-    backgroundColor: "{colors.surface}"
+    backgroundColor: "{colors.face}"
     textColor: "{colors.ink}"
+    borderColor: "{colors.score}"
     typography: "{typography.body}"
-    rounded: "{rounded.md}"
+    rounded: "{rounded.plate}"
     padding: "10px 12px"
   row-hover:
-    backgroundColor: "{colors.surface-sunk}"
-  status-succeeded:
-    backgroundColor: "{colors.signal-live-wash}"
-    textColor: "{colors.signal-live}"
-    typography: "{typography.stamp}"
-    rounded: "{rounded.pill}"
-    padding: "3px 8px"
-  status-failed:
-    backgroundColor: "{colors.signal-cut-wash}"
-    textColor: "{colors.signal-cut}"
-    typography: "{typography.stamp}"
-    rounded: "{rounded.pill}"
-    padding: "3px 8px"
-  status-in-progress:
-    backgroundColor: "{colors.surface-sunk}"
-    textColor: "{colors.ink}"
-    typography: "{typography.stamp}"
-    rounded: "{rounded.pill}"
-    padding: "3px 8px"
-  status-pending:
-    backgroundColor: "transparent"
+    backgroundColor: "{colors.well}"
+    borderColor: "{colors.score-strong}"
+  row-selected:
+    backgroundColor: "{colors.anodize-wash}"
+    borderColor: "{colors.anodize}"
+  tab:
     textColor: "{colors.ink-muted}"
-    typography: "{typography.stamp}"
-    rounded: "{rounded.pill}"
-    padding: "2px 7px"
+    typography: "{typography.engraved}"
+    padding: "10px 2px"
+  tab-active:
+    textColor: "{colors.anodize}"
+    borderBottom: "2px solid {colors.anodize}"
+  lamp-live:
+    glassFill: "{colors.lamp-live-glass}"
+    glassEdge: "{colors.lamp-live}"
+    textColor: "{colors.lamp-live}"
+    typography: "{typography.engraved}"
+  lamp-cut:
+    glassFill: "{colors.lamp-cut-glass}"
+    glassEdge: "{colors.lamp-cut}"
+    textColor: "{colors.lamp-cut}"
+    typography: "{typography.engraved}"
+  lamp-neutral:
+    glassFill: "{colors.well}"
+    glassEdge: "{colors.score-strong}"
+    textColor: "{colors.ink-muted}"
+    typography: "{typography.engraved}"
+  lamp-hollow:
+    glassFill: "transparent"
+    glassEdge: "{colors.score-strong}"
 ---
 
 # Design System: webhook-broadcast
 
+> `.impeccable/design.json` is a generated snapshot of the previous system ("The
+> Switchboard") and is stale. This document is binding; regenerate the JSON with
+> `/impeccable document` when convenient.
+
 ## 1. Overview
 
-**Creative North Star: "The Switchboard"**
+**Creative North Star: "The Faceplate"**
 
-A switchboard is one incoming line patched out to many, which is exactly what this product does. It
-is also a piece of equipment an operator sits at rather than monitors from across a room: the whole
-board is in arm's reach, every line's state is readable at a glance, and the connections are
-physically traceable. Nothing is hidden behind a menu, because on a real board nothing can be.
+A switchboard was the right metaphor for what this product does: one incoming line patched out to
+many. It was drawn wrong. The previous system rendered it flat, in warm paper tones, with 8px
+rounded rectangles for every button, panel, row, and badge, which is the exact vocabulary of a
+Bootstrap admin template: one filled accent rect, one bordered ghost rect, pill badges, uniform grey
+boxes. Density without a form language is what that produces.
 
-That metaphor sets the ground. This interface is lit, not dark. It is built for two or three
-engineers at their desks in a working office, mid-morning, with the dashboard in a browser tab
-beside their editor and terminal. Warm paper neutrals (a faint hue-75 tint through every grey) put
-it closer to a printed log book than to a wall of gauges. A single wine-ink accent, Patch Plum,
-carries every operator action and every current selection. Green and red appear only as status,
-never as decoration and never as the accent, so "healthy" can never be confused with "selected".
+This system takes the metaphor literally instead. The interface is a **machined faceplate**: a plate
+of anodized aluminium with controls milled into it. Corners are 2px, not 8px, because equipment has
+milled edges and not soft ones. Depth is mechanical rather than atmospheric: a control is _raised_
+(a highlight inside its top edge, a hairline of shade under its bottom) and _presses_ (the lip
+inverts, the plate sinks). A field is the inverse, a **well** cut into the plate, with the shade
+falling inward. A status is a **lamp**: a round glass in a bezel, lit or unlit, with a glyph inside
+it and a tracked-caps legend stamped beside it.
 
-The system is flat and drawn entirely with hairlines. Depth comes from tone, not shadow. Structure
-comes from alignment, not boxes. It rejects the two things PRODUCT.md named: **enterprise
-monitoring dread** (walls of red gauges, undifferentiated dense config panels, density with no
-ranking) and **consumer SaaS marketing bleed** (gradients, illustrations, friendly mascots,
-hero-metric tiles). Density is a goal here. Density without hierarchy is the failure.
+The neutrals are graphite at hue 195, tinted toward the accent the way a plate is tinted by its own
+anodizing. The accent is that same hue at twenty times the chroma: **Anodized Cyan**, carrying every
+operator action and every current selection. Green and red appear only as lamp states, never as the
+accent and never as decoration, so "healthy" can never be confused with "selected".
+
+**Scene**: two or three engineers at their desks in a normally lit office, mid-morning, this console
+in a tab between a dark editor and a dark terminal, glancing at it every few minutes rather than
+staring at it. That forces a light default. A dark theme ships alongside it for editor parity, which
+is a real reason and not the observability-dashboard reflex; both are first-class and every token is
+defined twice.
+
+It rejects the two things PRODUCT.md named: **enterprise monitoring dread** (walls of red gauges,
+undifferentiated dense config panels, density with no ranking) and **consumer SaaS marketing bleed**
+(gradients, illustrations, mascots, hero-metric tiles). Density is a goal here. Density without
+hierarchy is the failure.
 
 **Key Characteristics:**
 
-- Light, warm-neutral ground; a lit desk, not a dim NOC
-- Restrained color: one accent under 10% of any screen, status colors quarantined to status
-- Flat by doctrine, zero shadows, 1px hairlines and two-tone surfaces only
-- Single system sans, with monospace reserved for machine-shaped content
-- Row-first layout: rows are the content, chrome recedes
-- Every state readable without color
+- Machined form language: 2px controls, 3px plates, no pills except a lamp's round glass
+- Mechanical depth: inner highlight and inner shade describe raised and pressed; no drop shadows
+- Restrained color: one accent under 10% of any screen, lamp colors quarantined to state
+- Light default and a real dark theme, every token defined for both
+- Row-first layout, with a constant leading lamp column so state reads down the column
+- Every state carried four ways: glyph, form, label, color
+- One icon family (`lucide-react`), one stroke weight, never mixed with another set
 
-## 2. Colors: The Switchboard Palette
+## 2. Colors
 
-Warm paper and hairline greys, one wine-ink accent for operator intent, two signal colors held in
-reserve for delivery state.
+Graphite neutrals and one anodized accent, with two lamp colors held in reserve for state.
 
 ### Primary
 
-- **Patch Plum** (`oklch(46% 0.14 325)`): the operator's own voice. Primary buttons (Save changes,
-  Mint new token, Retry), the active tab underline, focus rings, and the hover border on
-  interactive rows. It marks what the operator is doing or has selected. It never marks what the
-  system is reporting.
-- **Patch Plum Deep** (`oklch(39% 0.13 325)`): pressed and hovered states of primary buttons only.
-- **Patch Plum Wash** (`oklch(95% 0.03 325)`): the tinted background of a selected or expanded row.
-  Used to show which Broadcast is open beneath the cursor, nothing else.
+- **Anodize** (`oklch(48% 0.115 195)` light, `oklch(68% 0.105 195)` dark): the operator's own voice.
+  Primary controls (Save changes, Mint new token, Retry), the active tab, the active filter, focus
+  rings, and the selected-row wash. It marks what the operator is doing or has selected. It never
+  marks what the system is reporting.
+- **Anodize Pressed**: hovered and pressed states of primary controls, and the hover of an outlined
+  commit control.
+- **Anodize Wash**: the tinted ground of a selected or expanded row, and of the active filter.
+- **Anodize Ink**: text on an anodized ground. Near-white in the light theme, near-black in the dark
+  one, because the accent lifts above mid-lightness there.
+
+The accent hue sits deliberately off the red-green axis. Roughly 8% of men have a red-green color
+vision deficiency, and an accent on that axis would collide with the lamps for exactly the readers
+who most need the two kinds of meaning kept apart.
 
 ### Secondary
 
-Deliberately absent. Restrained means one accent. A second accent would compete with the signal
-colors for meaning, and meaning is the scarce resource on this surface.
+Deliberately absent. Restrained means one accent. A second would compete with the lamps for meaning,
+and meaning is the scarce resource on this surface.
 
 ### Tertiary
 
-- **Signal Live** (`oklch(52% 0.13 150)`) on **Signal Live Wash** (`oklch(94% 0.04 150)`): a
-  Delivery that succeeded, an Endpoint or Channel that is enabled.
-- **Signal Cut** (`oklch(50% 0.17 27)`) on **Signal Cut Wash** (`oklch(94% 0.045 27)`): a Delivery
-  that failed or dead-lettered, an auto-disabled Endpoint, a form validation error, an Attempt that
-  errored.
+- **Lamp Live** (`oklch(52% 0.14 152)`) on **Lamp Live Glass**: a Delivery that succeeded, an
+  Endpoint or Channel that is enabled, a Channel with no recent failures.
+- **Lamp Cut** (`oklch(51% 0.19 27)`) on **Lamp Cut Glass**: a Delivery that failed or
+  dead-lettered, an auto-disabled Endpoint, a failing Channel, a form validation error, an Attempt
+  that errored.
 
 These two are the only saturated colors permitted outside the accent. They are a vocabulary, not a
 palette: they attach to state and nothing else.
 
 ### Neutral
 
-- **Paper** (`oklch(97.2% 0.006 75)`): the page ground. Warm, faintly ochre, never white.
-- **Surface** (`oklch(99% 0.004 75)`): raised content. Panels, the app header, input fields, rows.
-  It is the lightest value in the system and it is still not white.
-- **Surface Sunk** (`oklch(95.4% 0.007 75)`): recessed content. Code and payload blocks, hovered
-  rows, the neutral status stamp.
-- **Hairline** (`oklch(89% 0.008 75)`): every default border and divider, always 1px.
-- **Hairline Strong** (`oklch(80.5% 0.01 75)`): borders that must survive against Surface Sunk, and
-  the resting border of form controls, which must be visible without hover.
-- **Ink** (`oklch(24% 0.012 75)`): all primary text. Warm near-black, never `#000`.
-- **Ink Muted** (`oklch(52% 0.012 75)`): timestamps, secondary metadata, field labels, placeholder
-  text, and the `pending` status stamp.
+- **Plate** (`oklch(96.6% 0.004 195)`): the page ground.
+- **Face** (`oklch(99.2% 0.002 195)`): raised content. Faceplates, the header, rows, controls. It is
+  the lightest value in the light theme and it is still not white.
+- **Well** (`oklch(94% 0.006 195)`): recessed content. Fields, payload blocks, expanded detail,
+  hovered rows, empty states. Always darker than Face, in **both** themes.
+- **Score** (`oklch(88% 0.007 195)`): every default border and divider, always 1px.
+- **Score Strong** (`oklch(79% 0.009 195)`): a control's or field's resting border, and borders that
+  must survive against Well.
+- **Ink** / **Ink Muted**: primary text; metadata, engraved legends, and placeholders.
+
+### The lip
+
+Not colors so much as light. A raised surface takes a highlight inside its top edge (**Lip Light**)
+and casts a hairline beneath it (**Lip Shade**); a pressed or recessed one takes **Lip Shade Deep**
+on the inside. In the dark theme these invert in prominence: the highlight nearly vanishes and the
+recess is what you read. All three are zero-blur or near-zero-blur. They describe an edge, never a
+float.
 
 ### Named Rules
 
-**The One Voice Rule.** Patch Plum covers no more than 10% of any screen and only ever means "the
-operator did this or chose this". If an element is reporting system state, it may not be plum.
+**The One Voice Rule.** Anodize covers no more than 10% of any screen and only ever means "the
+operator did this or chose this". If an element reports system state, it may not be anodized.
 
-**The Quarantine Rule.** Signal Live and Signal Cut attach to Delivery status, Attempt outcome, and
-enabled state. They are forbidden on buttons, links, headings, borders of non-status elements, and
-anything decorative. A red border on a card is a violation; a red `DEAD LETTERED` stamp is correct.
+**The Quarantine Rule.** Lamp Live and Lamp Cut attach to Delivery status, Attempt outcome, enabled
+state, and failure text. They are forbidden on controls, links, headings, borders of non-status
+elements, and anything decorative. A red border on a plate is a violation; a red `DEAD LETTERED`
+lamp is correct.
 
-**The Warm Grey Rule.** Every neutral carries hue 75 at chroma 0.004 to 0.012. There is no `#fff`,
-no `#000`, and no untinted grey anywhere in this system. If a grey looks blue, it is wrong.
+**The Anodized Grey Rule.** Every neutral carries hue 195 at chroma 0.002 to 0.011. There is no
+`#fff`, no `#000`, and no untinted grey anywhere in this system. If a grey looks warm, it is wrong.
+
+**The Both-Themes Rule.** A color introduced in one theme is not introduced until it exists in the
+other. Dark is not an inversion: grounds compress, the accent lifts, the lamps lift, and the lip
+flips.
 
 ## 3. Typography
 
 **Display Font:** none. This system has no display face and does not want one.
 **Body Font:** system UI stack (`-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
 Arial, sans-serif`)
-**Label/Mono Font:** `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`
+**Mono Font:** `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`
 
-**Character:** one native sans doing every job, at a tight 1.15 to 1.25 ratio, so that hierarchy
-reads as rank rather than as drama. The monospace face is the second voice and it is strictly
-semantic: it means "this string came from a machine and its exact characters matter". A URL, a
-payload body, an outbound header, a token prefix, and an ingest path are monospace. A Channel slug,
-a timestamp, a duration, and a status code are not; they are read, not copied.
+**Character:** one native sans doing every job. Hierarchy is carried by weight as much as by size,
+which is what keeps a dense operator surface ranked without the sizes drifting far apart. The
+monospace face is the second voice and it is strictly semantic: it means "this string came from a
+machine and its exact characters matter". A URL, a payload body, an outbound header, a token prefix,
+an ingest path, and a body preview are monospace. A Channel slug, a timestamp, a duration, and a
+status code are not; they are read, not copied.
 
 ### Hierarchy
 
-- **Headline** (600, 1.25rem, 1.25, -0.01em): the Channel slug on Channel detail, and the product
-  name in the app header. One per screen.
-- **Title** (600, 1rem, 1.3): panel headings. Activity, Endpoints, Ingest tokens, New Endpoint.
-- **Body** (400, 0.9375rem, 1.5): row content and prose. Prose caps at 70ch; rows and tabular data
-  are exempt and may run to the full column width.
-- **Label** (500, 0.8125rem, 1.4): form labels, buttons, tabs, and inline metadata. Sentence case.
+- **Headline** (650, 1.4375rem, 1.2, -0.015em): the Channel slug on Channel detail, the not-found
+  title, the login lockup. One per screen.
+- **Title** (600, 1rem, 1.3): the brand wordmark in the header. Not used for section headings; those
+  take the Engraved role.
+- **Body** (400, 0.9375rem, 1.5): row content and prose. Prose caps at 68ch; rows and tabular data
+  are exempt and may run the full column width.
+- **Label** (500, 0.8125rem, 1.2): control labels.
 - **Data** (mono 400, 0.8125rem, 1.45): URLs, payload bodies, headers JSON, token prefixes.
-- **Stamp** (600, 0.6875rem, 1, 0.04em, uppercase): status pills only. Delivery status, auto-disabled
-  markers.
+- **Engraved** (600, 0.6875rem, 1, 0.07em, uppercase): section legends, field labels, tab labels,
+  and lamp legends. The faceplate legend stamped into metal.
 
 ### Named Rules
 
 **The Machine Voice Rule.** Monospace means machine-authored and character-exact. Never use it for
 emphasis, for headings, or for a Channel slug. Never set a payload body in the sans.
 
-**The Sentence Case Rule.** Every label, button, tab, and heading is sentence case. The only
-uppercase in the system is the Stamp role. `Load more`, not `LOAD MORE`. `Mint new token`, not
-`Mint New Token`.
+**The Engraved Role Rule.** Uppercase belongs to the Engraved role and nowhere else. Section
+legends, field labels, tab labels, and lamp legends are uppercase and tracked at 0.07em, which
+capitals need. Control labels, headings, prose, and switch labels stay sentence case: `Load more`,
+not `LOAD MORE`; `Mint new token`, not `Mint New Token`.
 
 **The Domain Word Rule.** Channel, Endpoint, Broadcast, Replay, Delivery, and Attempt are proper
 nouns of this system and are capitalized in UI copy, exactly as in `CONTEXT.md`. Never "event",
 "message", "job", "topic", "subscriber", or "target".
 
+**The Tabular Numerals Rule.** Any number an operator compares down a column (durations, status
+codes, percentages, timestamps, counts) carries `font-variant-numeric: tabular-nums`. Proportional
+digits defeat the alignment the row grid exists to create.
+
 ## 4. Elevation
 
-There are no shadows in this system. None. Depth is expressed entirely through a three-step tonal
-stack (Surface Sunk, Paper, Surface) and 1px hairlines, which is how the interface stays legible at
-high density: a shadow at every level would turn twenty Delivery rows into twenty floating objects,
-and the Broadcast-to-Delivery-to-Attempt nesting would read as sediment.
+Depth here is **mechanical, not atmospheric**. There are no drop shadows in this system. What
+replaces them is the lip: an inner highlight and an inner shade, plus at most a single zero-blur 1px
+edge beneath a raised control.
 
-Hierarchy of containment is drawn instead by indentation and hairline, in this order: Paper page →
-Surface panel → Surface row → Surface Sunk expanded detail. Depth reads inward, not upward.
+The distinction is exact and it is the whole doctrine:
 
-### Shadow Vocabulary
+- **Raised** (a control, a row, a faceplate, the header): `inset 0 1px 0` highlight, optionally
+  `0 1px 0` shade beneath. Zero blur. This is a milled edge catching light.
+- **Pressed** (`:active` on a control or row): `inset 0 2px 3px` shade. The plate sinks.
+- **Recessed** (a field, a well, a payload block, an empty state, a confirm region): `inset 0 1px
+2px` shade. Light falls into the cut.
 
-Not applicable. If a future floating surface genuinely requires separation from content beneath it
-(a dropdown, a popover, a command palette), it earns exactly one shadow token at that time and it
-must be introduced here first, not invented at the call site.
-
-Such a surface takes its _behavior_ from a headless primitive and its _appearance_ from this
-document: the matching `radix-ui` primitive, dressed in this system's own classes. Never a
-pre-styled component kit, which arrives with the shadows, untinted greys, and radii this section
-exists to forbid. §5 Overlays states the terms; ADR 0013 records why.
+Containment reads inward, in this order: Plate page ground → Face faceplate → Face row → Well
+expanded detail. Never lighter and lifted.
 
 ### Named Rules
 
-**The No Shadow Rule.** `box-shadow` is prohibited except as a focus ring. A drop shadow on a card,
-row, panel, button, or input is always a defect, never a style choice.
+**The No Drop Shadow Rule.** A `box-shadow` with a non-zero offset and a blur, cast _outside_ the
+element, is prohibited. If a surface looks like it is hovering, delete the shadow and score a line.
+The single permitted outside shadow is the `0 1px 0` zero-blur edge under a raised control.
 
-**The Inward Depth Rule.** Nested detail goes darker and indented, never lighter and lifted. An
-expanded Broadcast payload sits on Surface Sunk, inset from its row. It does not float above it.
+**The Inward Depth Rule.** Nested detail goes darker, tighter, and inset, never lighter and lifted.
+An expanded Broadcast payload sits in a Well, inset from its row. It does not float above it.
 
-**The Anti-2014 Test.** If a surface looks like it is hovering, the shadow that should not be there
-is there. Delete it and add a hairline.
+**The Lip Direction Rule.** Highlight on top means raised; shade on top means recessed. A control
+with the field's shadow, or a field with the control's, reads as the wrong kind of object and is a
+defect rather than a variation.
+
+**Overlays** still do not exist, and this document does not grant them. Inline expansion remains the
+answer for detail: Broadcast detail, Delivery detail, and Endpoint editing all expand in place. If a
+floating surface is ever genuinely earned (a filter dropdown, a command palette, a tooltip on a
+truncated header), its _behavior_ comes from the individual headless `radix-ui` primitive (focus
+moves in on open, is trapped while open, returns to the trigger on close; `Escape` dismisses; a
+press outside dismisses; the trigger carries `aria-expanded`), its _appearance_ comes from this
+document, and it earns exactly one shadow token added to this section first, not invented at the
+call site. ADR 0013 records why no pre-styled kit.
 
 ## 5. Components
 
@@ -296,169 +389,237 @@ Character across the board: **legible and unambiguous**. Every control states it
 rest. Nothing is discovered by hovering. A border that only appears on hover is a defect here, not
 restraint, because an operator scanning for the third time should not have to re-find the controls.
 
-### Buttons
+### Controls
 
-- **Shape:** softly squared corners (8px, `{rounded.md}`), 9px vertical by 16px horizontal padding,
-  Label typography (500, 0.8125rem), sentence case.
-- **Primary:** Patch Plum ground, Surface text. Reserved for the single committing action in a
-  panel: Save changes, Add Endpoint, Mint new token, Retry. One per panel, never two.
-- **Ghost:** Surface ground, Ink text, 1px Hairline Strong border. Everything non-committing: Back
-  to Channels, Cancel, Revoke, Replay, Load more, Log out. The border is present at rest.
-- **Hover:** Primary darkens to Patch Plum Deep; Ghost fills to Surface Sunk and its border darkens.
-  Background and border color only, 150ms, `cubic-bezier(0.22, 1, 0.36, 1)`.
-- **Focus:** 2px Patch Plum ring at 2px offset, on every button without exception.
-- **Disabled:** 45% opacity, `cursor: not-allowed`, no hover response. Pending-action labels
-  ("Saving…", "Replaying…", "Minting…") replace the label rather than adding a spinner.
+`button` carries **no appearance of its own**. Geometry and color live entirely on the `.control`
+classes, so a control looks identical whether it renders as a `button`, an `a`, or a router `Link`,
+and an element that is a `button` for semantic reasons (a whole clickable row) inherits nothing it
+must undo. This is not a style preference: the previous system styled the bare `button` element and
+broke both ways, giving `<Link className="button-ghost">` no radius, no padding, and an underline,
+while `.channel-row` inherited the primary button's hover fill and turned an entire row unreadable.
 
-### Chips
+- **Shape:** 2px radius, 8px by 14px, Label typography, sentence case, sized by its own label and
+  never stretched by a flex or grid parent.
+- **Default:** Face ground, 1px Score Strong, inner top highlight, 1px shade beneath. Present at
+  rest.
+- **Primary:** Anodize ground, Anodize Ink text, weight 600. Reserved for the single committing
+  action in a plate: Save changes, Add Endpoint, Mint new token, Retry, Sign in. One per plate,
+  never two.
+- **Commit (destructive):** outlined Anodize, weight 600, for the moment a destructive action fires
+  (Confirm revoke, Confirm delete). Form carries the difference, the same way the lamps use it. Never
+  a lamp color; The Quarantine Rule forbids red on a control.
+- **Hover:** ground goes to Well, border to Ink Muted. 150ms on `cubic-bezier(0.22, 1, 0.36, 1)`.
+- **Active:** the lip inverts to an inner shade, with **no transition** and no `transform`. Real
+  hardware does not ease, and a control that moves also nudges its neighbours' baselines.
+- **Focus:** 2px Anodize ring at 2px offset, on every control, via `:focus-visible`.
+- **Disabled:** 45% opacity, `cursor: not-allowed`, no hover response, lip flattened.
+- **Pending:** the label is replaced ("Saving…", "Replaying…", "Minting…"), never supplemented with a
+  spinner.
 
-Status stamps are the only chip in this system, and they are read-only. They never act as filters
-or as buttons.
+### Icons
 
-- **Style:** pill (999px), 3px by 8px, Stamp typography (600, 0.6875rem, uppercase, 0.04em).
-- **State:** `SUCCEEDED` is Signal Live on Signal Live Wash. `FAILED` and `DEAD LETTERED` are Signal
-  Cut on Signal Cut Wash. `IN PROGRESS` is Ink on Surface Sunk, filled. `PENDING` is Ink Muted on
-  transparent with a 1px Hairline Strong border, outlined.
+One family: **`lucide-react`**, imported per glyph. 1.5 to 2 stroke, sized 13px in controls and tabs,
+14px in inline text, 11px inside a lamp glass (where the stroke steps up to 2.25 to hold its shape),
+20px in an empty state. Every decorative glyph carries `aria-hidden="true"`; no control is
+icon-only except the theme toggle, which carries a full `aria-label` naming both the current state
+and the consequence of pressing.
 
-The pending/in-progress pair differs by **form** (outlined versus filled) as well as by label, so
-the two most easily confused states stay distinguishable with color removed entirely.
+Glyphs are semantic, never decorative. The vocabulary: `Check` / `X` / `Ban` / `LoaderCircle` /
+`Clock` / `Power` / `Minus` for lamp states; `RotateCcw` Replay, `Repeat` Retry, `Copy`, `Power`
+Re-enable, `ShieldOff` Revoke, `KeyRound` Mint, `Trash2` Delete, `Check` Save, `X` Cancel for
+actions; `Radio` Channel, `Activity`, `Plug` Endpoint, `SlidersHorizontal` Settings, `KeyRound`
+Tokens, `Link2` Ingest URL, `Plus` New, `Filter`, `ArrowLeft` Back, `ChevronRight`/`ChevronDown`
+disclosure, `Inbox` empty, `SearchX` not found, `Info` advisory, `TriangleAlert` warning,
+`Sun`/`Moon`/`Monitor` theme.
 
-### Cards / Containers
+**Do not introduce a second icon set.** Mixing families is visible immediately at this size.
 
-Panels, not cards. The distinction matters: a card is an object you might click, a panel is a region
-that holds content. Nothing in this system is a clickable card.
+### Lamps (signature component)
 
-- **Corner Style:** 12px (`{rounded.lg}`) on panels, 8px on rows inside them.
-- **Background:** Surface on Paper.
-- **Shadow Strategy:** none, per Elevation.
-- **Border:** 1px Hairline.
-- **Internal Padding:** 20px on panels, 10px by 12px on rows, 6px by 8px on Attempt rows. Padding
-  tightens as nesting deepens; this is the rhythm that signals depth.
+The status lamp replaces the pill entirely. A 17px round glass in a 1px bezel, holding an 11px
+glyph, with a tracked-caps legend beside it.
 
-**Panels never nest.** A panel inside a panel is always wrong. Nested content becomes an inset
-Surface Sunk region with a hairline, not a second panel.
+It carries the same fact four independent ways, and color is only the fourth:
 
-### Inputs / Fields
+1. the **glyph's shape** (a check is not a cross is not a slash is not a clock),
+2. the **glass's form** (`lit`, filled with its tone; or `hollow`, an unlit bezel),
+3. the **text legend**, always present and always announced,
+4. the **tone's color**.
 
-- **Style:** Surface ground, 1px Hairline Strong border (visible at rest, which is the point), 8px
-  radius, 9px by 12px padding, Body typography. Full width within its panel.
-- **Label:** Label typography in Ink Muted, above the field, always present. No placeholder-as-label.
-- **Focus:** border goes Patch Plum and a 2px Patch Plum ring appears at 1px inset. Border color
-  only; the field must not resize or shift.
-- **Error:** border goes Signal Cut, with the message beneath in Signal Cut at Label size, carrying
-  `role="alert"`. The message names the constraint, in the system's own voice: _"Headers must be
-  valid JSON (e.g. {"x-api-key": "secret"})"_, never _"Invalid input"_.
-- **Disabled:** Surface Sunk ground, Ink Muted text, Hairline border.
+Remove color entirely and every state stays unambiguous, which is what PRODUCT.md requires as a hard
+constraint. It is also what separates the two most confusable Delivery states: `PENDING` waits behind
+a hollow clock, `IN PROGRESS` turns inside a lit ring.
+
+| State                             | Tone    | Form   | Glyph        |
+| --------------------------------- | ------- | ------ | ------------ |
+| `succeeded`, enabled, no failures | Live    | lit    | check        |
+| `failed`, failing Channel         | Cut     | lit    | cross        |
+| `dead_lettered`                   | Cut     | lit    | slash        |
+| auto-disabled Endpoint            | Cut     | hollow | slash        |
+| `in_progress`                     | neutral | lit    | turning ring |
+| `pending`                         | neutral | hollow | clock        |
+| disabled (a choice, not a fault)  | neutral | hollow | power        |
+| no activity, no Endpoints         | neutral | hollow | minus        |
+
+A lamp is **read-only**. It is never a button and never a filter.
+
+### Rows
+
+The unit the dashboard exists to display, and the thing an operator scans twenty of at a time.
+
+- A grid, with a **constant leading lamp column** (`--status-lamp-column`) shared by every row family
+  (Channel, Endpoint, Broadcast, Delivery), so a lamp lands at the same x whichever list it scrolls
+  past in and the eye can run the column without reading.
+- Face ground on the plate ground, 1px Score, 3px radius, inner top highlight. A strip on the plate,
+  not an object floating above it.
+- **Hover** tints to Well and darkens the border. It does **not** fill with the accent: the row
+  reports system state, and the accent belongs to the selected row.
+- **Selected or expanded** (`aria-expanded="true"`): Anodize Wash ground, Anodize border. Nothing
+  else in the system uses that wash.
+- An expandable row ends with a **disclosure chevron**, so whether it opens and whether it is open
+  now are shapes at rest rather than discoveries.
+- **Expanded** detail is a Well, inset from the row, holding the full Endpoint URL, the last error in
+  Lamp Cut, and the numbered Attempt timeline. Retry appears there, and only when the status is
+  `dead_lettered`. Separated by a full 1px scored border, never a colored leading stripe.
+
+### Plates and wells
+
+Faceplates, not cards. The distinction matters: a card is an object you might click, a plate is a
+region that holds content. Nothing in this system is a clickable card.
+
+- **Plate:** Face on Plate, 1px Score, 3px radius, 20px padding, inner top highlight, no drop
+  shadow. Prose-shaped plates cap at 72ch; a plate holding a machine string (the ingest URL) opts out
+  with `.plate-wide`.
+- **Well:** Well ground, 1px Score, 3px radius, 12px padding, inner shade. Every nested detail region:
+  expanded Broadcast, expanded Delivery, Endpoint edit form, confirm region, advisory, empty state.
+- **Plates never nest.** A plate inside a plate is always wrong. Nested content becomes a well.
+- Padding tightens as nesting deepens (20px plate, 12px row, 12px well, 6px by 8px Attempt row).
+  That rhythm is what signals depth.
+
+### Section legends
+
+A list region draws **no box**. Its heading is an engraved legend (glyph, tracked caps, Ink Muted)
+with a **groove** running out from it to the full width: a 1px scored line with a 1px highlight
+beneath it. That is what replaced the panel border around row lists, which had been wrapping content
+already delimited row by row in a second layer of chrome.
+
+### Fields
+
+- **Field:** Well ground, 1px Score Strong (visible at rest, which is the point), 2px radius, 8px by
+  10px, Body typography, inner shade falling from the top edge. The inverse of a control.
+- **Label:** the Engraved role, above the field, always present. No placeholder-as-label. Set tight to
+  its own field (6px) and a full step from the next field (16px), so a label belongs visibly to what
+  it names.
+- **Field pair:** two short fields share a line (Name and Timeout), so a form is not an
+  undifferentiated column of identical full-width wells.
+- **Focus:** border goes Anodize with a 2px Anodize ring inset 2px. Border color only; the field must
+  not resize or shift.
+- **Error:** border goes Lamp Cut, message beneath in Lamp Cut at Label size with a warning glyph and
+  `role="alert"`. The message names the constraint in the system's own voice: _"Headers must be valid
+  JSON (e.g. {"x-api-key": "secret"})"_, never _"Invalid input"_.
 - **Textarea:** identical treatment, `resize: vertical` only.
+
+### Switch plates
+
+A boolean is a **switch plate**, not a native checkbox. The native control was the one element on
+this surface drawn entirely by the platform: a saturated blue square belonging to no palette here.
+
+The real `input` stays in the tree, stays what the `label` points at, and stays what the keyboard
+toggles; it is drawn over rather than replaced, so `Space`, `:checked`, `:disabled`, and form
+semantics remain the browser's own. A 34px by 20px well holds a 14px plunger that **throws from left
+to right** when checked, while the well goes Anodize. Position carries the state, so which way the
+switch is thrown survives color being removed.
 
 ### Navigation
 
-The shell is a fixed header over a single scrolling column, with tabs as the only second-level
-navigation. There is no sidebar; at this scale a sidebar would be chrome standing in for structure.
+The shell is a full-width sticky header over a single scrolling column. There is no sidebar; at this
+scale a sidebar would be chrome standing in for structure.
 
-- **Header:** Surface, 1px Hairline bottom border, 16px by 24px. Product name at Headline size on
-  the left, acting as the route home. Log out as a Ghost button on the right.
-- **Tabs:** Label typography, Ink Muted, 8px by 4px, sitting on a 1px Hairline baseline. Active tab
-  is Patch Plum with a 2px Patch Plum bottom border overlapping that baseline. Hover moves an
-  inactive tab to Ink with no background fill.
-- **Back navigation:** an explicit Ghost button (`← Back to Channels`), never a bare chevron.
-- **Responsive:** the content column is capped for prose readability but tabular regions (Delivery
-  rows, Attempt rows, Endpoint rows) may extend to the full viewport width; the cap must not starve
-  data of horizontal room. Below 640px, row grids collapse to stacked lines and metadata wraps
-  rather than truncating.
+- **The document is the one scroll container.** No nested `overflow-y: auto` region, which had
+  produced a second scrollbar inset from the viewport edge with the header out of step with the
+  content it sat above.
+- **Header:** Face, 1px Score bottom border, with the content column aligned inside it by
+  `.app-header-inner` so the brand sits over the content and not over the ground beside it. Brand
+  (glyph plus wordmark) at Title size on the left; theme toggle and Log out on the right.
+- **Content column:** 1080px. Narrowed from 1180px, which was wide enough that the roughly 620px
+  plates left a third of the column as dead ground.
+- **Tabs:** the Engraved role on a scored baseline, each with its domain glyph. The active tab is
+  Anodize with a 2px Anodize bottom border overlapping that baseline.
+- **Back navigation:** an explicit control with a left-arrow glyph (`Back to Channels`), wrapped so it
+  is sized by its label rather than stretched to the column width, never a bare chevron.
+- **Responsive:** below 720px row grids collapse to stacked lines and metadata wraps rather than
+  truncating. The layout composes; it does not shrink.
 
-### The Delivery Row (signature component)
+### Loading, empty, and error
 
-The unit the whole dashboard exists to display, and the thing an operator scans twenty of at a time.
+- **Loading:** skeleton rows that preview the shape of what is coming, pulsing on opacity only, with
+  `role="status"` and a label. Never a centered "Loading…" where content is about to be.
+- **Empty:** a dashed Score Strong well, one muted glyph, and copy that teaches the next action in
+  the domain's own words: _"No Broadcasts yet. Send a request to `POST /ingest/<slug>` with a Channel
+  token."_ Never _"Nothing here."_ No illustration, ever.
+- **Error:** inline, in Lamp Cut, with a warning glyph, `role="alert"`, and a Retry control beside the
+  message.
+- **Advisory** (a consequence that is neither a failure nor a validation error): a recessed well with
+  an info glyph in Ink. It may not borrow a lamp color, and it may not be a live region.
 
-- Fixed leading column: the status stamp, at a constant width so stamps align vertically down the
-  list and the eye can run the column without reading.
-- Middle: Endpoint name or URL, monospace when it is a URL, truncating with ellipsis from the tail.
-- Trailing: `HTTP 503 · 4213ms`, Ink Muted, right-aligned, never wrapping.
-- Expanded: a Surface Sunk region, inset 10px from the left, holding the full Endpoint URL, the last
-  error at Signal Cut, and the numbered Attempt timeline. Retry appears here, and only when the
-  status is `dead_lettered`.
-- The expanded region is separated by a full 1px Hairline border. Never a colored left stripe.
+### Theme control
 
-### Empty States
-
-Dashed 1px Hairline Strong, 8px radius, 24px padding, centered, Body in Ink Muted. Each one teaches
-the next action in the domain's own words: _"No Broadcasts yet. Send a request to
-`POST /ingest/<slug>` with a Channel token."_ Never _"Nothing here."_ No illustration, ever.
-
-### Overlays
-
-There are none today, and this section is a set of terms rather than a permission. Inline expansion
-is still the answer for detail: Broadcast detail, Delivery detail, and Endpoint editing all expand in
-place, and §6 keeps modals out. Reach for a floating surface only when the interaction genuinely
-needs to sit above content and inline expansion has been tried and does not fit (a filter dropdown, a
-command palette, a tooltip on a truncated header). "It would be quicker as a modal" is not that.
-
-When one is earned:
-
-- **Behavior comes from `radix-ui`**, the individual headless primitive, never a pre-styled kit. The
-  primitive is taken for what is genuinely hard to hand-roll and easy to get wrong: focus moves into
-  the surface on open, stays trapped while it is open, and returns to the trigger on close; `Escape`
-  dismisses; a press outside dismisses; and the trigger carries `aria-expanded` and `aria-haspopup`.
-  A floating surface missing any of these is unfinished, whatever it looks like.
-- **Appearance comes from this document.** Surface ground, 1px Hairline, `{rounded.md}`, and the
-  single shadow token introduced in §4 for exactly this purpose. No kit stylesheet, no second
-  palette, no new radius. Interactive rows inside a floating surface follow the row spec in Cards /
-  Containers.
-- **Motion is opacity only**, 150ms on `cubic-bezier(0.22, 1, 0.36, 1)`. No zoom, no slide, no
-  origin-based scale. The surface appears; it does not perform.
-- **The shadow token lands in §4 before the call site uses it.** Introduced there first, not
-  invented here.
+Three states, because "follow the OS" is a real answer and not the absence of one: `system` leaves
+the root element unstamped and lets `prefers-color-scheme` decide; `light` and `dark` stamp
+`data-theme` and win over it in both directions. Persisted in `localStorage`, with the read and write
+both guarded so blocked storage degrades to a session-only preference. It lives in the header, not in
+Settings: it is a viewing preference of this browser, not Channel configuration.
 
 ## 6. Do's and Don'ts
 
 ### Do:
 
-- **Do** tint every neutral toward hue 75 at chroma 0.004 to 0.012. Paper (`oklch(97.2% 0.006 75)`)
-  and Surface (`oklch(99% 0.004 75)`) are the two ground tones; everything else is a hairline.
-- **Do** keep Patch Plum (`oklch(46% 0.14 325)`) under 10% of any screen, and only on operator
-  actions, the active tab, focus rings, and selection.
-- **Do** pair every status color with a text label or a distinct form. PRODUCT.md makes this a hard
-  requirement: _"Status is never encoded in color alone."_ Outlined versus filled separates
-  `PENDING` from `IN PROGRESS` with color removed.
+- **Do** tint every neutral toward hue 195 at chroma 0.002 to 0.011.
+- **Do** keep Anodize under 10% of any screen, and only on operator actions, the active tab, the
+  active filter, focus rings, and selection.
+- **Do** carry every status four ways: glyph, form, legend, color. PRODUCT.md makes this a hard
+  requirement: _"Status is never encoded in color alone."_
+- **Do** define every new color in both themes, in the same commit.
+- **Do** put geometry on `.control`, never on the bare `button` element, so a `Link` styled as a
+  control is indistinguishable from a `button` styled as one.
 - **Do** use monospace only for machine-exact strings: URLs, payload bodies, headers JSON, token
-  prefixes, ingest paths.
-- **Do** draw every boundary with a 1px hairline and express depth with tone and indentation.
+  prefixes, ingest paths, body previews.
+- **Do** use `tabular-nums` on any number compared down a column.
+- **Do** express depth with the lip and with tone: highlight-on-top for raised, shade-on-top for
+  recessed.
 - **Do** write UI copy in `CONTEXT.md`'s vocabulary, capitalized: Channel, Endpoint, Broadcast,
   Replay, Delivery, Attempt.
 - **Do** name the constraint in every error message: the endpoint, the status code, the attempt.
-- **Do** keep transitions at 150 to 200ms on color and opacity, easing out with
-  `cubic-bezier(0.22, 1, 0.36, 1)`.
+- **Do** keep transitions at 120 to 200ms on color, opacity, and a switch's `left`, easing out with
+  `cubic-bezier(0.22, 1, 0.36, 1)`, and keep `:active` instantaneous.
 
 ### Don't:
 
-- **Don't** use `#ffffff` or `#000000`, or any untinted grey. The current `--surface: #ffffff` and
-  the blue-grey `--border: #e2e5ea` in `apps/web/src/styles.css` are the exact violations this spec
-  replaces.
-- **Don't** use Tailwind indigo (`#4f46e5` / `#4338ca`) or any blue as the accent. It is the
-  category reflex for this kind of tool and it currently collides with the `pending` status pill,
-  which means "pending" and "selected" share a color.
-- **Don't** use `border-left` or `border-right` above 1px as a colored stripe. The
-  `border-left: 2px solid var(--primary)` on `.delivery-detail` is a banned side-stripe and must
-  become a full hairline border with inset padding.
-- **Don't** add `box-shadow` to anything but a focus ring. If a surface looks like it is hovering,
-  delete the shadow and add a hairline.
-- **Don't** build **enterprise monitoring dread**: walls of red gauges, undifferentiated dense
-  config panels, Nagios-era density with no ranking. Density without hierarchy is the failure mode.
-- **Don't** build **consumer SaaS marketing bleed**: gradients, spot illustrations, friendly
-  empty-state mascots, or hero-metric tiles with sparkle. This is an internal instrument, not a
-  product tour.
-- **Don't** put Signal Live or Signal Cut on a button, a link, a heading, or a non-status border.
-  Red belongs on a `DEAD LETTERED` stamp, never on the card that contains it.
-- **Don't** nest a panel inside a panel. Nested detail becomes an inset Surface Sunk region.
-- **Don't** reach for a modal. Broadcast detail, Delivery detail, and Endpoint editing are all
-  inline expansions, and every future detail view should be too.
-- **Don't** add a pre-styled component kit (shadcn/ui, MUI, Mantine) to `apps/web`. Each one ships
-  its own shadows, untinted greys, radii, and status variants, so adopting one means overriding it at
-  every point this document has an opinion. Overlay _behavior_ comes from headless `radix-ui`
-  primitives dressed in these classes; see §5 Overlays and ADR 0013.
+- **Don't** use `#ffffff`, `#000000`, or any untinted grey.
+- **Don't** use an 8px radius, or any radius above 3px, on anything but a lamp's glass. The rounded
+  rectangle is the tell this system exists to remove.
+- **Don't** use a pill shape for a status. Pills are gone; lamps replaced them.
+- **Don't** style the bare `button` element. It is reset on purpose.
+- **Don't** cast a blurred, offset shadow outside any element. The only outside shadow permitted is
+  the `0 1px 0` zero-blur edge under a raised control.
+- **Don't** give a control the field's inner shade at rest, or a field the control's highlight. The
+  lip direction is what says which kind of object it is.
+- **Don't** nest an `overflow-y: auto` region inside the page. The document scrolls.
+- **Don't** use `border-left` or `border-right` above 1px as a colored stripe.
+- **Don't** put Lamp Live or Lamp Cut on a control, a link, a heading, or a non-status border. Red
+  belongs on a `DEAD LETTERED` lamp, never on the plate that contains it.
+- **Don't** nest a plate inside a plate. Nested detail becomes a well.
+- **Don't** reach for a modal. Broadcast detail, Delivery detail, and Endpoint editing are all inline
+  expansions, and every future detail view should be too.
+- **Don't** add a second icon family alongside `lucide-react`, and don't use a glyph decoratively.
+- **Don't** ship an icon-only control without an `aria-label` that names its state and its
+  consequence.
+- **Don't** use a native checkbox or radio. Switch plates carry booleans.
+- **Don't** add a pre-styled component kit (shadcn/ui, MUI, Mantine) to `apps/web`. Each ships its own
+  shadows, untinted greys, radii, and status variants, so adopting one means overriding it at every
+  point this document has an opinion. Overlay _behavior_ comes from headless `radix-ui` primitives
+  dressed in these classes; see §4 and ADR 0013.
 - **Don't** write reassurance copy. No "Oops", no "Something went wrong", no exclamation marks.
-- **Don't** animate layout properties, add bounce or elastic easing, or animate anything that is not
-  a state change.
-- **Don't** use `text-transform: uppercase` outside the Stamp role, and never in sentence-case
-  labels, buttons, or tabs.
+- **Don't** animate layout properties on elements that affect their siblings, add bounce or elastic
+  easing, or animate anything that is not a state change.
+- **Don't** use `text-transform: uppercase` outside the Engraved role.

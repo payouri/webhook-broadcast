@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { Trash2, TriangleAlert, X } from "lucide-react";
 import type { Channel } from "@webhook-broadcast/contract";
+import { SectionTitle } from "../../components/SectionTitle.js";
 import { api } from "../../lib/api.js";
 
 /**
@@ -35,51 +37,58 @@ export function ChannelDangerZonePanel({
   }
 
   return (
-    <section className="card stack">
-      <h2 className="section-title">Delete Channel</h2>
-      <p className="muted">
+    <section className="plate stack">
+      {/* The one legend in the system that carries a warning glyph rather than a
+          domain one: this section is defined by its consequence. It is still not
+          a lamp color, because a heading is not a status. */}
+      <SectionTitle icon={<TriangleAlert size={13} strokeWidth={2} />}>Delete Channel</SectionTitle>
+      <p className="prose">
         Deleting removes this Channel from the directory and from normal use. Its Broadcasts and
         Deliveries are retained until pruned. Disabling a Channel is a separate, reversible setting.
       </p>
 
       {confirming ? (
-        <div className="confirm-region stack">
+        <div className="confirm-region">
           <p>
             Delete <strong>{channel.slug}</strong>? Endpoints on this Channel stop receiving
             Broadcasts.
           </p>
           {error && (
             <p className="error-text" role="alert">
+              <TriangleAlert size={14} strokeWidth={2} aria-hidden="true" />
               {error}
             </p>
           )}
           <div className="inline-form">
-            {/* Outlined, not filled Patch Plum (issue #51): a destructive commit
-                is visually distinct from a routine one at the moment it fires. */}
+            {/* Outlined, not filled: a destructive commit is visually distinct
+                from a routine one at the moment it fires. */}
             <button
               type="button"
-              className="button-confirm-destructive"
+              className="control control-commit"
               onClick={() => void handleDelete()}
               disabled={deleting}
             >
+              <Trash2 size={13} strokeWidth={1.75} aria-hidden="true" />
               {deleting ? "Deleting…" : "Confirm delete"}
             </button>
             <button
               type="button"
-              className="button-ghost"
+              className="control"
               onClick={() => {
                 setConfirming(false);
                 setError(null);
               }}
               disabled={deleting}
             >
+              <X size={13} strokeWidth={2} aria-hidden="true" />
               Cancel
             </button>
           </div>
         </div>
       ) : (
         <div className="inline-form">
-          <button type="button" className="button-ghost" onClick={() => setConfirming(true)}>
+          <button type="button" className="control" onClick={() => setConfirming(true)}>
+            <Trash2 size={13} strokeWidth={1.75} aria-hidden="true" />
             Delete Channel
           </button>
         </div>
