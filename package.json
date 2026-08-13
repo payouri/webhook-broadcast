@@ -19,7 +19,7 @@
     "contract:check": "pnpm --filter @webhook-broadcast/contract run check:openapi",
     "contract:generate-client": "pnpm --filter @webhook-broadcast/contract run generate:client",
     "contract:codegen": "pnpm --filter @webhook-broadcast/contract run codegen",
-    "dev": "concurrently -n api,worker,web -c blue,magenta,green \"pnpm run dev:api\" \"pnpm run dev:worker\" \"pnpm run dev:web\"",
+    "dev": "pnpm run migrate && concurrently -n api,worker,web -c blue,magenta,green \"pnpm run dev:api\" \"pnpm run dev:worker\" \"pnpm run dev:web\"",
     "dev:api": "pnpm --filter @webhook-broadcast/api run dev:server",
     "dev:worker": "pnpm --filter @webhook-broadcast/api run dev:worker",
     "dev:web": "pnpm --filter @webhook-broadcast/web run dev",
