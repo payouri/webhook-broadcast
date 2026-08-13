@@ -22,7 +22,10 @@ any work on `apps/web`. `PRODUCT.md` binds the UI to `CONTEXT.md`'s vocabulary: 
 Broadcast, Replay, Delivery, Attempt. Never "event", "message", "job", "subscriber".
 
 `apps/web` styles itself with hand-written CSS in `apps/web/src/styles.css` and takes no pre-styled
-component kit (shadcn/ui, MUI, Mantine). Read `docs/adr/0013-headless-overlay-primitives-not-a-component-kit.md`
-before adding any UI dependency. A surface that genuinely needs to float above content takes the
-headless `radix-ui` primitive for its behavior only, dressed in the existing classes; see
-`DESIGN.md` §5 Overlays for the terms.
+component kit (shadcn/ui, MUI, Mantine) and no utility-CSS framework (Tailwind). Read
+`docs/adr/0013-headless-overlay-primitives-not-a-component-kit.md` and
+`docs/adr/0014-tailwind-not-adopted-at-current-scale.md` before adding any UI or styling dependency.
+0013 is settled; 0014 is a scale judgment with stated conditions for reopening, so propose rather
+than assume. A surface that genuinely needs to float above content takes the headless `radix-ui`
+primitive for its behavior only, dressed in the existing classes; see `DESIGN.md` §5 Overlays for
+the terms.
