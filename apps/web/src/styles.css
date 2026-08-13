@@ -1,13 +1,31 @@
+/*
+ * DESIGN.md §2 The Switchboard Palette, expressed as the tokens in
+ * .impeccable/design.json. Every color below is one of these named tokens
+ * (or its documented wash/deep variant) in OKLCH. There is no pure white,
+ * no pure black, and no untinted grey anywhere in this file (The Warm Grey
+ * Rule).
+ */
 :root {
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --border: #e2e5ea;
-  --text: #1a1d23;
-  --muted: #6b7280;
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  --danger: #dc2626;
-  --success: #16a34a;
+  /* Neutrals: hue 75, chroma 0.004-0.012, warm paper-and-ink. */
+  --paper: oklch(97.2% 0.006 75); /* page ground */
+  --surface: oklch(99% 0.004 75); /* panels, rows, inputs, header */
+  --surface-sunk: oklch(95.4% 0.007 75); /* recessed/expanded detail, code, hovered rows */
+  --hairline: oklch(89% 0.008 75); /* default border/divider */
+  --hairline-strong: oklch(80.5% 0.01 75); /* form-control resting border, ghost button border */
+  --ink: oklch(24% 0.012 75); /* primary text */
+  --ink-muted: oklch(52% 0.012 75); /* metadata, labels, placeholders, `pending` stamp */
+
+  /* Primary: Patch Plum. Operator intent only — never system state. */
+  --patch-plum: oklch(46% 0.14 325);
+  --patch-plum-deep: oklch(39% 0.13 325); /* pressed/hovered primary button */
+  --patch-plum-wash: oklch(95% 0.03 325); /* selected/expanded row background */
+
+  /* Tertiary: the two signal colors, quarantined to Delivery/Attempt/enabled status. */
+  --signal-live: oklch(52% 0.13 150);
+  --signal-live-wash: oklch(94% 0.04 150);
+  --signal-cut: oklch(50% 0.17 27);
+  --signal-cut-wash: oklch(94% 0.045 27);
+
   /* Constant width of the leading status-stamp column in a row list. */
   --status-stamp-column: 116px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -25,8 +43,8 @@ body,
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--paper);
+  color: var(--ink);
   overflow: hidden;
 }
 
@@ -57,7 +75,7 @@ h2 {
   justify-content: space-between;
   padding: 16px 24px;
   background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--hairline);
   flex-shrink: 0;
 }
 
@@ -66,6 +84,28 @@ h2 {
   border: none;
   padding: 0;
   cursor: pointer;
+  border-radius: 4px;
+  /* This class also lands on a router `Link`, i.e. an `a`, whose UA default text
+     color is an untinted blue. Ink keeps it inside the palette (Warm Grey Rule). */
+  color: var(--ink);
+  transition: opacity 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/*
+ * "2px Patch Plum ring at 2px offset, on every button without exception"
+ * (DESIGN.md §5 Buttons), stated once. The class selectors are here because
+ * `.button-ghost` and `.link-button` are also applied to router `Link`s, which
+ * render as `a` and so never match the `button` selector.
+ */
+button:focus-visible,
+.button-ghost:focus-visible,
+.link-button:focus-visible,
+.tab:focus-visible,
+.channel-row:focus-visible,
+.activity-row:focus-visible,
+.delivery-row:focus-visible {
+  outline: 2px solid var(--patch-plum);
+  outline-offset: 2px;
 }
 
 .app-main {
@@ -87,7 +127,7 @@ h2 {
 
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   border-radius: 12px;
   padding: 20px;
 }
@@ -111,24 +151,27 @@ h2 {
 label {
   font-size: 0.85rem;
   font-weight: 500;
-  color: var(--muted);
+  color: var(--ink-muted);
 }
 
 input,
 textarea {
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid var(--border);
+  /* Resting border is Hairline Strong so form controls are visible without hover. */
+  border: 1px solid var(--hairline-strong);
   border-radius: 8px;
   font-size: 0.95rem;
   font-family: inherit;
   background: var(--surface);
-  color: var(--text);
+  color: var(--ink);
+  transition: border-color 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 input:focus,
 textarea:focus {
-  outline: 2px solid var(--primary);
+  border-color: var(--patch-plum);
+  outline: 2px solid var(--patch-plum);
   outline-offset: -1px;
 }
 
@@ -139,27 +182,29 @@ button {
   padding: 9px 16px;
   font-size: 0.9rem;
   font-weight: 500;
-  background: var(--primary);
-  color: white;
+  background: var(--patch-plum);
+  color: var(--surface);
+  transition: background-color 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 button:hover:not(:disabled) {
-  background: var(--primary-hover);
+  background: var(--patch-plum-deep);
 }
 
 button:disabled {
-  opacity: 0.6;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
 .button-ghost {
-  background: transparent;
-  color: var(--text);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--hairline-strong);
 }
 
 .button-ghost:hover:not(:disabled) {
-  background: var(--bg);
+  background: var(--surface-sunk);
+  border-color: var(--ink-muted);
 }
 
 .inline-form {
@@ -174,23 +219,31 @@ button:disabled {
 }
 
 .muted {
-  color: var(--muted);
+  color: var(--ink-muted);
 }
 
+/* Signal Cut: a form validation error or an Attempt/Delivery failure message. */
 .error-text {
-  color: var(--danger);
+  color: var(--signal-cut);
   font-size: 0.85rem;
   margin: 0;
 }
 
+/*
+ * Confirmation that an operator action landed (Saved, Replayed, token minted).
+ * Not Signal Live: the Quarantine Rule binds Signal Live to Delivery status,
+ * Attempt outcome, and enabled state, and none of these messages report system
+ * state. Patch Plum is the operator's own voice, which is exactly what a
+ * confirmation of their action is (The One Voice Rule).
+ */
 .success-text {
-  color: var(--success);
+  color: var(--patch-plum);
   font-size: 0.85rem;
   margin: 0;
 }
 
 .empty-state {
-  border: 1px dashed var(--border);
+  border: 1px dashed var(--hairline-strong);
   border-radius: 8px;
   padding: 24px;
   text-align: center;
@@ -222,16 +275,19 @@ button:disabled {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
   border-radius: 8px;
   text-align: left;
   font-weight: 400;
+  transition:
+    background-color 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .channel-row:hover {
-  border-color: var(--primary);
+  border-color: var(--patch-plum);
 }
 
 .channel-slug {
@@ -246,7 +302,7 @@ button:disabled {
 
 .channel-meta {
   font-size: 0.8rem;
-  color: var(--muted);
+  color: var(--ink-muted);
 }
 
 /*
@@ -257,10 +313,12 @@ button:disabled {
  *
  * Sizing is DESIGN.md's Stamp role (600, 0.6875rem, line-height 1, 0.04em,
  * uppercase — the only role in the system allowed to be uppercase) at the Chips
- * shape (pill, 3px by 8px). Tones are DESIGN.md's status vocabulary and no more:
- * Signal Live, Signal Cut, and the neutral ink/sunk pair. `--success`/`--danger`
- * and their washes stand in for Signal Live/Cut until the palette itself moves to
- * the DESIGN.md tokens; no status invents a hue outside that vocabulary.
+ * shape (pill, 3px by 8px). Tones are DESIGN.md's status vocabulary and no
+ * more: `succeeded`/enabled is Signal Live on Signal Live Wash, `failed` and
+ * `dead lettered` are Signal Cut on Signal Cut Wash, `in progress` is Ink on
+ * Surface Sunk (filled), and `pending` is Ink Muted on transparent with a
+ * Hairline Strong border (outlined). The signal colors go no further than
+ * this component (The Quarantine Rule).
  */
 .status-badge {
   display: inline-flex;
@@ -283,33 +341,33 @@ button:disabled {
 }
 
 .status-badge-success.status-badge-filled {
-  background: #dcfce7;
-  color: var(--success);
+  background: var(--signal-live-wash);
+  color: var(--signal-live);
 }
 
 .status-badge-success.status-badge-outlined {
-  color: var(--success);
-  border-color: var(--success);
+  color: var(--signal-live);
+  border-color: var(--signal-live);
 }
 
 .status-badge-neutral.status-badge-filled {
-  background: var(--border);
-  color: var(--text);
+  background: var(--surface-sunk);
+  color: var(--ink);
 }
 
 .status-badge-neutral.status-badge-outlined {
-  color: var(--muted);
-  border-color: var(--muted);
+  color: var(--ink-muted);
+  border-color: var(--hairline-strong);
 }
 
 .status-badge-danger.status-badge-filled {
-  background: #fee2e2;
-  color: var(--danger);
+  background: var(--signal-cut-wash);
+  color: var(--signal-cut);
 }
 
 .status-badge-danger.status-badge-outlined {
-  color: var(--danger);
-  border-color: var(--danger);
+  color: var(--signal-cut);
+  border-color: var(--signal-cut);
 }
 
 .channel-header {
@@ -321,26 +379,27 @@ button:disabled {
 .tabs {
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--hairline);
 }
 
 .tab {
   background: none;
-  color: var(--muted);
+  color: var(--ink-muted);
   border: none;
   border-radius: 0;
   border-bottom: 2px solid transparent;
   padding: 8px 4px;
+  transition: color 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .tab:hover:not(:disabled) {
   background: none;
-  color: var(--text);
+  color: var(--ink);
 }
 
 .tab-active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
+  color: var(--patch-plum);
+  border-bottom-color: var(--patch-plum);
 }
 
 .checkbox-row {
@@ -370,25 +429,37 @@ button:disabled {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
   border-radius: 8px;
   font-size: 0.9rem;
   font-weight: 400;
   text-align: left;
+  transition:
+    background-color 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .activity-row:hover {
-  border-color: var(--primary);
+  border-color: var(--patch-plum);
 }
 
+/* Patch Plum Wash: "the tinted background of a selected or expanded row...
+   nothing else" (DESIGN.md §2). Shows which Broadcast is open. */
+.activity-row[aria-expanded="true"] {
+  background: var(--patch-plum-wash);
+  border-color: var(--patch-plum);
+}
+
+/* The Inward Depth Rule: expanded detail is recessed onto Surface Sunk, inset
+   from its row, never lifted or tinted with a signal color. */
 .broadcast-detail {
   margin-top: 4px;
   padding: 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   border-radius: 8px;
-  background: var(--surface);
+  background: var(--surface-sunk);
 }
 
 .broadcast-detail-content-type {
@@ -403,11 +474,18 @@ button:disabled {
   margin: 0 0 12px;
 }
 
+/*
+ * A payload block, which DESIGN.md §2 puts on Surface Sunk. It sits inside the
+ * already-sunk `.broadcast-detail`, so it takes the same ground rather than
+ * going lighter than its container (The Inward Depth Rule), and its border is
+ * Hairline Strong — the token for "borders that must survive against Surface
+ * Sunk".
+ */
 .broadcast-body {
   margin: 0 0 12px;
   padding: 10px;
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: var(--surface-sunk);
+  border: 1px solid var(--hairline-strong);
   border-radius: 8px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.85rem;
@@ -433,26 +511,41 @@ button:disabled {
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
   border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 400;
   text-align: left;
+  transition:
+    background-color 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .delivery-row:hover {
-  border-color: var(--primary);
+  border-color: var(--patch-plum);
 }
 
+/* Patch Plum Wash: "the tinted background of a selected or expanded row...
+   nothing else" (DESIGN.md §2). Shows which Delivery is open. */
+.delivery-row[aria-expanded="true"] {
+  background: var(--patch-plum-wash);
+  border-color: var(--patch-plum);
+}
+
+/*
+ * DESIGN.md bans a colored 2px accent on the leading edge of this panel as a
+ * side-stripe; it must be a full hairline border with inset padding instead.
+ * Depth reads inward via Surface Sunk (The Inward Depth Rule), not via a
+ * colored edge.
+ */
 .delivery-detail {
   margin: 6px 0 0 10px;
   padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-left: 2px solid var(--primary);
+  border: 1px solid var(--hairline);
   border-radius: 8px;
-  background: var(--surface);
+  background: var(--surface-sunk);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -479,8 +572,8 @@ button:disabled {
   align-items: center;
   gap: 10px;
   padding: 6px 8px;
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
   border-radius: 6px;
   font-size: 0.8rem;
 }
@@ -506,7 +599,7 @@ button:disabled {
 
 .activity-time {
   font-size: 0.8rem;
-  color: var(--muted);
+  color: var(--ink-muted);
   white-space: nowrap;
 }
 
@@ -543,8 +636,8 @@ button:disabled {
   align-items: center;
   gap: 12px;
   padding: 8px 12px;
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
   border-radius: 8px;
   font-size: 0.9rem;
 }
@@ -557,8 +650,8 @@ button:disabled {
 /* Inward Depth Rule: nested detail is recessed and inset, never lifted or tinted with Signal Cut. */
 .confirm-region {
   padding: 12px;
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: var(--surface-sunk);
+  border: 1px solid var(--hairline);
   border-radius: 8px;
 }
 
