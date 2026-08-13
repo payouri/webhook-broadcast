@@ -187,7 +187,7 @@ export function ChannelActivityTab({
               {nextCursor ? " Load more to look further back." : ""}
             </EmptyState>
           ) : (
-            <ul className="row-list">
+            <ul className="row-list row-list-activity">
               {visibleItems.map((item) => {
                 const expanded = expandedBroadcastId === item.id;
                 return (

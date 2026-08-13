@@ -495,6 +495,34 @@ The unit the dashboard exists to display, and the thing an operator scans twenty
 - A grid, with a **constant leading lamp column** (`--status-lamp-column`) shared by every row family
   (Channel, Endpoint, Broadcast, Delivery), so a lamp lands at the same x whichever list it scrolls
   past in and the eye can run the column without reading.
+- **The grid belongs to the list, not to the row.** Tracks are declared once on the `<ul>`
+  (`.row-list-channel`, `.row-list-activity`); the `<li>` is `display: contents` and the row itself
+  takes `grid-template-columns: subgrid`, so it keeps its own ground, border, radius, hover, and
+  focus ring while its tracks are sized across every sibling. When each row was its own grid, only
+  the leading track was actually pinned: a `1fr` description track let the widest health legend push
+  everything after it sideways, and the Channel directory's health lamp measured a **141px spread**
+  across seven rows, worst on exactly the rows that were broken. A second constant,
+  `--health-lamp-column`, pins that lamp the way `--status-lamp-column` pins the leading one. The
+  per-row `grid-template-columns` stays as a standalone fallback, because `subgrid` with no grid
+  ancestor supplying the axis has no tracks to inherit and collapses the row.
+- **A row family owns its own tracks.** Channel, Activity, Endpoint, Delivery, and Token each declare
+  their own, and a family may not borrow another's because the number of columns happens to match.
+  Endpoint rows borrowed the Channel directory's and inherited its ranking, where the flexible column
+  is the description and the trailing lamp is pinned wide. An Endpoint ranks the opposite way: its
+  identity is the URL, and the statistics beside it are what may yield. Shared across a list, the
+  borrowed tracks resolved those statistics at max-content and left the URL 64px of the 291px it
+  wanted, rendering it as `https://…`. **What a column means decides its track, and two lists that
+  look alike are not therefore the same family.**
+- **Identity never yields to metadata.** In every family, the column carrying the thing an operator
+  identifies the row by (a Channel slug, an Endpoint URL) gets the flexible remainder and a pinned
+  minimum. Counts, durations, and timestamps truncate first. Where a value can still outrun its
+  column, it carries a `title` so the full string is reachable without opening an editor to read it.
+- **The breakpoint has to outrank the list.** Below 720px the list stops being a grid and its items
+  get their boxes back before the rows collapse to stacked lines, in that order: while the list is a
+  grid and its items are `display: contents`, a row's own `grid-template-columns` does not decide
+  where its children land. The collapse rules carry the same two-class weight as the `.row-list-*
+.row-*` rules they override, because a media query contributes no specificity of its own and a
+  single-class rule inside one loses at every width.
 - Face ground on the plate ground, 1px Score, 3px radius, inner top highlight. A strip on the plate,
   not an object floating above it.
 - **Hover** tints to Well and darkens the border. It does **not** fill with the accent: the row

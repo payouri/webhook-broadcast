@@ -103,6 +103,19 @@
      a lamp lands at the same x whichever list it scrolls past in. */
   --status-lamp-column: 148px;
 
+  /* Same idea, second lamp: the Channel health badge (issue "row grid tracks
+     must span the list, not the row") carries the longest label in the
+     system, "N failing (24h) · N auto-disabled", so it gets its own pinned
+     minimum rather than sharing the leading column's width. */
+  --health-lamp-column: 220px;
+
+  /* The floor under an Endpoint's URL. An Endpoint's identity is where it
+     sends, so that column may not be squeezed below a readable width by the
+     trailing statistics beside it. Sharing the Channel directory's tracks
+     starved it to 64px of the 291px it wanted, which rendered the whole URL as
+     "https://…"; the Endpoint family exists to stop that recurring. */
+  --endpoint-url-column: 260px;
+
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -923,6 +936,105 @@ input[type="number"] {
 }
 
 /*
+ * DESIGN.md #5 Rows promises "a constant leading lamp column shared by every
+ * row family", but each `.row` used to be its own independent grid: track
+ * widths (including the leading lamp's `minmax(var(--status-lamp-column),
+ * auto)`) were resolved per row, not down the list, so any row whose content
+ * ran past the pinned minimum dragged only its own tracks wider and every
+ * later column on that row landed at a different x than its neighbours.
+ * Measured live on the Channel directory, the health badge's left edge spread
+ * 141px across seven rows.
+ *
+ * The fix moves the column definition up to the list (this `<ul>`) and has
+ * each row participate in those shared tracks via CSS subgrid
+ * (`grid-template-columns: subgrid`), so every track is sized once, from the
+ * widest cell in that column across the whole list, and every row lines up.
+ * `display: contents` on the `<li>` was the other candidate: it is simpler,
+ * but every row here is a `<button>` or `<a>` carrying its own background,
+ * border, radius, hover and focus styling (DESIGN.md #5 Controls, #4
+ * Elevation), and `display: contents` would strip that box away entirely.
+ * Subgrid keeps the row as a real element with its own box; only the column
+ * math moves up to the list.
+ *
+ * `<li>` itself is promoted to `display: contents` instead, since it carries
+ * no visual styling of its own in the row-list case (list semantics only),
+ * so nothing is lost by removing its box. The one `<li>` that does carry its
+ * own visual role, the Endpoint inline edit well, is excluded via `:not(.well)`
+ * below and instead spans the full row width directly.
+ */
+.row-list-channel,
+.row-list-activity,
+.row-list-endpoint {
+  display: grid;
+  row-gap: var(--space-sm);
+  column-gap: var(--space-md);
+}
+
+.row-list-channel {
+  grid-template-columns:
+    minmax(var(--status-lamp-column), auto) auto 1fr minmax(var(--health-lamp-column), auto)
+    auto;
+}
+
+.row-list-activity {
+  grid-template-columns: minmax(var(--status-lamp-column), auto) auto 1fr auto;
+}
+
+/*
+ * Endpoints get their own tracks rather than borrowing the Channel
+ * directory's. The two lists carry the same number of columns but rank them
+ * oppositely: a Channel row's flexible column is its description, with the
+ * health lamp pinned wide beside it, while an Endpoint row's flexible column
+ * is the URL, and the statistics beside it are the part that may yield.
+ * Borrowing the Channel tracks resolved the trailing statistics at their
+ * max-content width across the whole list, which left the URL 64px of the
+ * 291px it wanted. The URL therefore takes a pinned minimum and the flexible
+ * remainder, and the statistics track is allowed to fall below its
+ * max-content width instead of the identity column absorbing the shortfall.
+ */
+.row-list-endpoint {
+  grid-template-columns:
+    minmax(var(--status-lamp-column), auto) auto minmax(var(--endpoint-url-column), 1fr)
+    minmax(0, auto) auto;
+}
+
+/* Statistics yield before identity does: this cell is the one allowed to
+   truncate when the row runs out of width, which is why it needs the
+   `min-width: 0` that a grid item does not take by default. */
+.row-list-endpoint .row-meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Every list item spans the full row width. This matters even after the
+   `display: contents` promotion below leaves most `<li>` boxes ungenerated,
+   because the one `<li>` that keeps its own box (the Endpoint edit well)
+   would otherwise default to a single-column span as a lone grid item. */
+.row-list-channel > li,
+.row-list-activity > li,
+.row-list-endpoint > li {
+  grid-column: 1 / -1;
+}
+
+.row-list-channel > li:not(.well),
+.row-list-activity > li:not(.well),
+.row-list-endpoint > li:not(.well) {
+  display: contents;
+}
+
+/* A promoted `<li>`'s non-row children (the auto-disabled notice beside an
+   Endpoint row, the expanded edit well below it, the expanded Broadcast
+   detail below an Activity row) become direct grid items of the list too,
+   and need the same full-width span the `<li>` would have carried. */
+.row-list-endpoint > li > .well-notice,
+.row-list-endpoint > li > .well-endpoint-edit,
+.row-list-activity > li > .well {
+  grid-column: 1 / -1;
+}
+
+/*
  * A row: a strip on the plate, not an object floating above it. Grid, so the
  * leading lamp column lands at a constant x down the whole list and the eye
  * can run the column without reading.
@@ -970,12 +1082,38 @@ button.row:active {
   border-color: var(--anodize);
 }
 
+/*
+ * Standalone fallback: the same explicit track lists these rules held before
+ * the list-level fix, kept for a row that is not inside a matching
+ * `.row-list-*`. Every one of them opts in today, so these are unused in
+ * practice, but `grid-template-columns: subgrid` with no grid parent
+ * supplying that axis's tracks does not fall back to a later rule gracefully,
+ * so they have to stay live rather than being deleted, and the more specific
+ * rules below only override them once the surrounding list actually opts in.
+ */
 .row-channel {
   grid-template-columns: minmax(var(--status-lamp-column), auto) auto 1fr auto auto;
 }
 
 .row-activity {
   grid-template-columns: minmax(var(--status-lamp-column), auto) auto 1fr auto;
+}
+
+.row-endpoint {
+  grid-template-columns:
+    minmax(var(--status-lamp-column), auto) auto minmax(var(--endpoint-url-column), 1fr)
+    minmax(0, auto) auto;
+}
+
+/* These families take their tracks from the list's shared grid (see the
+   `.row-list-*` comments above) once that list opts in: `subgrid` spans every
+   column line the list defined so the widths are resolved once, down the
+   whole list, not per row. */
+.row-list-channel .row-channel,
+.row-list-activity .row-activity,
+.row-list-endpoint .row-endpoint {
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
 }
 
 .row-delivery {
@@ -1440,12 +1578,56 @@ button.row:active {
     padding: var(--space-lg);
   }
 
+  /*
+   * The list hands its tracks back before the rows can collapse. While the
+   * list is a grid and its items are `display: contents`, every cell is still
+   * positioned by the list's own columns, and a row's `grid-template-columns`
+   * is irrelevant to where its children land. So the list stops being a grid
+   * here and the promoted items get their boxes back, in that order.
+   *
+   * These selectors carry the same two-class weight as the `.row-list-*
+   * .row-*` subgrid rules they have to beat. A media query contributes no
+   * specificity of its own, so a single-class `.row-channel` here would lose
+   * to `.row-list-channel .row-channel` at every width and the breakpoint
+   * would silently never apply.
+   */
+  .row-list-channel,
+  .row-list-activity,
+  .row-list-endpoint {
+    display: block;
+  }
+
+  .row-list-channel > li:not(.well),
+  .row-list-activity > li:not(.well),
+  .row-list-endpoint > li:not(.well) {
+    display: block;
+  }
+
+  .row-list-channel > li + li,
+  .row-list-activity > li + li,
+  .row-list-endpoint > li + li {
+    margin-top: var(--space-sm);
+  }
+
+  .row-list-channel .row-channel,
+  .row-list-activity .row-activity,
+  .row-list-endpoint .row-endpoint,
   .row-channel,
   .row-activity,
+  .row-endpoint,
   .row-delivery,
   .row-token {
     grid-template-columns: 1fr;
     gap: var(--space-xs);
+  }
+
+  /* The statistics column truncates only where width is scarce. Once the row
+     is stacked it has a full line to itself, so it reads in full again. */
+  .row-list-endpoint .row-meta {
+    min-width: auto;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
   }
 
   /*

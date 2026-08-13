@@ -120,7 +120,7 @@ export function ChannelDirectoryPage() {
           </EmptyState>
         )}
         {channels !== null && channels.length > 0 && (
-          <ul className="row-list">
+          <ul className="row-list row-list-channel">
             {channels.map((channel) => (
               <li key={channel.id}>
                 {/* A Channel with recent failures lands straight on the filtered
