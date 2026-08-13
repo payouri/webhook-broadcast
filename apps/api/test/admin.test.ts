@@ -245,6 +245,36 @@ describe("Admin auth + Channel CRUD (HTTP seam)", () => {
       await expect(listAfterDelete.json()).resolves.toMatchObject({ items: [] });
     });
 
+    it("filters the list by exact slug, and finds nothing for an unknown slug", async () => {
+      await fetch(
+        `${baseUrl}/channels`,
+        authed({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug: "orders" }),
+        }),
+      );
+      await fetch(
+        `${baseUrl}/channels`,
+        authed({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug: "invoices" }),
+        }),
+      );
+
+      const response = await fetch(`${baseUrl}/channels?slug=orders`, authed());
+      expect(response.status).toBe(200);
+      const list = (await response.json()) as ChannelList;
+      expect(list.items).toHaveLength(1);
+      expect(list.items[0]).toMatchObject({ slug: "orders" });
+      expect(list.nextCursor).toBeNull();
+
+      const missResponse = await fetch(`${baseUrl}/channels?slug=unknown-slug`, authed());
+      expect(missResponse.status).toBe(200);
+      await expect(missResponse.json()).resolves.toMatchObject({ items: [], nextCursor: null });
+    });
+
     it("rejects an invalid slug with a validation_failed envelope", async () => {
       const response = await fetch(
         `${baseUrl}/channels`,

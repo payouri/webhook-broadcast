@@ -100,15 +100,16 @@ export function decodeEndpointCursor(cursor: string): EndpointCursor | undefined
 export async function listEndpoints(
   db: Database,
   channelId: string,
-  options: { cursor?: EndpointCursor | undefined; limit: number },
+  options: { cursor?: EndpointCursor | undefined; limit: number; url?: string | undefined },
 ): Promise<{ items: EndpointRow[]; nextCursor: EndpointCursor | null }> {
-  const { cursor, limit } = options;
+  const { cursor, limit, url } = options;
   const rows = await db
     .select()
     .from(endpoints)
     .where(
       and(
         eq(endpoints.channelId, channelId),
+        url !== undefined ? eq(endpoints.url, url) : undefined,
         cursor
           ? or(
               gt(endpoints.url, cursor.url),

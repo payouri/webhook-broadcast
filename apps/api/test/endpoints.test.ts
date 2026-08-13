@@ -132,6 +132,75 @@ describe("Endpoint CRUD (HTTP admin seam)", () => {
     });
   });
 
+  it("filters the list by exact url, and finds nothing for an unknown url", async () => {
+    await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com/hook-a" }),
+      }),
+    );
+    await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com/hook-b" }),
+      }),
+    );
+
+    const response = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints?url=${encodeURIComponent("https://example.com/hook-a")}`,
+      authed(),
+    );
+    expect(response.status).toBe(200);
+    const list = (await response.json()) as EndpointList;
+    expect(list.items).toHaveLength(1);
+    expect(list.items[0]).toMatchObject({ url: "https://example.com/hook-a" });
+    expect(list.nextCursor).toBeNull();
+
+    const missResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints?url=${encodeURIComponent("https://example.com/unknown")}`,
+      authed(),
+    );
+    expect(missResponse.status).toBe(200);
+    await expect(missResponse.json()).resolves.toMatchObject({ items: [], nextCursor: null });
+  });
+
+  it("scopes the url filter to its own Channel, since the same url may exist on another", async () => {
+    const otherChannelResponse = await fetch(
+      `${baseUrl}/channels`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ slug: "invoices" }),
+      }),
+    );
+    const otherChannel = (await otherChannelResponse.json()) as Channel;
+
+    const sharedUrl = "https://example.com/shared-hook";
+    for (const target of [channel, otherChannel]) {
+      await fetch(
+        `${baseUrl}/channels/${target.id}/endpoints`,
+        authed({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ url: sharedUrl }),
+        }),
+      );
+    }
+
+    const response = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints?url=${encodeURIComponent(sharedUrl)}`,
+      authed(),
+    );
+    expect(response.status).toBe(200);
+    const list = (await response.json()) as EndpointList;
+    expect(list.items).toHaveLength(1);
+    expect(list.items[0]).toMatchObject({ url: sharedUrl, channelId: channel.id });
+  });
+
   it("rejects a duplicate url on the same Channel with a conflict envelope", async () => {
     await fetch(
       `${baseUrl}/channels/${channel.id}/endpoints`,

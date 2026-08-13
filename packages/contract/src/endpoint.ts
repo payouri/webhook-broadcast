@@ -53,6 +53,9 @@ export type EndpointUpdate = z.infer<typeof endpointUpdateSchema>;
 export const endpointListQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
+  url: z.string().optional().meta({
+    description: "Exact match on endpoint.url within this channel (UNIQUE) — at most one row",
+  }),
 });
 
 export type EndpointListQuery = z.infer<typeof endpointListQuerySchema>;

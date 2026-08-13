@@ -105,15 +105,16 @@ export function decodeChannelCursor(cursor: string): ChannelCursor | undefined {
 
 export async function listChannels(
   db: Database,
-  options: { cursor?: ChannelCursor | undefined; limit: number },
+  options: { cursor?: ChannelCursor | undefined; limit: number; slug?: string | undefined },
 ): Promise<{ items: ChannelRow[]; nextCursor: ChannelCursor | null }> {
-  const { cursor, limit } = options;
+  const { cursor, limit, slug } = options;
   const rows = await db
     .select()
     .from(channels)
     .where(
       and(
         isNull(channels.deletedAt),
+        slug !== undefined ? eq(channels.slug, slug) : undefined,
         cursor
           ? or(
               gt(channels.slug, cursor.slug),

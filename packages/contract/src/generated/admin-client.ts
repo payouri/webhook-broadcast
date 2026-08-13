@@ -11,7 +11,7 @@ function adminBaseUrl(): string {
 
 let client: Client<paths> | undefined;
 
-/** Test-only: drop cached client (e.g. after changing fetch stubs). */
+/** Test-only: drop cached client so the next call binds the current global fetch. */
 export function resetAdminFetchClientForTests(): void {
   client = undefined;
 }

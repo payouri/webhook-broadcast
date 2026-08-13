@@ -74,6 +74,10 @@ export type ChannelUpdate = z.infer<typeof channelUpdateSchema>;
 export const channelListQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
+  slug: z
+    .string()
+    .optional()
+    .meta({ description: "Exact match on channel.slug (UNIQUE) — at most one row" }),
 });
 
 export type ChannelListQuery = z.infer<typeof channelListQuerySchema>;

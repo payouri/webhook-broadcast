@@ -70,6 +70,7 @@ export function registerEndpointRoutes(router: Router, db: Database): void {
     const { items, nextCursor } = await listEndpoints(db, channelId, {
       cursor,
       limit: parsedQuery.data.limit,
+      url: parsedQuery.data.url,
     });
     const healthById = await getEndpointHealthByIds(
       db,

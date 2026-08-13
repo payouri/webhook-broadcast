@@ -70,7 +70,11 @@ export function registerChannelRoutes(router: Router, db: Database): void {
       return;
     }
 
-    const { items, nextCursor } = await listChannels(db, { cursor, limit: parsedQuery.data.limit });
+    const { items, nextCursor } = await listChannels(db, {
+      cursor,
+      limit: parsedQuery.data.limit,
+      slug: parsedQuery.data.slug,
+    });
     ctx.status = 200;
     ctx.body = {
       items: await hydrateChannels(db, items),
