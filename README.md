@@ -22,7 +22,7 @@ Node 24, pnpm 9+, Docker with Compose v2.
 ```bash
 pnpm install
 cp .env.example .env   # localhost:5433 Postgres, localhost:6380 Redis
-docker compose up -d postgres redis
+docker compose up -d   # Postgres + Redis only; api/worker/web are profiled out
 pnpm run migrate
 
 pnpm run dev            # api (:8080) + worker (:9091) + web (:5173)
@@ -49,12 +49,18 @@ pnpm run format     # prettier --check
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose --profile app up --build
 ```
 
 Brings up Postgres, Redis, a one-shot `migrate` job, then `api` (`:8080`), `worker`
 (health on `:9091`), and `web` (`:5173`). `api` and `worker` wait on `migrate` completing
-successfully and on Postgres/Redis healthchecks before starting.
+successfully and on Postgres/Redis healthchecks before starting; `web` waits on `api`
+being healthy.
+
+Every published port binds to `127.0.0.1` only. Host ports are overridable via
+`POSTGRES_HOST_PORT`, `REDIS_HOST_PORT`, `API_HOST_PORT`, `WORKER_HOST_PORT` and
+`WEB_HOST_PORT` — the in-container ports are fixed, so remapping a host port can't
+desync the app's listen port from its healthcheck.
 
 - `curl localhost:8080/health` — API liveness
 - `curl localhost:8080/ready` — API readiness (Postgres + Redis dependency checks)

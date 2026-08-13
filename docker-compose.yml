@@ -1,15 +1,49 @@
+name: webhook-broadcast
+
+# `docker compose up -d` brings up Postgres + Redis only — the documented dev
+# loop runs api/worker/web on the host via `pnpm run dev`. The full
+# containerised stack lives behind a profile: `docker compose --profile app up`.
+
+# api, worker and migrate are the same image (ADR 0008). Naming it explicitly
+# means it is built once and reused rather than built three times.
+x-api-image: &api-image
+  image: webhook-broadcast-api:dev
+  build:
+    context: .
+    dockerfile: apps/api/Dockerfile
+
+x-api-env: &api-env
+  DATABASE_URL: postgres://${POSTGRES_USER:-webhook_broadcast}:${POSTGRES_PASSWORD:-webhook_broadcast}@postgres:5432/${POSTGRES_DB:-webhook_broadcast}
+  REDIS_URL: redis://redis:6379
+
+x-api-deps: &api-deps
+  migrate:
+    condition: service_completed_successfully
+  postgres:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-webhook_broadcast}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-webhook_broadcast}
       POSTGRES_DB: ${POSTGRES_DB:-webhook_broadcast}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # PG18 wants a single mount at /var/lib/postgresql (it puts the cluster in
+      # a versioned subdirectory) rather than the old /var/lib/postgresql/data.
+      # New volume name: a PG17 data directory is unreadable by PG18, so the
+      # previous `pgdata` volume is left in place rather than clobbered — drop
+      # it with `docker volume rm webhook-broadcast_pgdata` once you're happy.
+      - pgdata18:/var/lib/postgresql
     ports:
+      # Loopback only — host `pnpm run dev:*` can reach Postgres without
+      # exposing default-credentialled dev data to the LAN.
       # Host 5432 is often taken; map a dedicated local-dev port.
-      - "5433:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
     healthcheck:
       test:
         [
@@ -19,25 +53,34 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 10s
 
   redis:
-    image: redis:7-alpine
-    # Loopback only — host `pnpm run dev:*` can reach Redis without LAN exposure.
-    # Host 6379 is often taken; map a dedicated local-dev port.
+    image: redis:8-alpine@sha256:978f0e01593e65eed801f2402944efcd936d43b5027e4908a7897baf88ed6241
+    restart: unless-stopped
+    # BullMQ keeps scheduled retries in Redis and DELIVERY_BACKOFF_MAX_MS is an
+    # hour — without AOF persistence a restart silently drops pending Deliveries.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
     ports:
-      - "127.0.0.1:6380:6379"
+      # Loopback only — host `pnpm run dev:*` can reach Redis without LAN exposure.
+      # Host 6379 is often taken; map a dedicated local-dev port.
+      - "127.0.0.1:${REDIS_HOST_PORT:-6380}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 5s
 
   migrate:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+    <<: *api-image
+    profiles: ["app"]
     command: ["migrate"]
-    env_file: .env
+    restart: "no"
+    # No env_file: migrateEnvSchema validates DATABASE_URL alone, so the
+    # migration job never needs OPERATOR_API_KEY or the delivery tuning surface.
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-webhook_broadcast}:${POSTGRES_PASSWORD:-webhook_broadcast}@postgres:5432/${POSTGRES_DB:-webhook_broadcast}
     depends_on:
@@ -45,23 +88,19 @@ services:
         condition: service_healthy
 
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+    <<: *api-image
+    profiles: ["app"]
     command: ["server"]
+    restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-webhook_broadcast}:${POSTGRES_PASSWORD:-webhook_broadcast}@postgres:5432/${POSTGRES_DB:-webhook_broadcast}
-      REDIS_URL: redis://redis:6379
+      <<: *api-env
+      # Pinned after env_file so a host-side PORT override cannot desync the
+      # listen port from the published mapping and the healthcheck below.
+      PORT: 8080
     ports:
-      - "${PORT:-8080}:8080"
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - "127.0.0.1:${API_HOST_PORT:-8080}:8080"
+    depends_on: *api-deps
     healthcheck:
       test:
         [
@@ -73,25 +112,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   worker:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+    <<: *api-image
+    profiles: ["app"]
     command: ["worker"]
+    restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-webhook_broadcast}:${POSTGRES_PASSWORD:-webhook_broadcast}@postgres:5432/${POSTGRES_DB:-webhook_broadcast}
-      REDIS_URL: redis://redis:6379
+      <<: *api-env
+      WORKER_HEALTH_PORT: 9091
     ports:
-      - "${WORKER_HEALTH_PORT:-9091}:9091"
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - "127.0.0.1:${WORKER_HOST_PORT:-9091}:9091"
+    # An in-flight Delivery may run the full DELIVERY_TIMEOUT_MS (10s); the
+    # default 10s SIGTERM grace would SIGKILL right at that boundary.
+    stop_grace_period: 30s
+    depends_on: *api-deps
     healthcheck:
       test:
         [
@@ -103,15 +140,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   web:
+    profiles: ["app"]
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
     ports:
-      - "5173:80"
+      - "127.0.0.1:${WEB_HOST_PORT:-5173}:8080"
     depends_on:
-      - api
+      api:
+        # nginx proxies /auth, /channels, ... to api; starting before api is
+        # healthy serves the SPA against an upstream that 502s.
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
 volumes:
-  pgdata:
+  pgdata18:
+  redisdata:
