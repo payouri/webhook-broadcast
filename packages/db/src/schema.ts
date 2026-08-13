@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { isNull, sql } from "drizzle-orm";
 import {
   pgEnum,
   pgTable,
@@ -41,7 +41,7 @@ export const channels = pgTable(
   "channel",
   {
     id: uuid("id").primaryKey(),
-    slug: text("slug").notNull().unique(),
+    slug: text("slug").notNull(),
     description: text("description"),
     enabled: boolean("enabled").notNull().default(true),
     /**
@@ -69,6 +69,12 @@ export const channels = pgTable(
       "channel_open_ingest_slug_length_chk",
       sql`NOT ${t.allowUnauthenticatedIngest} OR length(${t.slug}) >= ${sql.raw(String(MIN_OPEN_INGEST_SLUG_LENGTH))}`,
     ),
+    /**
+     * Issue #35: uniqueness is scoped to live Channels only, so a slug is
+     * reclaimable after soft-delete. Every slug lookup path already filters
+     * `deleted_at IS NULL`, so a live row beside dead ones is unambiguous.
+     */
+    uniqueIndex("channel_slug_active_key").on(t.slug).where(isNull(t.deletedAt)),
   ],
 );
 

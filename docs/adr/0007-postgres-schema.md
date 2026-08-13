@@ -1,6 +1,6 @@
 # Postgres schema and indexes
 
-Seven tables in `packages/db` (Drizzle + `drizzle-kit` SQL migrations): `channel`, `channel_token`, `operator_token`, `endpoint`, `broadcast`, `delivery`, `attempt`. UUIDs as PKs; Delivery unique on `(broadcast_id, endpoint_id)`; Attempt unique on `(delivery_id, n)`. Inbound `broadcast.body` is `bytea`; headers on broadcast/endpoint are `jsonb`. `delivery.status` is a Postgres enum (`pending|in_progress|succeeded|failed|dead_lettered`). Retention deletes old `broadcast` rows and cascades to deliveries/attempts. Fan-out summaries and endpoint health (`successRate24h`, `p95`) are **computed in SQL**, not stored columns. `operator_token` mirrors `channel_token` unscoped by Channel — see issue #41. Indexes: unique slug/token_hash/(channel_id,url); activity `(channel_id, received_at DESC, id DESC)`; retention `(received_at)`; fan-out `(broadcast_id)`; auto-disable streak `(endpoint_id, updated_at DESC)`; attempts `(delivery_id, n)`.
+Seven tables in `packages/db` (Drizzle + `drizzle-kit` SQL migrations): `channel`, `channel_token`, `operator_token`, `endpoint`, `broadcast`, `delivery`, `attempt`. UUIDs as PKs; Delivery unique on `(broadcast_id, endpoint_id)`; Attempt unique on `(delivery_id, n)`. Inbound `broadcast.body` is `bytea`; headers on broadcast/endpoint are `jsonb`. `delivery.status` is a Postgres enum (`pending|in_progress|succeeded|failed|dead_lettered`). Retention deletes old `broadcast` rows and cascades to deliveries/attempts. Fan-out summaries and endpoint health (`successRate24h`, `p95`) are **computed in SQL**, not stored columns. `operator_token` mirrors `channel_token` unscoped by Channel — see issue #41. Indexes: unique slug **scoped to live Channels** (partial, `WHERE deleted_at IS NULL` — issue #35, so a slug is reclaimable after soft-delete)/token_hash/(channel_id,url); activity `(channel_id, received_at DESC, id DESC)`; retention `(received_at)`; fan-out `(broadcast_id)`; auto-disable streak `(endpoint_id, updated_at DESC)`; attempts `(delivery_id, n)`.
 
 ## Sketch
 
@@ -11,13 +11,17 @@ CREATE TYPE delivery_status AS ENUM (
 
 CREATE TABLE channel (
   id            uuid PRIMARY KEY,
-  slug          text NOT NULL UNIQUE,
+  slug          text NOT NULL,
   description   text,
   enabled       boolean NOT NULL DEFAULT true,
   deleted_at    timestamptz,
   created_at    timestamptz NOT NULL,
   updated_at    timestamptz NOT NULL
 );
+-- Uniqueness applies to live Channels only, so a soft-deleted slug is
+-- reclaimable (issue #35). Every slug lookup filters `deleted_at IS NULL`.
+CREATE UNIQUE INDEX channel_slug_active_key
+  ON channel (slug) WHERE deleted_at IS NULL;
 
 CREATE TABLE channel_token (
   id            uuid PRIMARY KEY,

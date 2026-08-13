@@ -5,7 +5,7 @@ A single-tenant webhook multiplexer: an inbound HTTP request on a named Channel 
 ## Language
 
 **Channel**:
-The named fan-out group. Identified by an opaque UUID (durable primary key) and a unique slug used in `POST /ingest/:slug`. The slug may be renamed; history stays keyed by id. Carries ingest token(s), an `enabled` flag, an optional description, a `forwardHeaders` allow-list of inbound header names relayed to every Endpoint on delivery (issue #37; empty by default, never `authorization` — that names the Channel's own ingest token — and able to select only from the headers ADR 0002's ingest filter actually persisted), and soft-delete via `deletedAt`.
+The named fan-out group. Identified by an opaque UUID (durable primary key) and a slug used in `POST /ingest/:slug`, unique among live Channels only — soft-deleting a Channel releases its slug for reuse (issue #35). The slug may be renamed; history stays keyed by id. Carries ingest token(s), an `enabled` flag, an optional description, a `forwardHeaders` allow-list of inbound header names relayed to every Endpoint on delivery (issue #37; empty by default, never `authorization` — that names the Channel's own ingest token — and able to select only from the headers ADR 0002's ingest filter actually persisted), and soft-delete via `deletedAt`.
 _Avoid_: topic, webhook, queue
 
 **Endpoint**:

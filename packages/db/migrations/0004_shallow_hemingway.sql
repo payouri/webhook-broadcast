@@ -1,0 +1,2 @@
+ALTER TABLE "channel" DROP CONSTRAINT "channel_slug_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "channel_slug_active_key" ON "channel" USING btree ("slug") WHERE "channel"."deleted_at" is null;

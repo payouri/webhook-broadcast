@@ -373,6 +373,79 @@ describe("Admin auth + Channel CRUD (HTTP seam)", () => {
       await expect(response.json()).resolves.toMatchObject({ error: { code: "conflict" } });
     });
 
+    it("allows reusing a slug after soft-deleting the original Channel (issue #35)", async () => {
+      const createResponse = await fetch(
+        `${baseUrl}/channels`,
+        authed({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug: "reusable" }),
+        }),
+      );
+      expect(createResponse.status).toBe(201);
+      const created = (await createResponse.json()) as Channel;
+
+      const deleteResponse = await fetch(
+        `${baseUrl}/channels/${created.id}`,
+        authed({ method: "DELETE" }),
+      );
+      expect(deleteResponse.status).toBe(204);
+
+      const recreateResponse = await fetch(
+        `${baseUrl}/channels`,
+        authed({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug: "reusable" }),
+        }),
+      );
+      expect(recreateResponse.status).toBe(201);
+      const recreated = (await recreateResponse.json()) as Channel;
+      expect(recreated.slug).toBe("reusable");
+      expect(recreated.id).not.toBe(created.id);
+    });
+
+    it("keeps repeated delete/create cycles legal and still rejects a live duplicate (issue #35)", async () => {
+      const createChannel = (): Promise<Response> =>
+        fetch(
+          `${baseUrl}/channels`,
+          authed({
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ slug: "recycled" }),
+          }),
+        );
+
+      // Two full cycles leave two soft-deleted rows sharing the slug; neither
+      // is covered by the partial index, so the third create still succeeds.
+      const ids: string[] = [];
+      for (let cycle = 0; cycle < 2; cycle += 1) {
+        const created = await createChannel();
+        expect(created.status).toBe(201);
+        const { id } = (await created.json()) as Channel;
+        ids.push(id);
+        const deleted = await fetch(`${baseUrl}/channels/${id}`, authed({ method: "DELETE" }));
+        expect(deleted.status).toBe(204);
+      }
+
+      const live = await createChannel();
+      expect(live.status).toBe(201);
+      const liveChannel = (await live.json()) as Channel;
+      expect(ids).not.toContain(liveChannel.id);
+
+      // Uniqueness is scoped, not removed: a second *live* row still conflicts
+      // even though dead rows already hold the same slug.
+      const duplicate = await createChannel();
+      expect(duplicate.status).toBe(409);
+      await expect(duplicate.json()).resolves.toMatchObject({ error: { code: "conflict" } });
+
+      // Only the live Channel is visible.
+      const listResponse = await fetch(`${baseUrl}/channels?slug=recycled`, authed());
+      expect(listResponse.status).toBe(200);
+      const listed = (await listResponse.json()) as { items: Channel[] };
+      expect(listed.items.map((c) => c.id)).toEqual([liveChannel.id]);
+    });
+
     it("404s for a get/patch/delete on an unknown Channel id", async () => {
       const unknownId = "00000000-0000-0000-0000-000000000000";
 
