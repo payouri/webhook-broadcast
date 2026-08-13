@@ -95,6 +95,17 @@ Reference feel (personality, not palette):
    work is actually slow, and once shown it stays long enough to be read. Fast work resolves into
    changed content with no intermediate state at all.
 
+7. **The server is never the first to say no.** A constraint the browser can check is checked in the
+   browser, at the field that violates it, before the operator commits anything. A malformed URL, a
+   headers blob that is not JSON, a timeout that is not a positive integer: every one of these is
+   knowable without a round trip, and the contract package already holds the schemas that define
+   them, so the same rule runs on both sides rather than being restated in the UI. A round trip that
+   exists only to be rejected is wasted latency, and a rejection that arrives as one form-level
+   string makes the operator hunt for which field it meant. The server keeps validating everything,
+   because it is the boundary that has to; it simply stops being how the operator finds out. What
+   genuinely requires the server, a slug already taken or a token already revoked, still surfaces on
+   submit, and its message says which field it belongs to.
+
 ## Accessibility & Inclusion
 
 - **Status is never encoded in color alone.** Delivery status (`pending`, `in_progress`,

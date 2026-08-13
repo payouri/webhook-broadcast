@@ -569,7 +569,10 @@ already delimited row by row in a second layer of chrome.
   not resize or shift.
 - **Error:** border goes Lamp Cut, message beneath in Lamp Cut at Label size with a warning glyph and
   `role="alert"`. The message names the constraint in the system's own voice: _"Headers must be valid
-  JSON (e.g. {"x-api-key": "secret"})"_, never _"Invalid input"_.
+  JSON (e.g. {"x-api-key": "secret"})"_, never _"Invalid input"_. It sits under the field it belongs
+  to, never as one string at the foot of the form, and the field carries `aria-invalid` with
+  `aria-describedby` pointing at the message. Timing is governed by the Reward-Early-Punish-Late Rule
+  below.
 - **Textarea:** identical treatment, `resize: vertical` only.
 
 ### Switch plates
@@ -646,6 +649,32 @@ state. It passes through the shared delay-and-hold hook first, and that hook's o
 thing components read. The two thresholds live as tokens, not as literals scattered across call
 sites.
 
+**The Reward-Early-Punish-Late Rule.** A field validates locally against the contract schema on every
+keystroke, but when it shows the result depends on whether the operator has finished with it:
+
+- **Silent on first pass.** While a field is being filled for the first time, it shows nothing. Half
+  of `https://example.com/hook` is not a URL and `{"x-api` is not JSON, so validating visibly as they
+  type would put a field in an error state for most of the time it takes to fill it correctly.
+- **Announce on blur, or on submit.** Leaving a field with an invalid value marks it: Lamp Cut
+  border, message beneath, `aria-invalid`. A submit attempt marks every invalid field at once and
+  moves focus to the first of them, so the operator never has to guess where the form stopped.
+- **Live once marked.** After a field is showing an error, it re-validates on every keystroke and
+  clears the moment the value becomes valid. Correction gets instant feedback; composition does not.
+
+The two halves are one rule. Deferring the first announcement is what makes clearing it immediately
+affordable, and clearing it immediately is what keeps the deferral from reading as the surface
+withholding what it already knows.
+
+Consequence for state: the submit control is not disabled to express invalidity. A control that is
+dead with no stated reason is worse than a control that explains what is wrong when pressed, and it
+is the one path by which an operator can force every message onto the screen at once. It disables
+only while a request is genuinely in flight.
+
+This is where the No-Flicker Rule stops applying. That rule governs representations of *waiting*,
+and local validation does not wait for anything; a message that has been earned appears on the
+frame it is earned on, with no delay and no hold. What replaces the round trip is not a faster
+loading state, it is the absence of one.
+
 ### Theme control
 
 Three states, because "follow the OS" is a real answer and not the absence of one: `system` leaves
@@ -678,6 +707,9 @@ Settings: it is a viewing preference of this browser, not Channel configuration.
   `cubic-bezier(0.22, 1, 0.36, 1)`, and keep `:active` instantaneous.
 - **Do** put every loading state behind the shared delay-and-hold hook: 250ms before it may appear,
   400ms minimum once it has. See the No-Flicker Rule in §5.
+- **Do** validate against the contract schema in the browser, anchor the message to its own field,
+  and show it on blur or submit rather than mid-keystroke. See the Reward-Early-Punish-Late Rule
+  in §5.
 
 ### Don't:
 
@@ -709,6 +741,10 @@ Settings: it is a viewing preference of this browser, not Channel configuration.
   `isPending`. Unfiltered, it flashes on every fast response, which is most of them.
 - **Don't** exempt a control's own pending state from the delay, on the argument that the operator
   just clicked it. A click that resolves in 80ms should produce a changed row, not a blink.
+- **Don't** send a request whose only possible outcome is a validation rejection the browser could
+  have named, and don't collapse what comes back into one message at the foot of the form.
+- **Don't** disable the submit control to express invalidity. It expresses in-flight, nothing else.
+- **Don't** restate a contract constraint as a hand-written check in `apps/web`. Import the schema.
 - **Don't** write reassurance copy. No "Oops", no "Something went wrong", no exclamation marks.
 - **Don't** animate layout properties on elements that affect their siblings, add bounce or elastic
   easing, or animate anything that is not a state change.
