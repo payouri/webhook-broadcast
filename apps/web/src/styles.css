@@ -447,11 +447,11 @@ svg {
   max-width: none;
 }
 
+/* The login form is a field-stack like every other form in the app, so its
+   column rhythm — a full 16px step between the header, the prose, the field and
+   the button — comes from `.field-stack`. This only pins its width. */
 .login-card {
   width: min(400px, 100%);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
 }
 
 .login-header {

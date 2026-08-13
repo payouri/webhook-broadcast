@@ -36,7 +36,7 @@ export function LoginPage({
 
   return (
     <main className="centered">
-      <form className="plate login-card" onSubmit={(event) => void handleSubmit(event)}>
+      <form className="plate login-card field-stack" onSubmit={(event) => void handleSubmit(event)}>
         <div className="login-header">
           <h1>
             <Radio className="app-brand-mark" size={20} strokeWidth={2} aria-hidden="true" />
@@ -47,15 +47,19 @@ export function LoginPage({
           <ThemeToggle theme={theme} onCycle={onCycleTheme} />
         </div>
         <p className="prose">Find your key in the OPERATOR_API_KEY environment variable.</p>
-        <label htmlFor="apiKey">Operator API key</label>
-        <input
-          id="apiKey"
-          type="password"
-          value={apiKey}
-          onChange={(event) => setApiKey(event.target.value)}
-          autoFocus
-          required
-        />
+        <div className="field">
+          <label htmlFor="apiKey">Operator API key</label>
+          <input
+            id="apiKey"
+            type="password"
+            name="apiKey"
+            value={apiKey}
+            onChange={(event) => setApiKey(event.target.value)}
+            autoFocus
+            required
+            autoComplete="current-password"
+          />
+        </div>
         {error && (
           <p className="error-text" role="alert">
             {error}
