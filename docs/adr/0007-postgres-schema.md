@@ -1,6 +1,6 @@
 # Postgres schema and indexes
 
-Six tables in `packages/db` (Drizzle + `drizzle-kit` SQL migrations): `channel`, `channel_token`, `endpoint`, `broadcast`, `delivery`, `attempt`. UUIDs as PKs; Delivery unique on `(broadcast_id, endpoint_id)`; Attempt unique on `(delivery_id, n)`. Inbound `broadcast.body` is `bytea`; headers on broadcast/endpoint are `jsonb`. `delivery.status` is a Postgres enum (`pending|in_progress|succeeded|failed|dead_lettered`). Retention deletes old `broadcast` rows and cascades to deliveries/attempts. Fan-out summaries and endpoint health (`successRate24h`, `p95`) are **computed in SQL**, not stored columns. Indexes: unique slug/token_hash/(channel_id,url); activity `(channel_id, received_at DESC, id DESC)`; retention `(received_at)`; fan-out `(broadcast_id)`; auto-disable streak `(endpoint_id, updated_at DESC)`; attempts `(delivery_id, n)`.
+Seven tables in `packages/db` (Drizzle + `drizzle-kit` SQL migrations): `channel`, `channel_token`, `operator_token`, `endpoint`, `broadcast`, `delivery`, `attempt`. UUIDs as PKs; Delivery unique on `(broadcast_id, endpoint_id)`; Attempt unique on `(delivery_id, n)`. Inbound `broadcast.body` is `bytea`; headers on broadcast/endpoint are `jsonb`. `delivery.status` is a Postgres enum (`pending|in_progress|succeeded|failed|dead_lettered`). Retention deletes old `broadcast` rows and cascades to deliveries/attempts. Fan-out summaries and endpoint health (`successRate24h`, `p95`) are **computed in SQL**, not stored columns. `operator_token` mirrors `channel_token` unscoped by Channel — see issue #41. Indexes: unique slug/token_hash/(channel_id,url); activity `(channel_id, received_at DESC, id DESC)`; retention `(received_at)`; fan-out `(broadcast_id)`; auto-disable streak `(endpoint_id, updated_at DESC)`; attempts `(delivery_id, n)`.
 
 ## Sketch
 
@@ -27,6 +27,17 @@ CREATE TABLE channel_token (
   created_at    timestamptz NOT NULL
 );
 CREATE INDEX channel_token_channel_id_idx ON channel_token (channel_id);
+
+-- Operator credentials (issue #41): unscoped by Channel, every row fully
+-- privileged like the bootstrap OPERATOR_API_KEY. Hard delete revokes.
+CREATE TABLE operator_token (
+  id            uuid PRIMARY KEY,
+  token_hash    text NOT NULL UNIQUE,
+  prefix        text NOT NULL,
+  label         text NOT NULL,
+  created_at    timestamptz NOT NULL,
+  last_used_at  timestamptz
+);
 
 CREATE TABLE endpoint (
   id                 uuid PRIMARY KEY,

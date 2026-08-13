@@ -24,6 +24,11 @@ import {
 } from "../broadcast.js";
 import { attemptListSchema, deliveryDetailSchema } from "../delivery.js";
 import { channelTokenCreatedSchema } from "../channel.js";
+import {
+  operatorTokenCreateSchema,
+  operatorTokenCreatedSchema,
+  operatorTokenListSchema,
+} from "../operatorToken.js";
 
 const errorResponse: ZodOpenApiResponsesObject["default"] = {
   description: "Error",
@@ -37,6 +42,7 @@ const operatorSecurity = [{ OperatorBearer: [] as string[] }];
 const channelIdPath = z.object({ channelId: idSchema });
 const channelEndpointPath = z.object({ channelId: idSchema, endpointId: idSchema });
 const channelTokenPath = z.object({ channelId: idSchema, tokenId: idSchema });
+const operatorTokenPath = z.object({ tokenId: idSchema });
 const channelBroadcastPath = z.object({ channelId: idSchema, broadcastId: idSchema });
 const deliveryIdPath = z.object({ deliveryId: idSchema });
 
@@ -210,6 +216,51 @@ export const adminOpenApiPaths = {
       },
     },
   },
+  "/operator-tokens": {
+    get: {
+      operationId: "listOperatorTokens",
+      summary: "List operator token summaries (issue #41)",
+      tags: ["operator-tokens"],
+      security: operatorSecurity,
+      responses: {
+        "200": {
+          description: "OK",
+          content: { "application/json": { schema: operatorTokenListSchema } },
+        },
+        default: errorResponse,
+      },
+    },
+    post: {
+      operationId: "createOperatorToken",
+      summary: "Mint an operator token; plaintext returned once",
+      tags: ["operator-tokens"],
+      security: operatorSecurity,
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: operatorTokenCreateSchema } },
+      },
+      responses: {
+        "201": {
+          description: "Created",
+          content: { "application/json": { schema: operatorTokenCreatedSchema } },
+        },
+        default: errorResponse,
+      },
+    },
+  },
+  "/operator-tokens/{tokenId}": {
+    delete: {
+      operationId: "revokeOperatorToken",
+      summary: "Revoke an operator token immediately, no redeploy required",
+      tags: ["operator-tokens"],
+      security: operatorSecurity,
+      requestParams: { path: operatorTokenPath },
+      responses: {
+        "204": { description: "Revoked" },
+        default: errorResponse,
+      },
+    },
+  },
   "/channels/{channelId}/broadcasts": {
     get: {
       operationId: "listChannelBroadcasts",
@@ -322,6 +373,7 @@ export function emitAdminOpenApiDocument() {
         { name: "channels" },
         { name: "endpoints" },
         { name: "tokens" },
+        { name: "operator-tokens" },
         { name: "broadcasts" },
         { name: "deliveries" },
       ],
@@ -333,7 +385,7 @@ export function emitAdminOpenApiDocument() {
             scheme: "bearer",
             bearerFormat: "API key",
             description:
-              "Operator API key. Dashboard may send the same key via HttpOnly cookie `wb_operator` instead; middleware accepts either. Cookie is not a separate OAuth/user session.",
+              "The bootstrap OPERATOR_API_KEY, or any minted operator_token (issue #41) — both are accepted as Bearer credentials with equal privilege. Only the bootstrap key may also be exchanged for the dashboard's HttpOnly session cookie via POST /auth/login; the cookie itself is accepted here as an alternate to Bearer, not a separate OAuth/user session.",
           },
           OperatorCookie: {
             type: "apiKey",

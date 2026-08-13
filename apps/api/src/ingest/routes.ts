@@ -7,7 +7,7 @@ import {
   type Database,
 } from "@webhook-broadcast/db";
 import { extractBearerToken } from "../admin/auth.js";
-import { hashChannelToken } from "../tokens.js";
+import { hashToken } from "../tokens.js";
 import type { DeliveryQueue } from "../deliveryQueue.js";
 import { fanOutBroadcast } from "../fanOutBroadcast.js";
 import type { MetricsCollector } from "../observability/metrics.js";
@@ -47,11 +47,7 @@ export function registerIngestRoutes(router: Router, config: IngestRouteConfig):
       return;
     }
 
-    const channelToken = await findChannelTokenByHash(
-      config.db,
-      channel.id,
-      hashChannelToken(token),
-    );
+    const channelToken = await findChannelTokenByHash(config.db, channel.id, hashToken(token));
     if (!channelToken) {
       ctx.status = 401;
       ctx.body = errorBody("unauthorized", "invalid ingest token");

@@ -5,16 +5,18 @@ import { errorBody, healthResponseSchema, readyResponseSchema } from "@webhook-b
 import { DEFAULT_INGEST_MAX_BODY_BYTES } from "@webhook-broadcast/contract/env";
 import type { Database } from "@webhook-broadcast/db";
 import type { Pool } from "pg";
-import { createOperatorAuthMiddleware } from "./admin/auth.js";
+import { createOperatorAuthMiddleware, operatorLabelOf } from "./admin/auth.js";
 import { registerAuthRoutes } from "./admin/authRoutes.js";
 import { registerChannelRoutes } from "./admin/channels.js";
 import { registerEndpointRoutes } from "./admin/endpoints.js";
 import { registerChannelTokenRoutes } from "./admin/tokens.js";
+import { registerOperatorTokenRoutes } from "./admin/operatorTokens.js";
 import { registerBroadcastRoutes } from "./admin/broadcasts.js";
 import { registerDeliveryRoutes } from "./admin/deliveries.js";
 import { mergeIngestHeaderDenylist } from "./ingest/headers.js";
 import { registerIngestRoutes } from "./ingest/routes.js";
 import type { DeliveryQueue } from "./deliveryQueue.js";
+import { logStructured } from "./observability/logger.js";
 import type { MetricsCollector } from "./observability/metrics.js";
 import { checkReadiness, type ReadinessChecks } from "./readiness.js";
 
@@ -94,8 +96,24 @@ export function createApp(deps: AppDeps): Koa {
     createOperatorAuthMiddleware({
       operatorApiKey: deps.operatorApiKey,
       cookieName: deps.cookieName,
+      db: deps.db,
     }),
   );
+  // Attributes admin mutations to the matched credential's label (issue
+  // #41) — never the credential value itself. Runs after the handler so the
+  // logged status reflects the outcome, not just that auth passed.
+  adminRouter.use(async (ctx, next) => {
+    await next();
+    if (ctx.method !== "GET" && ctx.method !== "HEAD") {
+      logStructured({
+        msg: "admin mutation",
+        method: ctx.method,
+        path: ctx.path,
+        statusCode: ctx.status,
+        operatorLabel: operatorLabelOf(ctx),
+      });
+    }
+  });
   // Lets the dashboard confirm an existing session cookie on load without a
   // side-effecting call to a resource endpoint.
   adminRouter.get("/auth/session", (ctx) => {
@@ -105,6 +123,7 @@ export function createApp(deps: AppDeps): Koa {
   registerChannelRoutes(adminRouter, deps.db);
   registerEndpointRoutes(adminRouter, deps.db);
   registerChannelTokenRoutes(adminRouter, deps.db);
+  registerOperatorTokenRoutes(adminRouter, deps.db);
   registerBroadcastRoutes(adminRouter, { db: deps.db, deliveryQueue: deps.deliveryQueue });
   registerDeliveryRoutes(adminRouter, deps.db, deps.deliveryQueue);
   router.use(adminRouter.routes(), adminRouter.allowedMethods());

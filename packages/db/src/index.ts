@@ -39,6 +39,14 @@ export {
   type ChannelTokenRow,
 } from "./repositories/channelTokens.js";
 export {
+  insertOperatorToken,
+  revokeOperatorToken,
+  findOperatorTokenByHash,
+  listOperatorTokens,
+  touchOperatorTokenLastUsed,
+  type OperatorTokenRow,
+} from "./repositories/operatorTokens.js";
+export {
   insertBroadcast,
   getBroadcastById,
   deleteBroadcastById,

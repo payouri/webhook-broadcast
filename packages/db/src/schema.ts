@@ -51,6 +51,22 @@ export const channelTokens = pgTable(
   (t) => [index("channel_token_channel_id_idx").on(t.channelId)],
 );
 
+/**
+ * Mirrors `channel_token` (ADR 0005) but for admin/operator callers instead
+ * of Channel senders: hashed at rest, unique hash, minted/revoked through the
+ * admin API, plaintext returned exactly once. `OPERATOR_API_KEY` remains a
+ * bootstrap credential outside this table so a fresh deployment can mint the
+ * first row (see issue #41).
+ */
+export const operatorTokens = pgTable("operator_token", {
+  id: uuid("id").primaryKey(),
+  tokenHash: text("token_hash").notNull().unique(),
+  prefix: text("prefix").notNull(),
+  label: text("label").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+});
+
 export const endpoints = pgTable(
   "endpoint",
   {

@@ -42,6 +42,18 @@ export type {
 export { loginRequestSchema, loginResponseSchema } from "./auth.js";
 export type { LoginRequest, LoginResponse } from "./auth.js";
 export {
+  operatorTokenSummarySchema,
+  operatorTokenCreateSchema,
+  operatorTokenCreatedSchema,
+  operatorTokenListSchema,
+} from "./operatorToken.js";
+export type {
+  OperatorTokenSummary,
+  OperatorTokenCreate,
+  OperatorTokenCreated,
+  OperatorTokenList,
+} from "./operatorToken.js";
+export {
   fanoutSummarySchema,
   broadcastListItemSchema,
   broadcastListSchema,

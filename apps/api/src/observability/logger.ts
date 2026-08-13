@@ -1,6 +1,10 @@
 export interface StructuredLogFields {
   msg: string;
   requestId?: string;
+  method?: string;
+  path?: string;
+  /** Matched operator credential's label, never its value (issue #41). */
+  operatorLabel?: string;
   channelId?: string;
   broadcastId?: string;
   deliveryId?: string;

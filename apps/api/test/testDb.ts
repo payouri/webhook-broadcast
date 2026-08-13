@@ -33,7 +33,7 @@ export async function startTestDb(): Promise<TestDb> {
     pool,
     reset: async () => {
       await pool.query(
-        "TRUNCATE TABLE attempt, delivery, broadcast, channel_token, endpoint, channel RESTART IDENTITY CASCADE",
+        "TRUNCATE TABLE attempt, delivery, broadcast, channel_token, endpoint, channel, operator_token RESTART IDENTITY CASCADE",
       );
     },
     stop: async () => {

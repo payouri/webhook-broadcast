@@ -17,6 +17,12 @@ export interface AuthRouteConfig {
  * contract (ADR 0005 only settles the accepted credential shapes, not this
  * endpoint's path). Login trades the operator API key for the same value
  * carried in an HttpOnly cookie so the dashboard never stores it in JS.
+ *
+ * Deliberately checks only `config.operatorApiKey`, never `operator_token`
+ * rows (issue #41): the bootstrap credential remains the dashboard's sole
+ * login secret, and minted operator tokens stay bearer-only for the API.
+ * That keeps a leaked/rotated operator token from also being a dashboard
+ * session credential.
  */
 export function registerAuthRoutes(router: Router, config: AuthRouteConfig): void {
   const loginRateLimiter = new LoginRateLimiter({
