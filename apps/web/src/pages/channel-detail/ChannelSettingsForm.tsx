@@ -75,8 +75,13 @@ export function ChannelSettingsForm({
           Channel's ingest URL is already on screen in the panel above, and
           repeating it verbatim under the field adds a third copy of the same
           string to this tab. */}
+      {/* An advisory about a consequence, not a validation error (issue #51):
+          Signal Cut and `role="alert"` are both wrong here. The Quarantine
+          Rule reserves Signal Cut for a failure or a validation error, and a
+          live region would re-announce this whole warning on every keystroke
+          since its content (the URL) changes with the slug field. */}
       {slug !== channel.slug && (
-        <p className="error-text" role="alert">
+        <p className="advisory-text">
           Renaming the slug changes the ingest URL to <code>{ingestUrl(slug || "…")}</code>.
           Producers still posting to <code>{ingestUrl(channel.slug)}</code> will stop being
           accepted.

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import type { Channel } from "@webhook-broadcast/contract";
 import { InlineLoadError } from "../components/InlineLoadError.js";
 import { ChannelHealthBadge, EnabledStatusBadge } from "../components/StatusBadge.js";
+import { channelActivityHref } from "../lib/activityFilter.js";
 import { api } from "../lib/api.js";
 import {
   freshnessRefetchInterval,
@@ -57,6 +58,10 @@ export function ChannelDirectoryPage() {
 
   return (
     <div className="stack">
+      {/* Every route needs exactly one h1 describing that view (issue #51); this
+          one is visually hidden because the panel headings below it already
+          give the directory its on-screen structure. */}
+      <h1 className="visually-hidden">Channel directory</h1>
       <section className="card">
         <h2>New Channel</h2>
         <form className="inline-form" onSubmit={(event) => void handleCreate(event)}>
@@ -96,10 +101,13 @@ export function ChannelDirectoryPage() {
           <ul className="channel-list">
             {channels.map((channel) => (
               <li key={channel.id}>
+                {/* A Channel with recent failures lands straight on the filtered
+                    Activity view (issue #51): the count this row names and the
+                    Broadcasts behind it are one navigation apart. */}
                 <button
                   type="button"
                   className="channel-row"
-                  onClick={() => navigate(`/channels/${channel.id}`)}
+                  onClick={() => navigate(channelActivityHref(channel))}
                 >
                   <EnabledStatusBadge enabled={channel.enabled} />
                   <span className="channel-slug">{channel.slug}</span>

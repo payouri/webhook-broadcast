@@ -1,12 +1,8 @@
 import { useCallback, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "react-router";
-import { ApiRequestError, api } from "../lib/api.js";
-import {
-  freshnessRefetchInterval,
-  queryErrorMessage,
-  useRefetchOnVisible,
-} from "../lib/freshness.js";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
+import { channelQueryKey, isChannelNotFound, useChannelQuery } from "../lib/channelQuery.js";
+import { queryErrorMessage } from "../lib/freshness.js";
 import { EnabledStatusBadge } from "../components/StatusBadge.js";
 import { InlineLoadError } from "../components/InlineLoadError.js";
 import { NotFoundPanel } from "../components/NotFoundPanel.js";
@@ -30,11 +26,6 @@ function isTab(value: string | undefined): value is Tab {
   return value !== undefined && (TABS as readonly string[]).includes(value);
 }
 
-/** True for the admin API's 404 on an unknown or soft-deleted Channel id. */
-function isNotFound(error: unknown): boolean {
-  return error instanceof ApiRequestError && error.status === 404;
-}
-
 /**
  * Channel detail (issue #42): the Channel id, active tab, and expanded Broadcast
  * all live in the URL (`/channels/:channelId/:tab?/:broadcastId?`) — a reload or
@@ -43,23 +34,14 @@ function isNotFound(error: unknown): boolean {
 export function ChannelDetailPage() {
   const { channelId = "", tab: tabParam, broadcastId } = useParams();
   const navigate = useNavigate();
+  const { search } = useLocation();
   const queryClient = useQueryClient();
   const tab: Tab = isTab(tabParam) ? tabParam : "activity";
 
-  const channelQuery = useQuery({
-    queryKey: ["channel", channelId] as const,
-    queryFn: () => api.getChannel(channelId),
-    // ADR 0004 polls this surface ~every 5s, but a 404 is terminal: the Channel
-    // was deleted (or never existed) and the view it renders offers no Retry,
-    // so keep polling only while the id could still resolve (and only while
-    // the tab is visible; see freshnessRefetchInterval).
-    refetchInterval: (query) =>
-      isNotFound(query.state.error) ? false : freshnessRefetchInterval(),
-  });
-  useRefetchOnVisible(() => void channelQuery.refetch());
+  const channelQuery = useChannelQuery(channelId);
 
   const channel = channelQuery.data ?? null;
-  const notFound = channelQuery.isError && isNotFound(channelQuery.error);
+  const notFound = channelQuery.isError && isChannelNotFound(channelQuery.error);
   const error =
     channelQuery.isError && !notFound
       ? queryErrorMessage(channelQuery.error, "Failed to load Channel")
@@ -77,15 +59,16 @@ export function ChannelDetailPage() {
     [navigate, channelId],
   );
 
+  // Expanding or collapsing a Broadcast stays inside the Activity view, so it
+  // carries that view's query string along (issue #51's `?filter=failed`): the
+  // drill-down from a failure count to the failing Broadcast is one path, and
+  // opening a row must not silently drop back to the unfiltered list.
   const toggleBroadcast = useCallback(
     (nextBroadcastId: string) => {
-      if (broadcastId === nextBroadcastId) {
-        navigate(`/channels/${channelId}/activity`);
-      } else {
-        navigate(`/channels/${channelId}/activity/${nextBroadcastId}`);
-      }
+      const openId = broadcastId === nextBroadcastId ? "" : `/${nextBroadcastId}`;
+      navigate(`/channels/${channelId}/activity${openId}${search}`);
     },
-    [navigate, channelId, broadcastId],
+    [navigate, channelId, broadcastId, search],
   );
 
   if (notFound) {
@@ -110,12 +93,17 @@ export function ChannelDetailPage() {
         <>
           <header className="channel-header">
             <EnabledStatusBadge enabled={channel.enabled} />
-            <h2>{channel.slug}</h2>
+            {/* This view's one h1 (issue #51): the Channel slug names the view,
+                so it must not sit at the same heading level as the panel
+                headings (Activity, Endpoints, Ingest tokens, …) beneath it. */}
+            <h1>{channel.slug}</h1>
             {channel.allowUnauthenticatedIngest && (
-              <span
-                className="muted"
-                title="This Channel accepts POST /ingest without a token. The slug alone gates its fan-out."
-              >
+              // The security-relevant fact this tag names lives in visible text
+              // below (IngestUrlPanel), not only in a `title` attribute (issue
+              // #51): a `title` is invisible to keyboard/touch and inconsistently
+              // announced by screen readers. `aria-describedby` links the two for
+              // assistive tech that supports it, on top of plain reading order.
+              <span className="muted" aria-describedby="unauthenticated-ingest-note">
                 unauthenticated ingest
               </span>
             )}
@@ -148,7 +136,7 @@ export function ChannelDetailPage() {
             <>
               <ChannelSettingsForm
                 channel={channel}
-                onSaved={(updated) => queryClient.setQueryData(["channel", channelId], updated)}
+                onSaved={(updated) => queryClient.setQueryData(channelQueryKey(channelId), updated)}
               />
               <ChannelTokensPanel channelId={channelId} />
               <ChannelDangerZonePanel channel={channel} onDeleted={() => navigate("/")} />

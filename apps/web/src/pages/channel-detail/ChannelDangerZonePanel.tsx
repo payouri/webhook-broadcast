@@ -54,7 +54,14 @@ export function ChannelDangerZonePanel({
             </p>
           )}
           <div className="inline-form">
-            <button type="button" onClick={() => void handleDelete()} disabled={deleting}>
+            {/* Outlined, not filled Patch Plum (issue #51): a destructive commit
+                is visually distinct from a routine one at the moment it fires. */}
+            <button
+              type="button"
+              className="button-confirm-destructive"
+              onClick={() => void handleDelete()}
+              disabled={deleting}
+            >
               {deleting ? "Deleting…" : "Confirm delete"}
             </button>
             <button

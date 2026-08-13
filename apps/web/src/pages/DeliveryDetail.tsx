@@ -73,7 +73,7 @@ export function DeliveryDetail({
   }
 
   return (
-    <li className="delivery-row-wrapper">
+    <li>
       <button type="button" className="delivery-row" aria-expanded={expanded} onClick={toggle}>
         <DeliveryStatusBadge status={delivery.status} />
         <span className="delivery-endpoint">{delivery.endpointName ?? delivery.endpointUrl}</span>

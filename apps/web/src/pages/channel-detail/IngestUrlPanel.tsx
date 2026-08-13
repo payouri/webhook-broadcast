@@ -26,8 +26,8 @@ export function IngestUrlPanel({ channel }: { channel: Channel }) {
         <CopyButton value={url} />
       </div>
       {channel.allowUnauthenticatedIngest && (
-        <p className="muted">
-          Unauthenticated ingest is enabled for this Channel — this URL alone is accepted, no bearer
+        <p className="muted" id="unauthenticated-ingest-note">
+          Unauthenticated ingest is enabled for this Channel. This URL alone is accepted, no bearer
           token required.
         </p>
       )}

@@ -14,6 +14,9 @@ export function NotFoundPanel({ message, title }: { message: string; title: stri
 
   return (
     <div className="stack">
+      {/* This view's one h1 (issue #51): used both for the catch-all route and
+          for an unknown Channel id, so either way this is the view's heading. */}
+      <h1 className="notfound-title">{title}</h1>
       <p className="muted empty-state" role="alert">
         {message}
       </p>

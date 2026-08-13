@@ -59,7 +59,7 @@ export function BroadcastDetailPanel({
           <pre className="broadcast-body">{detail.body || "(empty body)"}</pre>
 
           {/* Replay (issue #22): re-fans the stored payload out to Endpoints
-              enabled right now — no new ingest needed. */}
+              enabled right now; no new ingest needed. */}
           <div className="broadcast-replay">
             <button
               type="button"

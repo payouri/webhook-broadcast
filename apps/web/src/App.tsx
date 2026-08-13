@@ -54,8 +54,11 @@ export function App() {
       <BrowserRouter>
         <div className="app-shell">
           <header className="app-header">
-            <Link to="/" className="link-button">
-              <h1>webhook-broadcast</h1>
+            {/* Brand, not a heading (issue #51): each route supplies its own single
+                h1 describing that view, so this persistent chrome, present on
+                every route, stays out of the heading outline. */}
+            <Link to="/" className="link-button app-brand">
+              webhook-broadcast
             </Link>
             <LogoutButton onLoggedOut={() => setSession("loggedOut")} />
           </header>

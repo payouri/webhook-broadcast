@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router";
 import type { BroadcastListItem } from "@webhook-broadcast/contract";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
+import {
+  ACTIVITY_FILTER_PARAM,
+  activityFilterFromParams,
+  fanoutHasFailure,
+  type ActivityFilter,
+} from "../../lib/activityFilter.js";
 import { api } from "../../lib/api.js";
 import {
   freshnessRefetchInterval,
@@ -20,6 +27,41 @@ function fanoutLabel(fanout: BroadcastListItem["fanout"]): string {
 }
 
 /**
+ * States its current option at rest — the active choice carries Patch Plum text,
+ * a Patch Plum border, and a heavier weight, not something discovered by
+ * hovering (DESIGN.md §5: "Nothing is discovered by hovering"). `aria-pressed`
+ * carries the same fact for assistive tech.
+ */
+function ActivityFilterToggle({
+  filter,
+  onChange,
+}: {
+  filter: ActivityFilter;
+  onChange: (next: ActivityFilter) => void;
+}) {
+  return (
+    <div className="activity-filter" role="group" aria-label="Filter Activity by Delivery status">
+      <button
+        type="button"
+        className={`filter-toggle ${filter === "all" ? "filter-toggle-active" : ""}`}
+        aria-pressed={filter === "all"}
+        onClick={() => onChange("all")}
+      >
+        All
+      </button>
+      <button
+        type="button"
+        className={`filter-toggle ${filter === "failed" ? "filter-toggle-active" : ""}`}
+        aria-pressed={filter === "failed"}
+        onClick={() => onChange("failed")}
+      >
+        Failures only
+      </button>
+    </div>
+  );
+}
+
+/**
  * Channel Activity (ADR 0004): newest-first Broadcasts, ~5s poll, cursor "load more".
  * The expanded Broadcast (issue #42) is controlled by the URL, not local state, so
  * it survives a reload and is part of any link the operator shares.
@@ -33,6 +75,26 @@ export function ChannelActivityTab({
   expandedBroadcastId: string | null;
   onToggleBroadcast: (broadcastId: string) => void;
 }) {
+  // The filter lives in the URL (issue #51), consistent with #42's treatment of
+  // the Channel, tab, and expanded Broadcast: a reload or a shared link lands
+  // on the same filtered (or unfiltered) view.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filter = activityFilterFromParams(searchParams);
+  const setFilter = (next: ActivityFilter) => {
+    setSearchParams(
+      (current) => {
+        const params = new URLSearchParams(current);
+        if (next === "failed") {
+          params.set(ACTIVITY_FILTER_PARAM, "failed");
+        } else {
+          params.delete(ACTIVITY_FILTER_PARAM);
+        }
+        return params;
+      },
+      { replace: true },
+    );
+  };
+
   const [loadingMore, setLoadingMore] = useState(false);
   // Pages fetched beyond the polled first page — the ~5s refetch only ever
   // returns page one, so extra pages (and their cursor) live outside Query
@@ -66,6 +128,12 @@ export function ChannelActivityTab({
   const firstPage = activityQuery.data?.items ?? null;
   const items: BroadcastListItem[] | null =
     firstPage === null ? null : [...firstPage, ...extraItems];
+  const visibleItems: BroadcastListItem[] | null =
+    items === null
+      ? null
+      : filter === "failed"
+        ? items.filter((item) => fanoutHasFailure(item.fanout))
+        : items;
   const queryError = activityQuery.isError
     ? queryErrorMessage(activityQuery.error, "Failed to load Activity")
     : null;
@@ -97,6 +165,7 @@ export function ChannelActivityTab({
   return (
     <section className="card">
       <h2>Activity</h2>
+      <ActivityFilterToggle filter={filter} onChange={setFilter} />
       {error && <InlineLoadError message={error} onRetry={retry} />}
       {items === null && !error && <p className="muted">Loading…</p>}
       {items !== null && items.length === 0 && (
@@ -105,33 +174,40 @@ export function ChannelActivityTab({
           token.
         </p>
       )}
-      {items !== null && items.length > 0 && (
+      {items !== null && items.length > 0 && visibleItems !== null && (
         <>
-          <ul className="activity-list">
-            {items.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  className="activity-row"
-                  aria-expanded={expandedBroadcastId === item.id}
-                  onClick={() => onToggleBroadcast(item.id)}
-                >
-                  <span className="activity-time">
-                    {new Date(item.receivedAt).toLocaleString()}
-                  </span>
-                  <span className="activity-preview">{item.bodyPreview || "(empty body)"}</span>
-                  <span className="muted activity-fanout">{fanoutLabel(item.fanout)}</span>
-                </button>
-                {expandedBroadcastId === item.id && (
-                  <BroadcastDetailPanel
-                    channelId={channelId}
-                    broadcastId={item.id}
-                    onReplayed={() => void activityQuery.refetch()}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
+          {visibleItems.length === 0 ? (
+            <p className="muted empty-state">
+              No Broadcasts in the loaded Activity have a failed or dead-lettered Delivery.
+              {nextCursor ? " Load more to look further back." : ""}
+            </p>
+          ) : (
+            <ul className="activity-list">
+              {visibleItems.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    className="activity-row"
+                    aria-expanded={expandedBroadcastId === item.id}
+                    onClick={() => onToggleBroadcast(item.id)}
+                  >
+                    <span className="activity-time">
+                      {new Date(item.receivedAt).toLocaleString()}
+                    </span>
+                    <span className="activity-preview">{item.bodyPreview || "(empty body)"}</span>
+                    <span className="muted activity-fanout">{fanoutLabel(item.fanout)}</span>
+                  </button>
+                  {expandedBroadcastId === item.id && (
+                    <BroadcastDetailPanel
+                      channelId={channelId}
+                      broadcastId={item.id}
+                      onReplayed={() => void activityQuery.refetch()}
+                    />
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
           {nextCursor && (
             <button
               type="button"

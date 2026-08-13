@@ -42,6 +42,13 @@ async function flushAsync(): Promise<void> {
   });
 }
 
+function channelGetCalls(fetchMock: ReturnType<typeof vi.fn>): number {
+  return fetchMock.mock.calls.filter(
+    ([input, init]) =>
+      requestPath(input) === `/channels/${CHANNEL_ID}` && requestMethod(input, init) === "GET",
+  ).length;
+}
+
 function broadcastListCalls(fetchMock: ReturnType<typeof vi.fn>): number {
   return fetchMock.mock.calls.filter(
     ([input, init]) =>
@@ -239,6 +246,46 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
         requestMethod(input as string | URL | Request, init as RequestInit) === "DELETE",
     );
     expect(revokeCalls).toHaveLength(0);
+  });
+
+  it("opens the tokens panel without a second getChannel request (issue #51)", async () => {
+    const tokenId = "33333333-3333-3333-3333-333333333333";
+
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(
+            200,
+            baseChannel([
+              { id: tokenId, prefix: "wbt_abcd1234", createdAt: "2026-08-10T12:00:00.000Z" },
+            ]),
+          ),
+        );
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      if (path === `/channels/${CHANNEL_ID}/endpoints` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [] }));
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+    await screen.findByText("orders");
+    await flushAsync();
+    const callsBeforeSettings = channelGetCalls(fetchMock);
+
+    // The tokens panel reads the Channel the page already holds in the
+    // ["channel", channelId] cache, so mounting it must not refetch it.
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    expect(await screen.findByText("wbt_abcd1234…")).toBeTruthy();
+    await flushAsync();
+
+    expect(channelGetCalls(fetchMock)).toBe(callsBeforeSettings);
   });
 
   it("replays a Broadcast from its detail panel (issue #22)", async () => {
