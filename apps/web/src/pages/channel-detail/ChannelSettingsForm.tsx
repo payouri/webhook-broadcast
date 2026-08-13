@@ -105,7 +105,7 @@ export function ChannelSettingsForm({
       {allowUnauthenticatedIngest && (
         <p className="muted">
           POST /ingest/{slug || "…"} will accept events without an ingest token. The slug is then
-          the only thing gating this Channel&apos;s fan-out — use a long, unguessable slug (at least{" "}
+          the only thing gating this Channel&apos;s fan-out; use a long, unguessable slug (at least{" "}
           {MIN_OPEN_INGEST_SLUG_LENGTH} characters).
         </p>
       )}

@@ -17,6 +17,15 @@ async function flushAsync(): Promise<void> {
   });
 }
 
+/** Simulates the tab being backgrounded/foregrounded (jsdom never changes this on its own). */
+function setDocumentVisibility(state: "visible" | "hidden"): void {
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    get: () => state,
+  });
+  document.dispatchEvent(new Event("visibilitychange"));
+}
+
 describe("ChannelDirectoryPage — freshness and retry", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -29,6 +38,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
     cleanup();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    setDocumentVisibility("visible");
   });
 
   it("polls the Channel list every ~5s", async () => {
@@ -52,6 +62,34 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
       await vi.advanceTimersByTimeAsync(FRESHNESS_POLL_MS);
     });
 
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
+  });
+
+  it("pauses polling while the tab is hidden and refetches once it is visible again", async () => {
+    vi.useFakeTimers();
+
+    fetchMock.mockImplementation((input: string | URL | Request) => {
+      const path = requestPath(input);
+      if (path === "/channels") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+
+    renderRoutes("/");
+    await flushAsync();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    setDocumentVisibility("hidden");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(FRESHNESS_POLL_MS * 3);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    setDocumentVisibility("visible");
+    await flushAsync();
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
     vi.useRealTimers();

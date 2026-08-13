@@ -3,7 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import type { BroadcastListItem } from "@webhook-broadcast/contract";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
 import { api } from "../../lib/api.js";
-import { FRESHNESS_POLL_MS, queryErrorMessage } from "../../lib/freshness.js";
+import {
+  freshnessRefetchInterval,
+  queryErrorMessage,
+  useRefetchOnVisible,
+} from "../../lib/freshness.js";
 import { BroadcastDetailPanel } from "./BroadcastDetailPanel.js";
 
 function fanoutLabel(fanout: BroadcastListItem["fanout"]): string {
@@ -40,8 +44,9 @@ export function ChannelActivityTab({
   const activityQuery = useQuery({
     queryKey: ["broadcasts", channelId] as const,
     queryFn: () => api.listBroadcasts(channelId),
-    refetchInterval: FRESHNESS_POLL_MS,
+    refetchInterval: freshnessRefetchInterval,
   });
+  useRefetchOnVisible(() => void activityQuery.refetch());
 
   useEffect(() => {
     setExtraItems([]);
@@ -96,8 +101,8 @@ export function ChannelActivityTab({
       {items === null && !error && <p className="muted">Loading…</p>}
       {items !== null && items.length === 0 && (
         <p className="muted empty-state">
-          No Broadcasts yet — send a request to <code>POST /ingest/&lt;slug&gt;</code> with a
-          Channel token.
+          No Broadcasts yet. Send a request to <code>POST /ingest/&lt;slug&gt;</code> with a Channel
+          token.
         </p>
       )}
       {items !== null && items.length > 0 && (

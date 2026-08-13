@@ -74,7 +74,7 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
 
       {tokens === null && !error && <p className="muted">Loading…</p>}
       {tokens !== null && tokens.length === 0 && (
-        <p className="muted empty-state">No ingest tokens yet — mint one below.</p>
+        <p className="muted empty-state">No ingest tokens yet. Mint one below.</p>
       )}
       {tokens !== null && tokens.length > 0 && (
         <ul className="token-list">

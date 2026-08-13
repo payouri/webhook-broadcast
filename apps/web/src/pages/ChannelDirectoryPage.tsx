@@ -5,7 +5,11 @@ import type { Channel } from "@webhook-broadcast/contract";
 import { InlineLoadError } from "../components/InlineLoadError.js";
 import { EnabledStatusBadge } from "../components/StatusBadge.js";
 import { api } from "../lib/api.js";
-import { FRESHNESS_POLL_MS, queryErrorMessage } from "../lib/freshness.js";
+import {
+  freshnessRefetchInterval,
+  queryErrorMessage,
+  useRefetchOnVisible,
+} from "../lib/freshness.js";
 
 /** Landing page (ADR 0004): "which Channels exist and are they healthy?" */
 export function ChannelDirectoryPage() {
@@ -23,8 +27,9 @@ export function ChannelDirectoryPage() {
   const channelsQuery = useQuery({
     queryKey: ["channels"] as const,
     queryFn: () => api.listChannels(),
-    refetchInterval: FRESHNESS_POLL_MS,
+    refetchInterval: freshnessRefetchInterval,
   });
+  useRefetchOnVisible(() => void channelsQuery.refetch());
 
   const channels: Channel[] | null = channelsQuery.data?.items ?? null;
   const error = channelsQuery.isError
@@ -85,7 +90,7 @@ export function ChannelDirectoryPage() {
         {error && <InlineLoadError message={error} onRetry={() => void channelsQuery.refetch()} />}
         {channels === null && !error && <p className="muted">Loading…</p>}
         {channels !== null && channels.length === 0 && (
-          <p className="muted empty-state">No Channels yet — create one above.</p>
+          <p className="muted empty-state">No Channels yet. Create one above.</p>
         )}
         {channels !== null && channels.length > 0 && (
           <ul className="channel-list">
@@ -102,7 +107,7 @@ export function ChannelDirectoryPage() {
                     {channel.description ?? "No description"}
                   </span>
                   <span className="channel-meta">
-                    {channel.endpointCount} endpoint{channel.endpointCount === 1 ? "" : "s"}
+                    {channel.endpointCount} Endpoint{channel.endpointCount === 1 ? "" : "s"}
                   </span>
                 </button>
               </li>

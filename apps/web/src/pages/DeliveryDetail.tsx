@@ -6,6 +6,20 @@ import { api } from "../lib/api.js";
 type DeliveryItem = BroadcastDetail["deliveries"][number];
 
 /**
+ * A missing HTTP status code stays a dash on screen (the tabular convention) but
+ * announces its meaning instead of the character. `role="img"` is what carries
+ * that: `aria-label` is prohibited on a bare `span`, whose implicit `generic`
+ * role exposes no accessible name, so the label alone would be dropped.
+ */
+function MissingStatusCode() {
+  return (
+    <span role="img" aria-label="No status code recorded">
+      —
+    </span>
+  );
+}
+
+/**
  * Delivery detail (issue #21): Endpoint identity + status are already on the
  * `delivery` row from the Broadcast detail response; expanding fetches the
  * Attempt timeline, and a Retry action appears only once `dead_lettered`
@@ -64,7 +78,11 @@ export function DeliveryDetail({
         <DeliveryStatusBadge status={delivery.status} />
         <span className="delivery-endpoint">{delivery.endpointName ?? delivery.endpointUrl}</span>
         <span className="muted delivery-meta">
-          {delivery.lastStatusCode !== null ? `HTTP ${delivery.lastStatusCode}` : "—"}
+          {delivery.lastStatusCode !== null ? (
+            `HTTP ${delivery.lastStatusCode}`
+          ) : (
+            <MissingStatusCode />
+          )}
           {delivery.lastDurationMs !== null ? ` · ${delivery.lastDurationMs}ms` : ""}
         </span>
       </button>
@@ -92,7 +110,13 @@ export function DeliveryDetail({
                 <li key={attempt.id} className="attempt-row">
                   <span className="attempt-n">#{attempt.n}</span>
                   <span className="muted">{new Date(attempt.at).toLocaleString()}</span>
-                  <span>{attempt.statusCode !== null ? `HTTP ${attempt.statusCode}` : "—"}</span>
+                  <span>
+                    {attempt.statusCode !== null ? (
+                      `HTTP ${attempt.statusCode}`
+                    ) : (
+                      <MissingStatusCode />
+                    )}
+                  </span>
                   <span className="muted">
                     {attempt.durationMs !== null ? `${attempt.durationMs}ms` : ""}
                   </span>

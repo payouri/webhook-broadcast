@@ -110,6 +110,47 @@ describe("DeliveryDetail — Attempt timeline and Retry action (issue #21)", () 
     });
   });
 
+  it("announces a missing status code by meaning, not as a bare dash", async () => {
+    fetchMock.mockImplementation((input: string | URL | Request) => {
+      const path = requestPath(input);
+      if (path === `/deliveries/${DELIVERY_ID}/attempts`) {
+        return Promise.resolve(
+          jsonResponse(200, {
+            items: [
+              {
+                id: "a1",
+                n: 1,
+                statusCode: null,
+                durationMs: 20,
+                error: "timed out after 10000ms",
+                at: "2026-08-10T12:00:00.000Z",
+              },
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+
+    render(
+      <DeliveryDetail
+        delivery={baseDelivery({ lastStatusCode: null })}
+        onRetried={() => undefined}
+      />,
+    );
+
+    // The Delivery row: an accessible name, and the dash still on screen.
+    const deliveryPlaceholder = screen.getByRole("img", { name: "No status code recorded" });
+    expect(deliveryPlaceholder.textContent).toBe("—");
+
+    fireEvent.click(screen.getByRole("button", { name: /Orders webhook/ }));
+    await screen.findByText("#1");
+
+    // Plus the Attempt row's own placeholder.
+    expect(screen.getAllByRole("img", { name: "No status code recorded" })).toHaveLength(2);
+  });
+
   it("hides the Retry action for a succeeded Delivery", async () => {
     fetchMock.mockImplementation((input: string | URL | Request) => {
       const path = requestPath(input);

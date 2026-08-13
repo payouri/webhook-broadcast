@@ -2,7 +2,11 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
 import { api } from "../../lib/api.js";
-import { FRESHNESS_POLL_MS, queryErrorMessage } from "../../lib/freshness.js";
+import {
+  freshnessRefetchInterval,
+  queryErrorMessage,
+  useRefetchOnVisible,
+} from "../../lib/freshness.js";
 import { DeliveryDetail } from "../DeliveryDetail.js";
 
 /** Broadcast detail (issue #19): inbound payload plus every fanned-out Delivery. */
@@ -22,8 +26,9 @@ export function BroadcastDetailPanel({
   const broadcastQuery = useQuery({
     queryKey: ["broadcast-detail", channelId, broadcastId] as const,
     queryFn: () => api.getBroadcastDetail(channelId, broadcastId),
-    refetchInterval: FRESHNESS_POLL_MS,
+    refetchInterval: freshnessRefetchInterval,
   });
+  useRefetchOnVisible(() => void broadcastQuery.refetch());
 
   const detail = broadcastQuery.data ?? null;
   const error = broadcastQuery.isError
@@ -70,7 +75,7 @@ export function BroadcastDetailPanel({
               </span>
             )}
             {replayedId && !replayError && (
-              <span className="success-text">Replayed — see it in Activity.</span>
+              <span className="success-text">Replayed. See it in Activity.</span>
             )}
           </div>
 

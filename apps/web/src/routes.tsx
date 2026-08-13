@@ -19,7 +19,7 @@ export function AppRoutes() {
         element={
           <NotFoundPanel
             title="Page not found"
-            message="This address does not match any view — the link may be incomplete."
+            message="This address does not match any view. The link may be incomplete."
           />
         }
       />

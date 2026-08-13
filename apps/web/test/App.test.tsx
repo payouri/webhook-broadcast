@@ -127,7 +127,7 @@ describe("dashboard smoke flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     expect(await screen.findByText("orders")).toBeTruthy();
-    expect(screen.getByText("2 endpoints")).toBeTruthy();
+    expect(screen.getByText("2 Endpoints")).toBeTruthy();
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(

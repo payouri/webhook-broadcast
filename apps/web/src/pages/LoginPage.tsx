@@ -28,7 +28,7 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
     <main className="centered">
       <form className="card login-card" onSubmit={(event) => void handleSubmit(event)}>
         <h1>webhook-broadcast</h1>
-        <p className="muted">Sign in with the operator API key.</p>
+        <p className="muted">Find your key in the OPERATOR_API_KEY environment variable.</p>
         <label htmlFor="apiKey">Operator API key</label>
         <input
           id="apiKey"

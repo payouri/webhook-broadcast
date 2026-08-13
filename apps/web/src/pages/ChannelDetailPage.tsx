@@ -2,7 +2,11 @@ import { useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
 import { ApiRequestError, api } from "../lib/api.js";
-import { FRESHNESS_POLL_MS, queryErrorMessage } from "../lib/freshness.js";
+import {
+  freshnessRefetchInterval,
+  queryErrorMessage,
+  useRefetchOnVisible,
+} from "../lib/freshness.js";
 import { EnabledStatusBadge } from "../components/StatusBadge.js";
 import { InlineLoadError } from "../components/InlineLoadError.js";
 import { NotFoundPanel } from "../components/NotFoundPanel.js";
@@ -46,9 +50,12 @@ export function ChannelDetailPage() {
     queryFn: () => api.getChannel(channelId),
     // ADR 0004 polls this surface ~every 5s, but a 404 is terminal: the Channel
     // was deleted (or never existed) and the view it renders offers no Retry,
-    // so keep polling only while the id could still resolve.
-    refetchInterval: (query) => (isNotFound(query.state.error) ? false : FRESHNESS_POLL_MS),
+    // so keep polling only while the id could still resolve (and only while
+    // the tab is visible; see freshnessRefetchInterval).
+    refetchInterval: (query) =>
+      isNotFound(query.state.error) ? false : freshnessRefetchInterval(),
   });
+  useRefetchOnVisible(() => void channelQuery.refetch());
 
   const channel = channelQuery.data ?? null;
   const notFound = channelQuery.isError && isNotFound(channelQuery.error);
@@ -84,7 +91,7 @@ export function ChannelDetailPage() {
     return (
       <NotFoundPanel
         title="Channel not found"
-        message="Channel not found — it may have been deleted."
+        message="Channel not found. It may have been deleted."
       />
     );
   }
@@ -106,7 +113,7 @@ export function ChannelDetailPage() {
             {channel.allowUnauthenticatedIngest && (
               <span
                 className="muted"
-                title="This Channel accepts POST /ingest without a token — the slug alone gates its fan-out."
+                title="This Channel accepts POST /ingest without a token. The slug alone gates its fan-out."
               >
                 unauthenticated ingest
               </span>
