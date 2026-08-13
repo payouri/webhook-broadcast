@@ -1,9 +1,11 @@
 import type { ReactElement } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { render, type RenderResult } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { vi } from "vitest";
 import { resetAdminFetchClientForTests } from "@webhook-broadcast/contract/client";
 import { createQueryClient } from "../src/lib/queryClient.js";
+import { AppRoutes } from "../src/routes.js";
 
 export function requestUrl(input: string | URL | Request): string {
   if (typeof input === "string") {
@@ -42,6 +44,22 @@ export function stubFetchMock(fetchMock: ReturnType<typeof vi.fn>): void {
  */
 export function renderWithQueryClient(ui: ReactElement): RenderResult {
   return render(<QueryClientProvider client={createQueryClient()}>{ui}</QueryClientProvider>);
+}
+
+/**
+ * Renders the app's own route table (issue #42: Channel id, tab, and expanded
+ * Broadcast live in the URL) so page components see real `useParams` and
+ * `useNavigate` behavior instead of hand-wired props. Imports `AppRoutes`
+ * rather than restating the routes, so this helper cannot drift from the app.
+ */
+export function renderRoutes(initialPath: string): RenderResult {
+  return render(
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter initialEntries={[initialPath]}>
+        <AppRoutes />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
 }
 
 /** Read JSON request body from openapi-fetch's Request-first fetch calls. */

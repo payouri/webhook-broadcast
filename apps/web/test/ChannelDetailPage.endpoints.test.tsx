@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ChannelDetailPage } from "../src/pages/ChannelDetailPage.js";
 import { FRESHNESS_POLL_MS } from "../src/lib/freshness.js";
 import {
   readJsonBody,
-  renderWithQueryClient,
+  renderRoutes,
   requestMethod,
   requestPath,
   stubFetchMock,
@@ -113,7 +112,7 @@ describe("Channel Detail — Endpoints tab", () => {
   });
 
   it("lists existing Endpoints under the Endpoints tab", async () => {
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
 
@@ -131,7 +130,7 @@ describe("Channel Detail — Endpoints tab", () => {
         lastSuccessAt: "2026-08-09T18:00:00.000Z",
       }),
     ];
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
 
@@ -141,7 +140,7 @@ describe("Channel Detail — Endpoints tab", () => {
   });
 
   it("creates a new Endpoint from the Endpoints tab form", async () => {
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
     await screen.findByText("Primary");
@@ -164,7 +163,7 @@ describe("Channel Detail — Endpoints tab", () => {
   });
 
   it("edits an existing Endpoint in place", async () => {
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
     fireEvent.click(await screen.findByText("Primary"));
@@ -190,7 +189,7 @@ describe("Channel Detail — Endpoints tab", () => {
   it("polls Endpoints every ~5s", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
     fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
     await screen.findByText("Primary");
 
@@ -234,7 +233,7 @@ describe("Channel Detail — Endpoints tab", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
     fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
 
     expect(await screen.findByRole("alert")).toBeTruthy();

@@ -1,10 +1,14 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../lib/api.js";
 
 export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
   const [apiKey, setApiKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    document.title = "Log in · webhook-broadcast";
+  }, []);
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();

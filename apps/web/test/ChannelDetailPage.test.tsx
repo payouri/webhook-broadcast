@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ChannelDetailPage } from "../src/pages/ChannelDetailPage.js";
 import { FRESHNESS_POLL_MS } from "../src/lib/freshness.js";
 import {
-  renderWithQueryClient,
+  renderRoutes,
   requestMethod,
   requestPath,
   requestUrl,
@@ -89,7 +88,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
 
@@ -111,7 +110,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
     fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
 
     expect(await screen.findByText(/No Broadcasts yet/)).toBeTruthy();
@@ -157,7 +156,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
 
     // Default hub tab is Activity (ADR 0004); tokens live under Settings.
     fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
@@ -223,7 +222,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
     fireEvent.click(await screen.findByText("hello-world"));
@@ -236,7 +235,10 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
   });
 
   it("polls Activity every ~5s", async () => {
-    vi.useFakeTimers();
+    // shouldAdvanceTime: react-router's location subscription schedules through
+    // the same low-priority scheduler React uses, which needs real time to tick
+    // for the initial fetch to land before we assert on it (issue #42).
+    vi.useFakeTimers({ shouldAdvanceTime: true });
 
     fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
       const path = requestPath(input);
@@ -251,9 +253,13 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
-    await flushAsync();
-    expect(broadcastListCalls(fetchMock)).toBe(1);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+    // The Channel query settles before the Activity tab (and its own Broadcast
+    // query) mounts, so wait for that chain rather than assuming one flush
+    // covers both query cycles.
+    await waitFor(() => {
+      expect(broadcastListCalls(fetchMock)).toBe(1);
+    });
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(FRESHNESS_POLL_MS);
@@ -293,7 +299,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
 
     expect(await screen.findByRole("alert")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
@@ -351,7 +357,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
     fireEvent.click(await screen.findByText("hello-world"));
     await flushAsync();
     expect(detailCalls).toBe(1);
@@ -399,7 +405,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
     fireEvent.click(await screen.findByRole("button", { name: "Load more" }));
 
     expect((await screen.findByRole("alert")).textContent).toContain("page two exploded");
@@ -426,9 +432,8 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
     vi.unstubAllGlobals();
   });
 
-  it("soft-deletes a Channel with confirmation, then returns to directory (issue #33)", async () => {
+  it("soft-deletes a Channel with confirmation, then returns to the directory route (issue #33, #42)", async () => {
     let deleteCalled = false;
-    const onBack = vi.fn();
 
     fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
       const path = requestPath(input);
@@ -436,6 +441,9 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
 
       if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
         return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
       }
       if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
         return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
@@ -447,7 +455,7 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={onBack} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
 
     // Navigate to Settings tab
     fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
@@ -466,16 +474,14 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
 
     fireEvent.click(confirmButton);
 
-    // Wait for the delete API call and navigation
+    // Wait for the delete API call and navigation back to the directory route.
     await waitFor(() => {
       expect(deleteCalled).toBe(true);
-      expect(onBack).toHaveBeenCalled();
     });
+    expect(await screen.findByText("New Channel")).toBeTruthy();
   });
 
   it("keeps the operator on the Channel and surfaces the error when delete fails (issue #33)", async () => {
-    const onBack = vi.fn();
-
     fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
       const path = requestPath(input);
       const method = requestMethod(input, init);
@@ -494,7 +500,7 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={onBack} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
     fireEvent.click(await screen.findByRole("button", { name: "Delete Channel" }));
@@ -503,7 +509,7 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
     // The failure is reported next to the control that failed, and no navigation happens.
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("delete exploded");
-    expect(onBack).not.toHaveBeenCalled();
+    expect(screen.queryByText("New Channel")).toBeNull();
 
     // The operator can retry: the confirm control is live again, not stuck on "Deleting…".
     expect(screen.getByRole("button", { name: "Confirm delete" })).toBeTruthy();
@@ -511,7 +517,6 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
 
   it("allows canceling the delete confirmation (issue #33)", async () => {
     let deleteCalled = false;
-    const onBack = vi.fn();
 
     fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
       const path = requestPath(input);
@@ -530,7 +535,7 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={onBack} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
 
@@ -546,7 +551,7 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
     });
     expect(screen.queryByRole("button", { name: "Confirm delete" })).toBeNull();
     expect(deleteCalled).toBe(false);
-    expect(onBack).not.toHaveBeenCalled();
+    expect(screen.queryByText("New Channel")).toBeNull();
   });
 
   it("keeps the enabled toggle distinct from delete (issue #33)", async () => {
@@ -563,7 +568,7 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    renderWithQueryClient(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+    renderRoutes(`/channels/${CHANNEL_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
 

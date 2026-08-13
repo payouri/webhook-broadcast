@@ -1,12 +1,26 @@
+import type { IncomingMessage } from "node:http";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 // Same-origin proxy for the admin API in dev: the HttpOnly session cookie
 // (ADR 0005) only travels with same-site requests, so the dashboard talks to
 // the API through this origin rather than cross-origin to :8080.
+//
+// This path space overlaps the client-side router (issue #42: a Channel's own
+// URL is /channels/:id, with /:tab and /:broadcastId beyond it) — a hard
+// reload on one of those URLs is a browser navigation, not an API call, and
+// must fall through to the SPA shell rather than hit the admin API and get a
+// JSON 404. Browser navigations always send `Accept: text/html…`; this app's
+// own fetch calls never do, so branch on that instead of the path (mirrors
+// nginx.conf's production equivalent).
 const adminApiProxy = {
   target: "http://localhost:8080",
   changeOrigin: true,
+  bypass(req: IncomingMessage) {
+    if (req.headers.accept?.includes("text/html")) {
+      return "/index.html";
+    }
+  },
 };
 
 export default defineConfig({

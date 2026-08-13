@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import type { Channel } from "@webhook-broadcast/contract";
 import { InlineLoadError } from "../components/InlineLoadError.js";
 import { EnabledStatusBadge } from "../components/StatusBadge.js";
@@ -7,12 +8,13 @@ import { api } from "../lib/api.js";
 import { FRESHNESS_POLL_MS, queryErrorMessage } from "../lib/freshness.js";
 
 /** Landing page (ADR 0004): "which Channels exist and are they healthy?" */
-export function ChannelDirectoryPage({
-  onOpenChannel,
-}: {
-  onOpenChannel: (channelId: string) => void;
-}) {
+export function ChannelDirectoryPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    document.title = "Channels · webhook-broadcast";
+  }, []);
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
@@ -92,7 +94,7 @@ export function ChannelDirectoryPage({
                 <button
                   type="button"
                   className="channel-row"
-                  onClick={() => onOpenChannel(channel.id)}
+                  onClick={() => navigate(`/channels/${channel.id}`)}
                 >
                   <EnabledStatusBadge enabled={channel.enabled} />
                   <span className="channel-slug">{channel.slug}</span>

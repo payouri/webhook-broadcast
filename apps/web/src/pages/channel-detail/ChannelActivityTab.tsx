@@ -15,10 +15,21 @@ function fanoutLabel(fanout: BroadcastListItem["fanout"]): string {
   }`;
 }
 
-/** Channel Activity (ADR 0004): newest-first Broadcasts, ~5s poll, cursor "load more". */
-export function ChannelActivityTab({ channelId }: { channelId: string }) {
+/**
+ * Channel Activity (ADR 0004): newest-first Broadcasts, ~5s poll, cursor "load more".
+ * The expanded Broadcast (issue #42) is controlled by the URL, not local state, so
+ * it survives a reload and is part of any link the operator shares.
+ */
+export function ChannelActivityTab({
+  channelId,
+  expandedBroadcastId,
+  onToggleBroadcast,
+}: {
+  channelId: string;
+  expandedBroadcastId: string | null;
+  onToggleBroadcast: (broadcastId: string) => void;
+}) {
   const [loadingMore, setLoadingMore] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   // Pages fetched beyond the polled first page — the ~5s refetch only ever
   // returns page one, so extra pages (and their cursor) live outside Query
   // and reset whenever a fresh first page arrives, same as before adoption.
@@ -97,8 +108,8 @@ export function ChannelActivityTab({ channelId }: { channelId: string }) {
                 <button
                   type="button"
                   className="activity-row"
-                  aria-expanded={expandedId === item.id}
-                  onClick={() => setExpandedId((current) => (current === item.id ? null : item.id))}
+                  aria-expanded={expandedBroadcastId === item.id}
+                  onClick={() => onToggleBroadcast(item.id)}
                 >
                   <span className="activity-time">
                     {new Date(item.receivedAt).toLocaleString()}
@@ -106,7 +117,7 @@ export function ChannelActivityTab({ channelId }: { channelId: string }) {
                   <span className="activity-preview">{item.bodyPreview || "(empty body)"}</span>
                   <span className="muted activity-fanout">{fanoutLabel(item.fanout)}</span>
                 </button>
-                {expandedId === item.id && (
+                {expandedBroadcastId === item.id && (
                   <BroadcastDetailPanel
                     channelId={channelId}
                     broadcastId={item.id}
