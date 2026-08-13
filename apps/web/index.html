@@ -4,6 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>webhook-broadcast</title>
+    <script>
+      // Stamp a forced theme before first paint. Without this, an operator who has
+      // chosen dark while the OS is set to light gets a full-brightness page for as
+      // long as the bundle takes to parse — the one moment the theme system tells
+      // them something untrue about their own preference.
+      //
+      // Nothing is decided here. `system` is deliberately left unstamped so
+      // `prefers-color-scheme` still resolves it, and React is the source of truth
+      // from the moment it mounts. The key is duplicated from `STORAGE_KEY` in
+      // `src/components/ThemeToggle.tsx` because this runs before any bundle exists
+      // to import from; `test/theme.test.tsx` fails if the two drift apart.
+      (function () {
+        try {
+          const stored = localStorage.getItem("webhook-broadcast:theme");
+          if (stored === "light" || stored === "dark") {
+            document.documentElement.dataset.theme = stored;
+          }
+        } catch {
+          // Blocked or unavailable storage: no stamp, so the OS preference stands,
+          // which is the same degradation the toggle already makes.
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

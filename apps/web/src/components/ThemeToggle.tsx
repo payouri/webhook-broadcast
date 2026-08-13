@@ -13,7 +13,13 @@ import { Monitor, Moon, Sun } from "lucide-react";
  */
 type Theme = "system" | "light" | "dark";
 
-const STORAGE_KEY = "webhook-broadcast:theme";
+/**
+ * The one key the preference is read from and written to. The pre-paint script
+ * in `apps/web/index.html` has to repeat this literal — it runs before any
+ * bundle exists to import from — so it is exported here and the agreement is
+ * held by `test/theme.test.tsx` rather than by memory.
+ */
+export const STORAGE_KEY = "webhook-broadcast:theme";
 const ORDER: readonly Theme[] = ["system", "light", "dark"];
 
 const NEXT_LABEL: Record<Theme, string> = {
