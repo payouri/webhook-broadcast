@@ -25,6 +25,7 @@ export {
   listEndpoints,
   listEnabledEndpointsByChannel,
   updateEndpoint,
+  deleteEndpoint,
   maybeAutoDisableEndpoint,
   getEndpointHealthByIds,
   encodeEndpointCursor,

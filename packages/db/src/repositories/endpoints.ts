@@ -273,6 +273,24 @@ export async function getEndpointHealthByIds(
   );
 }
 
+/**
+ * Hard delete (issue #36) — Endpoints have no soft-delete marker, so removing
+ * one really frees its `(channelId, url)` uniqueness for reuse (e.g. an
+ * ephemeral CI environment re-registering at the same hostname). Deliveries
+ * and Attempts targeting this Endpoint cascade via `ON DELETE CASCADE`.
+ */
+export async function deleteEndpoint(
+  db: Database,
+  channelId: string,
+  id: string,
+): Promise<boolean> {
+  const rows = await db
+    .delete(endpoints)
+    .where(and(eq(endpoints.channelId, channelId), eq(endpoints.id, id)))
+    .returning({ id: endpoints.id });
+  return rows.length > 0;
+}
+
 export async function updateEndpoint(
   db: Database,
   channelId: string,

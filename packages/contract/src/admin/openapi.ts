@@ -187,6 +187,17 @@ export const adminOpenApiPaths = {
         default: errorResponse,
       },
     },
+    delete: {
+      operationId: "deleteEndpoint",
+      summary: "Hard-delete endpoint, freeing its (channelId, url)",
+      tags: ["endpoints"],
+      security: operatorSecurity,
+      requestParams: { path: channelEndpointPath },
+      responses: {
+        "204": { description: "Deleted" },
+        default: errorResponse,
+      },
+    },
   },
   "/channels/{channelId}/tokens": {
     post: {

@@ -196,6 +196,12 @@ export const api = {
         body: patch,
       }),
     ),
+  deleteEndpoint: async (channelId: string, endpointId: string) =>
+    unwrap(
+      await getAdminFetchClient().DELETE("/channels/{channelId}/endpoints/{endpointId}", {
+        params: { path: { channelId, endpointId } },
+      }),
+    ),
   listBroadcasts: async (channelId: string, cursor?: string) =>
     unwrap(
       await getAdminFetchClient().GET("/channels/{channelId}/broadcasts", {

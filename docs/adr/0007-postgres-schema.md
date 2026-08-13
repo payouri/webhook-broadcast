@@ -1,6 +1,6 @@
 # Postgres schema and indexes
 
-Seven tables in `packages/db` (Drizzle + `drizzle-kit` SQL migrations): `channel`, `channel_token`, `operator_token`, `endpoint`, `broadcast`, `delivery`, `attempt`. UUIDs as PKs; Delivery unique on `(broadcast_id, endpoint_id)`; Attempt unique on `(delivery_id, n)`. Inbound `broadcast.body` is `bytea`; headers on broadcast/endpoint are `jsonb`. `delivery.status` is a Postgres enum (`pending|in_progress|succeeded|failed|dead_lettered`). Retention deletes old `broadcast` rows and cascades to deliveries/attempts. Fan-out summaries and endpoint health (`successRate24h`, `p95`) are **computed in SQL**, not stored columns. `operator_token` mirrors `channel_token` unscoped by Channel — see issue #41. Indexes: unique slug **scoped to live Channels** (partial, `WHERE deleted_at IS NULL` — issue #35, so a slug is reclaimable after soft-delete)/token_hash/(channel_id,url); activity `(channel_id, received_at DESC, id DESC)`; retention `(received_at)`; fan-out `(broadcast_id)`; auto-disable streak `(endpoint_id, updated_at DESC)`; attempts `(delivery_id, n)`.
+Seven tables in `packages/db` (Drizzle + `drizzle-kit` SQL migrations): `channel`, `channel_token`, `operator_token`, `endpoint`, `broadcast`, `delivery`, `attempt`. UUIDs as PKs; Delivery unique on `(broadcast_id, endpoint_id)`; Attempt unique on `(delivery_id, n)`. Inbound `broadcast.body` is `bytea`; headers on broadcast/endpoint are `jsonb`. `delivery.status` is a Postgres enum (`pending|in_progress|succeeded|failed|dead_lettered`). Retention deletes old `broadcast` rows and cascades to deliveries/attempts. `endpoint` has no soft-delete marker — it hard-deletes (issue #36), and `delivery.endpoint_id` cascades so an Endpoint's Delivery/Attempt history goes with it, letting the row's `(channel_id, url)` be reclaimed immediately (e.g. by a CI environment re-registering at the same hostname). `channel` remains soft-delete only; hard-deleting Channels is a retention-policy decision left open, not bundled with this fix. Fan-out summaries and endpoint health (`successRate24h`, `p95`) are **computed in SQL**, not stored columns. `operator_token` mirrors `channel_token` unscoped by Channel — see issue #41. Indexes: unique slug **scoped to live Channels** (partial, `WHERE deleted_at IS NULL` — issue #35, so a slug is reclaimable after soft-delete)/token_hash/(channel_id,url); activity `(channel_id, received_at DESC, id DESC)`; retention `(received_at)`; fan-out `(broadcast_id)`; auto-disable streak `(endpoint_id, updated_at DESC)`; attempts `(delivery_id, n)`.
 
 ## Sketch
 
@@ -73,7 +73,7 @@ CREATE INDEX broadcast_received_at_idx ON broadcast (received_at);
 CREATE TABLE delivery (
   id                 uuid PRIMARY KEY,
   broadcast_id       uuid NOT NULL REFERENCES broadcast(id) ON DELETE CASCADE,
-  endpoint_id        uuid NOT NULL REFERENCES endpoint(id),
+  endpoint_id        uuid NOT NULL REFERENCES endpoint(id) ON DELETE CASCADE,
   channel_id         uuid NOT NULL REFERENCES channel(id),
   status             delivery_status NOT NULL,
   attempt_count      integer NOT NULL DEFAULT 0,

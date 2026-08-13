@@ -497,4 +497,172 @@ describe("Endpoint CRUD (HTTP admin seam)", () => {
       autoDisabledAt: null,
     });
   });
+
+  it("deletes an Endpoint, freeing its (channelId, url) for a fresh create (issue #36)", async () => {
+    const createResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com/reclaim" }),
+      }),
+    );
+    const created = (await createResponse.json()) as Endpoint;
+
+    const deleteResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints/${created.id}`,
+      authed({ method: "DELETE" }),
+    );
+    expect(deleteResponse.status).toBe(204);
+
+    const getResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints/${created.id}`,
+      authed(),
+    );
+    expect(getResponse.status).toBe(404);
+
+    const recreateResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com/reclaim" }),
+      }),
+    );
+    expect(recreateResponse.status).toBe(201);
+  });
+
+  it("deletes an Endpoint with Delivery/Attempt history via cascade (issue #36)", async () => {
+    const createResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com/history" }),
+      }),
+    );
+    const created = (await createResponse.json()) as Endpoint;
+    const now = new Date();
+
+    const broadcast = await insertBroadcast(testDb.db, {
+      id: randomUUID(),
+      channelId: channel.id,
+      receivedAt: now,
+      contentType: "application/json",
+      body: Buffer.from("{}"),
+      headers: {},
+    });
+    const [delivery] = await createDeliveriesForBroadcast(testDb.db, {
+      broadcastId: broadcast.id,
+      channelId: channel.id,
+      endpointIds: [created.id],
+      now,
+    });
+    if (!delivery) {
+      throw new Error("expected Delivery");
+    }
+    await completeDelivery(testDb.db, {
+      deliveryId: delivery.id,
+      n: 1,
+      statusCode: 200,
+      durationMs: 100,
+      error: null,
+      status: "succeeded",
+      at: now,
+    });
+
+    const deleteResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints/${created.id}`,
+      authed({ method: "DELETE" }),
+    );
+    expect(deleteResponse.status).toBe(204);
+  });
+
+  it("404s deleting an unknown Endpoint id, and again for a repeat delete", async () => {
+    const createResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com/double-delete" }),
+      }),
+    );
+    const created = (await createResponse.json()) as Endpoint;
+
+    const unknownEndpointId = "00000000-0000-0000-0000-000000000000";
+    const unknownResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints/${unknownEndpointId}`,
+      authed({ method: "DELETE" }),
+    );
+    expect(unknownResponse.status).toBe(404);
+
+    const firstDelete = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints/${created.id}`,
+      authed({ method: "DELETE" }),
+    );
+    expect(firstDelete.status).toBe(204);
+
+    const secondDelete = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints/${created.id}`,
+      authed({ method: "DELETE" }),
+    );
+    expect(secondDelete.status).toBe(404);
+  });
+
+  it("404s deleting an Endpoint through a Channel it does not belong to, leaving it intact", async () => {
+    const otherChannelResponse = await fetch(
+      `${baseUrl}/channels`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ slug: "invoices-3" }),
+      }),
+    );
+    const otherChannel = (await otherChannelResponse.json()) as Channel;
+
+    const createResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com/owned-delete" }),
+      }),
+    );
+    const created = (await createResponse.json()) as Endpoint;
+
+    // Guards the `channelId` predicate in `deleteEndpoint` itself: unlike the
+    // unknown-Channel case, `requireChannel` passes here, so the repository
+    // scoping is the only thing standing between a known Channel and another
+    // Channel's Endpoint.
+    const response = await fetch(
+      `${baseUrl}/channels/${otherChannel.id}/endpoints/${created.id}`,
+      authed({ method: "DELETE" }),
+    );
+    expect(response.status).toBe(404);
+
+    const stillThere = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints/${created.id}`,
+      authed(),
+    );
+    expect(stillThere.status).toBe(200);
+  });
+
+  it("404s deleting an Endpoint under an unknown Channel id", async () => {
+    const unknownChannelId = "00000000-0000-0000-0000-000000000000";
+    const createResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com/wrong-channel" }),
+      }),
+    );
+    const created = (await createResponse.json()) as Endpoint;
+
+    const response = await fetch(
+      `${baseUrl}/channels/${unknownChannelId}/endpoints/${created.id}`,
+      authed({ method: "DELETE" }),
+    );
+    expect(response.status).toBe(404);
+  });
 });

@@ -116,7 +116,8 @@ export interface paths {
     get: operations["getEndpoint"];
     put?: never;
     post?: never;
-    delete?: never;
+    /** Hard-delete endpoint, freeing its (channelId, url) */
+    delete: operations["deleteEndpoint"];
     options?: never;
     head?: never;
     patch: operations["updateEndpoint"];
@@ -894,6 +895,36 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["Endpoint"];
         };
+      };
+      /** @description Error */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  deleteEndpoint: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        channelId: components["schemas"]["Id"];
+        endpointId: components["schemas"]["Id"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Error */
       default: {

@@ -13,6 +13,7 @@ import {
 } from "@webhook-broadcast/contract/endpoint-url";
 import {
   decodeEndpointCursor,
+  deleteEndpoint,
   encodeEndpointCursor,
   EndpointUrlConflictError,
   getEndpointById,
@@ -222,5 +223,27 @@ export function registerEndpointRoutes(router: Router, db: Database): void {
       }
       throw error;
     }
+  });
+
+  router.delete("/channels/:channelId/endpoints/:endpointId", async (ctx) => {
+    const channelId = requireUuidParam(ctx, "channelId");
+    if (!channelId) {
+      return;
+    }
+    const endpointId = requireUuidParam(ctx, "endpointId");
+    if (!endpointId) {
+      return;
+    }
+    if (!(await requireChannel(ctx, db, channelId))) {
+      return;
+    }
+
+    const deleted = await deleteEndpoint(db, channelId, endpointId);
+    if (!deleted) {
+      ctx.status = 404;
+      ctx.body = errorBody("not_found", "endpoint not found");
+      return;
+    }
+    ctx.status = 204;
   });
 }

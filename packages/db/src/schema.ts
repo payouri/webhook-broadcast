@@ -157,7 +157,7 @@ export const deliveries = pgTable(
       .references(() => broadcasts.id, { onDelete: "cascade" }),
     endpointId: uuid("endpoint_id")
       .notNull()
-      .references(() => endpoints.id),
+      .references(() => endpoints.id, { onDelete: "cascade" }),
     channelId: uuid("channel_id")
       .notNull()
       .references(() => channels.id),

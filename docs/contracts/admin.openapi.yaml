@@ -1144,6 +1144,33 @@ paths:
       tags:
         - endpoints
   /channels/{channelId}/endpoints/{endpointId}:
+    delete:
+      operationId: deleteEndpoint
+      parameters:
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+        - in: path
+          name: endpointId
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+      responses:
+        "204":
+          description: Deleted
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Error
+      security:
+        - OperatorBearer: []
+      summary: Hard-delete endpoint, freeing its (channelId, url)
+      tags:
+        - endpoints
     get:
       operationId: getEndpoint
       parameters:
