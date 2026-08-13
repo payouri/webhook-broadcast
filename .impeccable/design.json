@@ -1,0 +1,409 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-13T00:00:00.000Z",
+  "title": "Design System: webhook-broadcast",
+  "extensions": {
+    "colorMeta": {
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "oklch(97.2% 0.006 75)",
+        "tonalRamp": [
+          "oklch(18% 0.008 75)",
+          "oklch(28% 0.01 75)",
+          "oklch(40% 0.012 75)",
+          "oklch(52% 0.012 75)",
+          "oklch(65% 0.011 75)",
+          "oklch(80.5% 0.01 75)",
+          "oklch(89% 0.008 75)",
+          "oklch(97.2% 0.006 75)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "canonical": "oklch(99% 0.004 75)",
+        "tonalRamp": [
+          "oklch(20% 0.006 75)",
+          "oklch(31% 0.007 75)",
+          "oklch(43% 0.008 75)",
+          "oklch(55% 0.008 75)",
+          "oklch(68% 0.007 75)",
+          "oklch(83% 0.006 75)",
+          "oklch(93% 0.005 75)",
+          "oklch(99% 0.004 75)"
+        ]
+      },
+      "surface-sunk": {
+        "role": "neutral",
+        "displayName": "Surface Sunk",
+        "canonical": "oklch(95.4% 0.007 75)",
+        "tonalRamp": [
+          "oklch(17% 0.009 75)",
+          "oklch(27% 0.011 75)",
+          "oklch(39% 0.013 75)",
+          "oklch(51% 0.013 75)",
+          "oklch(64% 0.012 75)",
+          "oklch(79% 0.011 75)",
+          "oklch(88% 0.009 75)",
+          "oklch(95.4% 0.007 75)"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(89% 0.008 75)",
+        "tonalRamp": [
+          "oklch(18% 0.01 75)",
+          "oklch(28% 0.012 75)",
+          "oklch(40% 0.014 75)",
+          "oklch(52% 0.014 75)",
+          "oklch(65% 0.012 75)",
+          "oklch(80.5% 0.01 75)",
+          "oklch(89% 0.008 75)",
+          "oklch(96% 0.006 75)"
+        ]
+      },
+      "hairline-strong": {
+        "role": "neutral",
+        "displayName": "Hairline Strong",
+        "canonical": "oklch(80.5% 0.01 75)",
+        "tonalRamp": [
+          "oklch(18% 0.012 75)",
+          "oklch(29% 0.014 75)",
+          "oklch(41% 0.016 75)",
+          "oklch(53% 0.016 75)",
+          "oklch(66% 0.014 75)",
+          "oklch(80.5% 0.01 75)",
+          "oklch(90% 0.008 75)",
+          "oklch(96.5% 0.006 75)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(24% 0.012 75)",
+        "tonalRamp": [
+          "oklch(15% 0.008 75)",
+          "oklch(24% 0.012 75)",
+          "oklch(36% 0.014 75)",
+          "oklch(48% 0.014 75)",
+          "oklch(61% 0.013 75)",
+          "oklch(74% 0.011 75)",
+          "oklch(86% 0.009 75)",
+          "oklch(95% 0.006 75)"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Ink Muted",
+        "canonical": "oklch(52% 0.012 75)",
+        "tonalRamp": [
+          "oklch(16% 0.008 75)",
+          "oklch(26% 0.011 75)",
+          "oklch(38% 0.013 75)",
+          "oklch(52% 0.012 75)",
+          "oklch(64% 0.011 75)",
+          "oklch(77% 0.01 75)",
+          "oklch(88% 0.008 75)",
+          "oklch(96% 0.005 75)"
+        ]
+      },
+      "patch-plum": {
+        "role": "primary",
+        "displayName": "Patch Plum",
+        "canonical": "oklch(46% 0.14 325)",
+        "tonalRamp": [
+          "oklch(20% 0.07 325)",
+          "oklch(28% 0.1 325)",
+          "oklch(39% 0.13 325)",
+          "oklch(46% 0.14 325)",
+          "oklch(58% 0.14 325)",
+          "oklch(72% 0.11 325)",
+          "oklch(86% 0.06 325)",
+          "oklch(95% 0.03 325)"
+        ]
+      },
+      "patch-plum-deep": {
+        "role": "primary",
+        "displayName": "Patch Plum Deep",
+        "canonical": "oklch(39% 0.13 325)",
+        "tonalRamp": [
+          "oklch(18% 0.06 325)",
+          "oklch(26% 0.09 325)",
+          "oklch(33% 0.12 325)",
+          "oklch(39% 0.13 325)",
+          "oklch(51% 0.14 325)",
+          "oklch(66% 0.12 325)",
+          "oklch(82% 0.07 325)",
+          "oklch(93% 0.035 325)"
+        ]
+      },
+      "patch-plum-wash": {
+        "role": "primary",
+        "displayName": "Patch Plum Wash",
+        "canonical": "oklch(95% 0.03 325)",
+        "tonalRamp": [
+          "oklch(22% 0.05 325)",
+          "oklch(32% 0.06 325)",
+          "oklch(44% 0.07 325)",
+          "oklch(56% 0.07 325)",
+          "oklch(69% 0.06 325)",
+          "oklch(82% 0.05 325)",
+          "oklch(90% 0.04 325)",
+          "oklch(95% 0.03 325)"
+        ]
+      },
+      "signal-live": {
+        "role": "tertiary",
+        "displayName": "Signal Live",
+        "canonical": "oklch(52% 0.13 150)",
+        "tonalRamp": [
+          "oklch(22% 0.06 150)",
+          "oklch(31% 0.09 150)",
+          "oklch(42% 0.12 150)",
+          "oklch(52% 0.13 150)",
+          "oklch(64% 0.13 150)",
+          "oklch(77% 0.1 150)",
+          "oklch(88% 0.06 150)",
+          "oklch(94% 0.04 150)"
+        ]
+      },
+      "signal-live-wash": {
+        "role": "tertiary",
+        "displayName": "Signal Live Wash",
+        "canonical": "oklch(94% 0.04 150)",
+        "tonalRamp": [
+          "oklch(24% 0.04 150)",
+          "oklch(34% 0.05 150)",
+          "oklch(46% 0.06 150)",
+          "oklch(58% 0.06 150)",
+          "oklch(70% 0.06 150)",
+          "oklch(82% 0.05 150)",
+          "oklch(89% 0.045 150)",
+          "oklch(94% 0.04 150)"
+        ]
+      },
+      "signal-cut": {
+        "role": "tertiary",
+        "displayName": "Signal Cut",
+        "canonical": "oklch(50% 0.17 27)",
+        "tonalRamp": [
+          "oklch(21% 0.08 27)",
+          "oklch(30% 0.12 27)",
+          "oklch(40% 0.16 27)",
+          "oklch(50% 0.17 27)",
+          "oklch(62% 0.17 27)",
+          "oklch(75% 0.13 27)",
+          "oklch(87% 0.07 27)",
+          "oklch(94% 0.045 27)"
+        ]
+      },
+      "signal-cut-wash": {
+        "role": "tertiary",
+        "displayName": "Signal Cut Wash",
+        "canonical": "oklch(94% 0.045 27)",
+        "tonalRamp": [
+          "oklch(23% 0.045 27)",
+          "oklch(33% 0.055 27)",
+          "oklch(45% 0.065 27)",
+          "oklch(57% 0.07 27)",
+          "oklch(69% 0.065 27)",
+          "oklch(81% 0.055 27)",
+          "oklch(88% 0.05 27)",
+          "oklch(94% 0.045 27)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Channel slug on Channel detail, product name in the app header. One per screen."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Panel headings: Activity, Endpoints, Ingest tokens, New Endpoint."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Row content and prose. Prose caps at 70ch; rows and tabular data are exempt."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Form labels, buttons, tabs, inline metadata. Sentence case."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Machine-exact strings only: URLs, payload bodies, headers JSON, token prefixes."
+      },
+      "stamp": {
+        "displayName": "Stamp",
+        "purpose": "Status pills only. The single uppercase role in the system."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "ease-out-quint",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "The only easing curve in the system. No bounce, no elastic."
+      },
+      {
+        "name": "duration-state",
+        "value": "150ms",
+        "purpose": "Hover and focus color transitions on buttons, rows, tabs, inputs."
+      },
+      {
+        "name": "duration-reveal",
+        "value": "200ms",
+        "purpose": "Inline expansion of Broadcast detail and Delivery detail. Opacity only, never height."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "960px" },
+      { "name": "lg", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single committing action in a panel: Save changes, Add Endpoint, Mint new token, Retry. One per panel, never two.",
+      "html": "<button class=\"ds-btn-primary\">Save changes</button>",
+      "css": ".ds-btn-primary { background: oklch(46% 0.14 325); color: oklch(99% 0.004 75); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.8125rem; font-weight: 500; padding: 9px 16px; border: none; border-radius: 8px; cursor: pointer; transition: background 150ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-btn-primary:hover { background: oklch(39% 0.13 325); } .ds-btn-primary:focus-visible { outline: 2px solid oklch(46% 0.14 325); outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Every non-committing action: Back to Channels, Cancel, Revoke, Replay, Load more, Log out. Its border is present at rest.",
+      "html": "<button class=\"ds-btn-ghost\">Replay</button>",
+      "css": ".ds-btn-ghost { background: oklch(99% 0.004 75); color: oklch(24% 0.012 75); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.8125rem; font-weight: 500; padding: 9px 16px; border: 1px solid oklch(80.5% 0.01 75); border-radius: 8px; cursor: pointer; transition: background 150ms cubic-bezier(0.22, 1, 0.36, 1), border-color 150ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-btn-ghost:hover { background: oklch(95.4% 0.007 75); border-color: oklch(70% 0.012 75); } .ds-btn-ghost:focus-visible { outline: 2px solid oklch(46% 0.14 325); outline-offset: 2px; } .ds-btn-ghost:disabled { opacity: 0.45; cursor: not-allowed; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Label always above the field, never a placeholder standing in for one. The resting border is visible without hover.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-field-label\" for=\"ds-url\">URL</label><input class=\"ds-input\" id=\"ds-url\" value=\"https://example.com/webhook\" /></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; } .ds-field-label { font-size: 0.8125rem; font-weight: 500; color: oklch(52% 0.012 75); } .ds-input { width: 100%; background: oklch(99% 0.004 75); color: oklch(24% 0.012 75); font-family: inherit; font-size: 0.9375rem; padding: 9px 12px; border: 1px solid oklch(80.5% 0.01 75); border-radius: 8px; transition: border-color 150ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-input::placeholder { color: oklch(52% 0.012 75); } .ds-input:focus { border-color: oklch(46% 0.14 325); outline: 2px solid oklch(46% 0.14 325); outline-offset: -1px; }"
+    },
+    {
+      "name": "Tab Navigation",
+      "kind": "nav",
+      "refersTo": "tab",
+      "description": "Second-level navigation inside a Channel: Activity, Endpoints, Settings. The active tab's 2px underline overlaps the hairline baseline.",
+      "html": "<nav class=\"ds-tabs\"><button class=\"ds-tab ds-tab-active\">Activity</button><button class=\"ds-tab\">Endpoints</button><button class=\"ds-tab\">Settings</button></nav>",
+      "css": ".ds-tabs { display: flex; gap: 4px; border-bottom: 1px solid oklch(89% 0.008 75); } .ds-tab { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 4px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.8125rem; font-weight: 500; color: oklch(52% 0.012 75); cursor: pointer; transition: color 150ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-tab:hover { color: oklch(24% 0.012 75); } .ds-tab-active { color: oklch(46% 0.14 325); border-bottom-color: oklch(46% 0.14 325); } .ds-tab:focus-visible { outline: 2px solid oklch(46% 0.14 325); outline-offset: 2px; }"
+    },
+    {
+      "name": "Delivery Status Stamp",
+      "kind": "chip",
+      "refersTo": "status-succeeded",
+      "description": "Read-only status vocabulary. Pending is outlined and in-progress is filled, so the two most confusable states stay distinct with color removed.",
+      "html": "<div class=\"ds-stamps\"><span class=\"ds-stamp ds-stamp-succeeded\">succeeded</span><span class=\"ds-stamp ds-stamp-cut\">dead lettered</span><span class=\"ds-stamp ds-stamp-progress\">in progress</span><span class=\"ds-stamp ds-stamp-pending\">pending</span></div>",
+      "css": ".ds-stamps { display: flex; gap: 8px; flex-wrap: wrap; } .ds-stamp { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.6875rem; font-weight: 600; line-height: 1; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; } .ds-stamp-succeeded { background: oklch(94% 0.04 150); color: oklch(52% 0.13 150); } .ds-stamp-cut { background: oklch(94% 0.045 27); color: oklch(50% 0.17 27); } .ds-stamp-progress { background: oklch(95.4% 0.007 75); color: oklch(24% 0.012 75); } .ds-stamp-pending { background: transparent; color: oklch(52% 0.012 75); border-color: oklch(80.5% 0.01 75); padding: 2px 7px; }"
+    },
+    {
+      "name": "Delivery Row",
+      "kind": "custom",
+      "refersTo": "row",
+      "description": "The signature component. Fixed-width leading stamp so status aligns down the column, monospace endpoint, right-aligned HTTP result that never wraps.",
+      "html": "<button class=\"ds-row\"><span class=\"ds-stamp ds-stamp-cut\">dead lettered</span><span class=\"ds-row-endpoint\">https://hooks.internal/billing-sync</span><span class=\"ds-row-meta\">HTTP 503 · 4213ms</span></button>",
+      "css": ".ds-row { display: grid; grid-template-columns: 108px 1fr auto; align-items: center; gap: 12px; width: 100%; text-align: left; background: oklch(99% 0.004 75); color: oklch(24% 0.012 75); border: 1px solid oklch(89% 0.008 75); border-radius: 8px; padding: 10px 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.9375rem; font-weight: 400; cursor: pointer; transition: background 150ms cubic-bezier(0.22, 1, 0.36, 1), border-color 150ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-row:hover { background: oklch(95.4% 0.007 75); border-color: oklch(46% 0.14 325); } .ds-row:focus-visible { outline: 2px solid oklch(46% 0.14 325); outline-offset: 2px; } .ds-row-endpoint { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-row-meta { font-size: 0.8125rem; color: oklch(52% 0.012 75); white-space: nowrap; } .ds-stamp { font-size: 0.6875rem; font-weight: 600; line-height: 1; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; text-align: center; } .ds-stamp-cut { background: oklch(94% 0.045 27); color: oklch(50% 0.17 27); }"
+    },
+    {
+      "name": "Empty State",
+      "kind": "custom",
+      "refersTo": "row",
+      "description": "Teaches the next action in the domain's own vocabulary. Never 'Nothing here', never an illustration.",
+      "html": "<p class=\"ds-empty\">No Broadcasts yet. Send a request to <code class=\"ds-code\">POST /ingest/&lt;slug&gt;</code> with a Channel token.</p>",
+      "css": ".ds-empty { margin: 0; border: 1px dashed oklch(80.5% 0.01 75); border-radius: 8px; padding: 24px; text-align: center; color: oklch(52% 0.012 75); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 0.9375rem; line-height: 1.5; } .ds-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8125rem; background: oklch(95.4% 0.007 75); border-radius: 4px; padding: 2px 5px; color: oklch(24% 0.012 75); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Switchboard",
+    "overview": "A switchboard is one incoming line patched out to many, which is exactly what this product does. It is also a piece of equipment an operator sits at rather than monitors from across a room: the whole board is in arm's reach, every line's state is readable at a glance, and the connections are physically traceable. Nothing is hidden behind a menu, because on a real board nothing can be.\n\nThat metaphor sets the ground. This interface is lit, not dark. It is built for two or three engineers at their desks in a working office, mid-morning, with the dashboard in a browser tab beside their editor and terminal. Warm paper neutrals (a faint hue-75 tint through every grey) put it closer to a printed log book than to a wall of gauges. A single wine-ink accent, Patch Plum, carries every operator action and every current selection. Green and red appear only as status, never as decoration and never as the accent, so \"healthy\" can never be confused with \"selected\".\n\nThe system is flat and drawn entirely with hairlines. Depth comes from tone, not shadow. Structure comes from alignment, not boxes. It rejects the two things PRODUCT.md named: enterprise monitoring dread (walls of red gauges, undifferentiated dense config panels, density with no ranking) and consumer SaaS marketing bleed (gradients, illustrations, friendly mascots, hero-metric tiles). Density is a goal here. Density without hierarchy is the failure.",
+    "keyCharacteristics": [
+      "Light, warm-neutral ground; a lit desk, not a dim NOC",
+      "Restrained color: one accent under 10% of any screen, status colors quarantined to status",
+      "Flat by doctrine, zero shadows, 1px hairlines and two-tone surfaces only",
+      "Single system sans, with monospace reserved for machine-shaped content",
+      "Row-first layout: rows are the content, chrome recedes",
+      "Every state readable without color"
+    ],
+    "rules": [
+      {
+        "name": "The One Voice Rule",
+        "body": "Patch Plum covers no more than 10% of any screen and only ever means \"the operator did this or chose this\". If an element is reporting system state, it may not be plum.",
+        "section": "colors"
+      },
+      {
+        "name": "The Quarantine Rule",
+        "body": "Signal Live and Signal Cut attach to Delivery status, Attempt outcome, and enabled state. They are forbidden on buttons, links, headings, borders of non-status elements, and anything decorative. A red border on a card is a violation; a red DEAD LETTERED stamp is correct.",
+        "section": "colors"
+      },
+      {
+        "name": "The Warm Grey Rule",
+        "body": "Every neutral carries hue 75 at chroma 0.004 to 0.012. There is no #fff, no #000, and no untinted grey anywhere in this system. If a grey looks blue, it is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Machine Voice Rule",
+        "body": "Monospace means machine-authored and character-exact. Never use it for emphasis, for headings, or for a Channel slug. Never set a payload body in the sans.",
+        "section": "typography"
+      },
+      {
+        "name": "The Sentence Case Rule",
+        "body": "Every label, button, tab, and heading is sentence case. The only uppercase in the system is the Stamp role. 'Load more', not 'LOAD MORE'. 'Mint new token', not 'Mint New Token'.",
+        "section": "typography"
+      },
+      {
+        "name": "The Domain Word Rule",
+        "body": "Channel, Endpoint, Broadcast, Replay, Delivery, and Attempt are proper nouns of this system and are capitalized in UI copy, exactly as in CONTEXT.md. Never 'event', 'message', 'job', 'topic', 'subscriber', or 'target'.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Shadow Rule",
+        "body": "box-shadow is prohibited except as a focus ring. A drop shadow on a card, row, panel, button, or input is always a defect, never a style choice.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Inward Depth Rule",
+        "body": "Nested detail goes darker and indented, never lighter and lifted. An expanded Broadcast payload sits on Surface Sunk, inset from its row. It does not float above it.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Anti-2014 Test",
+        "body": "If a surface looks like it is hovering, the shadow that should not be there is there. Delete it and add a hairline.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do tint every neutral toward hue 75 at chroma 0.004 to 0.012. Paper (oklch(97.2% 0.006 75)) and Surface (oklch(99% 0.004 75)) are the two ground tones; everything else is a hairline.",
+      "Do keep Patch Plum (oklch(46% 0.14 325)) under 10% of any screen, and only on operator actions, the active tab, focus rings, and selection.",
+      "Do pair every status color with a text label or a distinct form. PRODUCT.md makes this a hard requirement: \"Status is never encoded in color alone.\" Outlined versus filled separates PENDING from IN PROGRESS with color removed.",
+      "Do use monospace only for machine-exact strings: URLs, payload bodies, headers JSON, token prefixes, ingest paths.",
+      "Do draw every boundary with a 1px hairline and express depth with tone and indentation.",
+      "Do write UI copy in CONTEXT.md's vocabulary, capitalized: Channel, Endpoint, Broadcast, Replay, Delivery, Attempt.",
+      "Do name the constraint in every error message: the endpoint, the status code, the attempt.",
+      "Do keep transitions at 150 to 200ms on color and opacity, easing out with cubic-bezier(0.22, 1, 0.36, 1)."
+    ],
+    "donts": [
+      "Don't use #ffffff or #000000, or any untinted grey. The current --surface: #ffffff and the blue-grey --border: #e2e5ea in apps/web/src/styles.css are the exact violations this spec replaces.",
+      "Don't use Tailwind indigo (#4f46e5 / #4338ca) or any blue as the accent. It is the category reflex for this kind of tool and it currently collides with the pending status pill, which means 'pending' and 'selected' share a color.",
+      "Don't use border-left or border-right above 1px as a colored stripe. The border-left: 2px solid var(--primary) on .delivery-detail is a banned side-stripe and must become a full hairline border with inset padding.",
+      "Don't add box-shadow to anything but a focus ring. If a surface looks like it is hovering, delete the shadow and add a hairline.",
+      "Don't build enterprise monitoring dread: walls of red gauges, undifferentiated dense config panels, Nagios-era density with no ranking. Density without hierarchy is the failure mode.",
+      "Don't build consumer SaaS marketing bleed: gradients, spot illustrations, friendly empty-state mascots, or hero-metric tiles with sparkle. This is an internal instrument, not a product tour.",
+      "Don't put Signal Live or Signal Cut on a button, a link, a heading, or a non-status border. Red belongs on a DEAD LETTERED stamp, never on the card that contains it.",
+      "Don't nest a panel inside a panel. Nested detail becomes an inset Surface Sunk region.",
+      "Don't reach for a modal. Broadcast detail, Delivery detail, and Endpoint editing are all inline expansions, and every future detail view should be too.",
+      "Don't write reassurance copy. No 'Oops', no 'Something went wrong', no exclamation marks.",
+      "Don't animate layout properties, add bounce or elastic easing, or animate anything that is not a state change.",
+      "Don't use text-transform: uppercase outside the Stamp role, and never in sentence-case labels, buttons, or tabs."
+    ]
+  }
+}
