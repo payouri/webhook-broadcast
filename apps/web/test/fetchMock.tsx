@@ -1,5 +1,9 @@
+import type { ReactElement } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { render, type RenderResult } from "@testing-library/react";
 import { vi } from "vitest";
 import { resetAdminFetchClientForTests } from "@webhook-broadcast/contract/client";
+import { createQueryClient } from "../src/lib/queryClient.js";
 
 export function requestUrl(input: string | URL | Request): string {
   if (typeof input === "string") {
@@ -29,6 +33,15 @@ export function requestMethod(input: string | URL | Request, init?: RequestInit)
 export function stubFetchMock(fetchMock: ReturnType<typeof vi.fn>): void {
   resetAdminFetchClientForTests();
   vi.stubGlobal("fetch", fetchMock);
+}
+
+/**
+ * ADR 0004 surfaces poll via TanStack Query — tests render them outside the
+ * app's `QueryClientProvider`, so provide a fresh client per render (built
+ * from the app's own factory, so options such as `retry: false` stay in sync).
+ */
+export function renderWithQueryClient(ui: ReactElement): RenderResult {
+  return render(<QueryClientProvider client={createQueryClient()}>{ui}</QueryClientProvider>);
 }
 
 /** Read JSON request body from openapi-fetch's Request-first fetch calls. */

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { api } from "./lib/api.js";
+import { queryClient } from "./lib/queryClient.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { ChannelDirectoryPage } from "./pages/ChannelDirectoryPage.js";
 import { ChannelDetailPage } from "./pages/ChannelDetailPage.js";
@@ -39,31 +41,33 @@ export function App() {
   }
 
   return (
-    <div className="app-shell">
-      <header className="app-header">
-        <button
-          type="button"
-          className="link-button"
-          onClick={() => setRoute({ name: "directory" })}
-        >
-          <h1>webhook-broadcast</h1>
-        </button>
-        <button type="button" className="button-ghost" onClick={() => void handleLogout()}>
-          Log out
-        </button>
-      </header>
-      <main className="app-main">
-        {route.name === "directory" ? (
-          <ChannelDirectoryPage
-            onOpenChannel={(channelId) => setRoute({ name: "channel", channelId })}
-          />
-        ) : (
-          <ChannelDetailPage
-            channelId={route.channelId}
-            onBack={() => setRoute({ name: "directory" })}
-          />
-        )}
-      </main>
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <div className="app-shell">
+        <header className="app-header">
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => setRoute({ name: "directory" })}
+          >
+            <h1>webhook-broadcast</h1>
+          </button>
+          <button type="button" className="button-ghost" onClick={() => void handleLogout()}>
+            Log out
+          </button>
+        </header>
+        <main className="app-main">
+          {route.name === "directory" ? (
+            <ChannelDirectoryPage
+              onOpenChannel={(channelId) => setRoute({ name: "channel", channelId })}
+            />
+          ) : (
+            <ChannelDetailPage
+              channelId={route.channelId}
+              onBack={() => setRoute({ name: "directory" })}
+            />
+          )}
+        </main>
+      </div>
+    </QueryClientProvider>
   );
 }

@@ -1,8 +1,9 @@
-import { useCallback, useState } from "react";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { BroadcastListItem } from "@webhook-broadcast/contract";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
 import { api } from "../../lib/api.js";
-import { usePolling } from "../../lib/freshness.js";
+import { FRESHNESS_POLL_MS, queryErrorMessage } from "../../lib/freshness.js";
 import { BroadcastDetailPanel } from "./BroadcastDetailPanel.js";
 
 function fanoutLabel(fanout: BroadcastListItem["fanout"]): string {
@@ -16,24 +17,49 @@ function fanoutLabel(fanout: BroadcastListItem["fanout"]): string {
 
 /** Channel Activity (ADR 0004): newest-first Broadcasts, ~5s poll, cursor "load more". */
 export function ChannelActivityTab({ channelId }: { channelId: string }) {
-  const [items, setItems] = useState<BroadcastListItem[] | null>(null);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Pages fetched beyond the polled first page — the ~5s refetch only ever
+  // returns page one, so extra pages (and their cursor) live outside Query
+  // and reset whenever a fresh first page arrives, same as before adoption.
+  const [extraItems, setExtraItems] = useState<BroadcastListItem[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
 
-  const loadFirstPage = useCallback(async () => {
-    try {
-      const page = await api.listBroadcasts(channelId);
-      setItems(page.items);
-      setNextCursor(page.nextCursor);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load Activity");
+  const activityQuery = useQuery({
+    queryKey: ["broadcasts", channelId] as const,
+    queryFn: () => api.listBroadcasts(channelId),
+    refetchInterval: FRESHNESS_POLL_MS,
+  });
+
+  useEffect(() => {
+    setExtraItems([]);
+    setNextCursor(activityQuery.data?.nextCursor ?? null);
+  }, [activityQuery.data]);
+
+  // A successful first-page fetch clears any stale "load more" failure, the way
+  // the pre-Query effect cleared the one shared `error` on every poll. Keyed on
+  // `dataUpdatedAt` (not `data`) so an unchanged page still counts as success.
+  const { dataUpdatedAt } = activityQuery;
+  useEffect(() => {
+    if (dataUpdatedAt > 0) {
+      setLoadMoreError(null);
     }
-  }, [channelId]);
+  }, [dataUpdatedAt]);
 
-  usePolling(loadFirstPage);
+  const firstPage = activityQuery.data?.items ?? null;
+  const items: BroadcastListItem[] | null =
+    firstPage === null ? null : [...firstPage, ...extraItems];
+  const queryError = activityQuery.isError
+    ? queryErrorMessage(activityQuery.error, "Failed to load Activity")
+    : null;
+  // Whichever failure is on screen is the one Retry must re-run.
+  const error = queryError ?? loadMoreError;
+  const retry = queryError
+    ? () => void activityQuery.refetch()
+    : () => {
+        void handleLoadMore();
+      };
 
   async function handleLoadMore(): Promise<void> {
     if (!nextCursor) {
@@ -42,10 +68,11 @@ export function ChannelActivityTab({ channelId }: { channelId: string }) {
     setLoadingMore(true);
     try {
       const page = await api.listBroadcasts(channelId, nextCursor);
-      setItems((current) => [...(current ?? []), ...page.items]);
+      setExtraItems((current) => [...current, ...page.items]);
       setNextCursor(page.nextCursor);
+      setLoadMoreError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load more Activity");
+      setLoadMoreError(err instanceof Error ? err.message : "Failed to load more Activity");
     } finally {
       setLoadingMore(false);
     }
@@ -54,7 +81,7 @@ export function ChannelActivityTab({ channelId }: { channelId: string }) {
   return (
     <section className="card">
       <h2>Activity</h2>
-      {error && <InlineLoadError message={error} onRetry={loadFirstPage} />}
+      {error && <InlineLoadError message={error} onRetry={retry} />}
       {items === null && !error && <p className="muted">Loading…</p>}
       {items !== null && items.length === 0 && (
         <p className="muted empty-state">
@@ -83,7 +110,7 @@ export function ChannelActivityTab({ channelId }: { channelId: string }) {
                   <BroadcastDetailPanel
                     channelId={channelId}
                     broadcastId={item.id}
-                    onReplayed={() => void loadFirstPage()}
+                    onReplayed={() => void activityQuery.refetch()}
                   />
                 )}
               </li>

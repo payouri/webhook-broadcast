@@ -1,8 +1,9 @@
-import { useCallback, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Channel } from "@webhook-broadcast/contract";
 import { InlineLoadError } from "../components/InlineLoadError.js";
 import { api } from "../lib/api.js";
-import { usePolling } from "../lib/freshness.js";
+import { FRESHNESS_POLL_MS, queryErrorMessage } from "../lib/freshness.js";
 
 /** Landing page (ADR 0004): "which Channels exist and are they healthy?" */
 export function ChannelDirectoryPage({
@@ -10,24 +11,22 @@ export function ChannelDirectoryPage({
 }: {
   onOpenChannel: (channelId: string) => void;
 }) {
-  const [channels, setChannels] = useState<Channel[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      const list = await api.listChannels();
-      setChannels(list.items);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load Channels");
-    }
-  }, []);
+  const channelsQuery = useQuery({
+    queryKey: ["channels"] as const,
+    queryFn: () => api.listChannels(),
+    refetchInterval: FRESHNESS_POLL_MS,
+  });
 
-  usePolling(load);
+  const channels: Channel[] | null = channelsQuery.data?.items ?? null;
+  const error = channelsQuery.isError
+    ? queryErrorMessage(channelsQuery.error, "Failed to load Channels")
+    : null;
 
   async function handleCreate(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -40,7 +39,7 @@ export function ChannelDirectoryPage({
       });
       setSlug("");
       setDescription("");
-      await load();
+      await queryClient.invalidateQueries({ queryKey: ["channels"] });
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "Failed to create Channel");
     } finally {
@@ -80,7 +79,7 @@ export function ChannelDirectoryPage({
 
       <section className="card">
         <h2>Channels</h2>
-        {error && <InlineLoadError message={error} onRetry={load} />}
+        {error && <InlineLoadError message={error} onRetry={() => void channelsQuery.refetch()} />}
         {channels === null && !error && <p className="muted">Loading…</p>}
         {channels !== null && channels.length === 0 && (
           <p className="muted empty-state">No Channels yet — create one above.</p>

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
-import type { BroadcastDetail } from "@webhook-broadcast/contract";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
 import { api } from "../../lib/api.js";
-import { usePolling } from "../../lib/freshness.js";
+import { FRESHNESS_POLL_MS, queryErrorMessage } from "../../lib/freshness.js";
 import { DeliveryDetail } from "../DeliveryDetail.js";
 
 /** Broadcast detail (issue #19): inbound payload plus every fanned-out Delivery. */
@@ -15,28 +15,20 @@ export function BroadcastDetailPanel({
   broadcastId: string;
   onReplayed?: () => void;
 }) {
-  const [detail, setDetail] = useState<BroadcastDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [replaying, setReplaying] = useState(false);
   const [replayError, setReplayError] = useState<string | null>(null);
   const [replayedId, setReplayedId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      const result = await api.getBroadcastDetail(channelId, broadcastId);
-      setDetail(result);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load Broadcast");
-    }
-  }, [channelId, broadcastId]);
+  const broadcastQuery = useQuery({
+    queryKey: ["broadcast-detail", channelId, broadcastId] as const,
+    queryFn: () => api.getBroadcastDetail(channelId, broadcastId),
+    refetchInterval: FRESHNESS_POLL_MS,
+  });
 
-  useEffect(() => {
-    setDetail(null);
-    setError(null);
-  }, [channelId, broadcastId]);
-
-  usePolling(load);
+  const detail = broadcastQuery.data ?? null;
+  const error = broadcastQuery.isError
+    ? queryErrorMessage(broadcastQuery.error, "Failed to load Broadcast")
+    : null;
 
   async function handleReplay(): Promise<void> {
     setReplaying(true);
@@ -54,7 +46,7 @@ export function BroadcastDetailPanel({
 
   return (
     <div className="broadcast-detail">
-      {error && <InlineLoadError message={error} onRetry={load} />}
+      {error && <InlineLoadError message={error} onRetry={() => void broadcastQuery.refetch()} />}
       {!detail && !error && <p className="muted">Loading…</p>}
       {detail && (
         <>
@@ -89,7 +81,11 @@ export function BroadcastDetailPanel({
           ) : (
             <ul className="delivery-list">
               {detail.deliveries.map((delivery) => (
-                <DeliveryDetail key={delivery.id} delivery={delivery} onRetried={load} />
+                <DeliveryDetail
+                  key={delivery.id}
+                  delivery={delivery}
+                  onRetried={() => void broadcastQuery.refetch()}
+                />
               ))}
             </ul>
           )}

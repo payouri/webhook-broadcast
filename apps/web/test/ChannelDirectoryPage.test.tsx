@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChannelDirectoryPage } from "../src/pages/ChannelDirectoryPage.js";
 import { FRESHNESS_POLL_MS } from "../src/lib/freshness.js";
-import { requestMethod, requestPath, stubFetchMock } from "./fetchMock.js";
+import { renderWithQueryClient, requestMethod, requestPath, stubFetchMock } from "./fetchMock.js";
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -44,7 +44,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    render(<ChannelDirectoryPage onOpenChannel={() => undefined} />);
+    renderWithQueryClient(<ChannelDirectoryPage onOpenChannel={() => undefined} />);
 
     await flushAsync();
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -84,7 +84,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    render(<ChannelDirectoryPage onOpenChannel={() => undefined} />);
+    renderWithQueryClient(<ChannelDirectoryPage onOpenChannel={() => undefined} />);
     await flushAsync();
 
     fireEvent.change(screen.getByLabelText("Slug"), { target: { value: "UnipileDev" } });
@@ -130,7 +130,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
       throw new Error(`unexpected fetch: ${method} ${path}`);
     });
 
-    render(<ChannelDirectoryPage onOpenChannel={() => undefined} />);
+    renderWithQueryClient(<ChannelDirectoryPage onOpenChannel={() => undefined} />);
 
     await flushAsync();
     expect(await screen.findByRole("alert")).toBeTruthy();

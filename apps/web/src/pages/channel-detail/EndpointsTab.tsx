@@ -1,26 +1,29 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Endpoint } from "@webhook-broadcast/contract";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
 import { api } from "../../lib/api.js";
-import { usePolling } from "../../lib/freshness.js";
+import { FRESHNESS_POLL_MS, queryErrorMessage } from "../../lib/freshness.js";
 import { EndpointForm } from "./EndpointForm.js";
 
 export function EndpointsTab({ channelId }: { channelId: string }) {
-  const [endpoints, setEndpoints] = useState<Endpoint[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      const list = await api.listEndpoints(channelId);
-      setEndpoints(list.items);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load Endpoints");
-    }
-  }, [channelId]);
+  const endpointsQuery = useQuery({
+    queryKey: ["endpoints", channelId] as const,
+    queryFn: () => api.listEndpoints(channelId),
+    refetchInterval: FRESHNESS_POLL_MS,
+  });
 
-  usePolling(load);
+  const endpoints: Endpoint[] | null = endpointsQuery.data?.items ?? null;
+  const error = endpointsQuery.isError
+    ? queryErrorMessage(endpointsQuery.error, "Failed to load Endpoints")
+    : null;
+
+  async function refresh(): Promise<void> {
+    await queryClient.invalidateQueries({ queryKey: ["endpoints", channelId] });
+  }
 
   return (
     <div className="stack">
@@ -35,7 +38,7 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
               headers: input.headers,
               enabled: input.enabled,
             });
-            await load();
+            await refresh();
           }}
           submitLabel="Add Endpoint"
         />
@@ -43,7 +46,7 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
 
       <section className="card">
         <h2>Endpoints</h2>
-        {error && <InlineLoadError message={error} onRetry={load} />}
+        {error && <InlineLoadError message={error} onRetry={() => void endpointsQuery.refetch()} />}
         {endpoints === null && !error && <p className="muted">Loading…</p>}
         {endpoints !== null && endpoints.length === 0 && (
           <p className="muted empty-state">No Endpoints yet — add one above.</p>
@@ -59,7 +62,7 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
                     onSubmit={async (input) => {
                       await api.updateEndpoint(channelId, endpoint.id, input);
                       setEditingId(null);
-                      await load();
+                      await refresh();
                     }}
                     onCancel={() => setEditingId(null)}
                   />

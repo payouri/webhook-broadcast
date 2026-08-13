@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.101.4",
     "@webhook-broadcast/contract": "workspace:*",
     "openapi-fetch": "^0.17.0",
     "react": "^19.0.0",
