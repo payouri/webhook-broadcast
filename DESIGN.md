@@ -553,7 +553,8 @@ scale a sidebar would be chrome standing in for structure.
 ### Loading, empty, and error
 
 - **Loading:** skeleton rows that preview the shape of what is coming, pulsing on opacity only, with
-  `role="status"` and a label. Never a centered "Loading…" where content is about to be.
+  `role="status"` and a label. Never a centered "Loading…" where content is about to be. Governed by
+  the No-Flicker Rule below.
 - **Empty:** a dashed Score Strong well, one muted glyph, and copy that teaches the next action in
   the domain's own words: _"No Broadcasts yet. Send a request to `POST /ingest/<slug>` with a Channel
   token."_ Never _"Nothing here."_ No illustration, ever.
@@ -561,6 +562,36 @@ scale a sidebar would be chrome standing in for structure.
   message.
 - **Advisory** (a consequence that is neither a failure nor a validation error): a recessed well with
   an info glyph in Ink. It may not borrow a lamp color, and it may not be a live region.
+
+#### Named Rules
+
+**The No-Flicker Rule.** No representation of waiting may ever appear and disappear inside a blink.
+Two thresholds, applied together, to every one of them:
+
+- **Delay 250ms before showing.** If the work resolves first, no loading state is ever rendered. The
+  operator sees the row list, the panel, or the updated control appear as though it were already
+  there. Most requests against a healthy local fan-out land inside this window, so the common case is
+  a screen that simply does not flicker.
+- **Hold 400ms once shown.** After the loading state has been committed to the screen, it stays for
+  at least that long, even when the response arrives 10ms later. The hold applies to whatever
+  replaces it: content, an empty state, or an error.
+
+This governs every representation of waiting, with no exemption for controls. A Retry, Replay, Save,
+or Mint control that resolves in 80ms does not blink its pending state; the row underneath it just
+changes. A control that is genuinely slow shows its pending state at 250ms and holds it. The
+operator's own clicks are the most frequent source of sub-100ms waits, which makes them the most
+frequent source of flicker, not an exception to it.
+
+Why it is a rule and not a preference: a skeleton that exists for three frames is not information,
+it is a twitch. PRODUCT.md asks for an instrument that stays calm while reporting failure, and
+nothing undermines that faster than a surface that strobes at every interaction. It also removes an
+entire class of false signal, where an operator perceives flicker as instability in the fan-out
+rather than in the dashboard.
+
+Consequence for state: `isPending` from the data layer is never bound straight to a rendered loading
+state. It passes through the shared delay-and-hold hook first, and that hook's output is the only
+thing components read. The two thresholds live as tokens, not as literals scattered across call
+sites.
 
 ### Theme control
 
@@ -592,6 +623,8 @@ Settings: it is a viewing preference of this browser, not Channel configuration.
 - **Do** name the constraint in every error message: the endpoint, the status code, the attempt.
 - **Do** keep transitions at 120 to 200ms on color, opacity, and a switch's `left`, easing out with
   `cubic-bezier(0.22, 1, 0.36, 1)`, and keep `:active` instantaneous.
+- **Do** put every loading state behind the shared delay-and-hold hook: 250ms before it may appear,
+  400ms minimum once it has. See the No-Flicker Rule in §5.
 
 ### Don't:
 
@@ -619,6 +652,10 @@ Settings: it is a viewing preference of this browser, not Channel configuration.
   shadows, untinted greys, radii, and status variants, so adopting one means overriding it at every
   point this document has an opinion. Overlay _behavior_ comes from headless `radix-ui` primitives
   dressed in these classes; see §4 and ADR 0013.
+- **Don't** render a skeleton, spinner, or pending control directly from a query's or mutation's
+  `isPending`. Unfiltered, it flashes on every fast response, which is most of them.
+- **Don't** exempt a control's own pending state from the delay, on the argument that the operator
+  just clicked it. A click that resolves in 80ms should produce a changed row, not a blink.
 - **Don't** write reassurance copy. No "Oops", no "Something went wrong", no exclamation marks.
 - **Don't** animate layout properties on elements that affect their siblings, add bounce or elastic
   easing, or animate anything that is not a state change.

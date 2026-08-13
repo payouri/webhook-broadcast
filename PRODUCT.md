@@ -88,6 +88,13 @@ Reference feel (personality, not palette):
    returned 503 after 4.2s" is a single continuous drill-down, not a search across screens. Nothing
    on that path should require the operator to hold state in their head.
 
+6. **The instrument never twitches.** Movement on this surface means something changed in the
+   fan-out. A representation of waiting that appears and vanishes inside a blink means nothing, and
+   an operator scanning for instability cannot tell the difference between a flickering dashboard and
+   a flickering system. So a loading state is earned, never reflexive: it waits to see whether the
+   work is actually slow, and once shown it stays long enough to be read. Fast work resolves into
+   changed content with no intermediate state at all.
+
 ## Accessibility & Inclusion
 
 - **Status is never encoded in color alone.** Delivery status (`pending`, `in_progress`,
