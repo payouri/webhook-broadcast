@@ -6,15 +6,15 @@ components:
         at:
           $ref: "#/components/schemas/DateTime"
         durationMs:
-          $ref: "#/components/schemas/__schema87"
-        error:
           $ref: "#/components/schemas/__schema88"
+        error:
+          $ref: "#/components/schemas/__schema89"
         id:
           $ref: "#/components/schemas/Id"
         n:
-          $ref: "#/components/schemas/__schema85"
-        statusCode:
           $ref: "#/components/schemas/__schema86"
+        statusCode:
+          $ref: "#/components/schemas/__schema87"
       required:
         - id
         - n
@@ -27,9 +27,9 @@ components:
       additionalProperties: false
       properties:
         items:
-          $ref: "#/components/schemas/__schema84"
+          $ref: "#/components/schemas/__schema85"
         nextCursor:
-          $ref: "#/components/schemas/__schema89"
+          $ref: "#/components/schemas/__schema90"
       required:
         - items
         - nextCursor
@@ -38,7 +38,7 @@ components:
       additionalProperties: false
       properties:
         id:
-          $ref: "#/components/schemas/__schema77"
+          $ref: "#/components/schemas/__schema78"
       required:
         - id
       type: object
@@ -46,13 +46,13 @@ components:
       additionalProperties: false
       properties:
         body:
-          $ref: "#/components/schemas/__schema68"
+          $ref: "#/components/schemas/__schema69"
         channelId:
           $ref: "#/components/schemas/Id"
         contentType:
-          $ref: "#/components/schemas/__schema67"
+          $ref: "#/components/schemas/__schema68"
         deliveries:
-          $ref: "#/components/schemas/__schema69"
+          $ref: "#/components/schemas/__schema70"
         id:
           $ref: "#/components/schemas/Id"
         receivedAt:
@@ -69,9 +69,9 @@ components:
       additionalProperties: false
       properties:
         items:
-          $ref: "#/components/schemas/__schema59"
+          $ref: "#/components/schemas/__schema60"
         nextCursor:
-          $ref: "#/components/schemas/__schema66"
+          $ref: "#/components/schemas/__schema67"
       required:
         - items
         - nextCursor
@@ -80,7 +80,7 @@ components:
       additionalProperties: false
       properties:
         bodyPreview:
-          $ref: "#/components/schemas/__schema60"
+          $ref: "#/components/schemas/__schema61"
         channelId:
           $ref: "#/components/schemas/Id"
         fanout:
@@ -101,10 +101,12 @@ components:
       properties:
         allowUnauthenticatedIngest:
           $ref: "#/components/schemas/__schema31"
+        autoDisabledEndpointCount:
+          $ref: "#/components/schemas/__schema35"
         createdAt:
           $ref: "#/components/schemas/DateTime"
         deletedAt:
-          $ref: "#/components/schemas/__schema37"
+          $ref: "#/components/schemas/__schema38"
         description:
           $ref: "#/components/schemas/__schema27"
         enabled:
@@ -122,7 +124,7 @@ components:
         slug:
           $ref: "#/components/schemas/__schema26"
         tokens:
-          $ref: "#/components/schemas/__schema35"
+          $ref: "#/components/schemas/__schema36"
         updatedAt:
           $ref: "#/components/schemas/DateTime"
       required:
@@ -135,6 +137,7 @@ components:
         - endpointCount
         - hasBroadcasts
         - recentFailedDeliveryCount
+        - autoDisabledEndpointCount
         - tokens
         - deletedAt
         - createdAt
@@ -161,7 +164,7 @@ components:
         items:
           $ref: "#/components/schemas/__schema25"
         nextCursor:
-          $ref: "#/components/schemas/__schema38"
+          $ref: "#/components/schemas/__schema39"
       required:
         - items
         - nextCursor
@@ -174,7 +177,7 @@ components:
         id:
           $ref: "#/components/schemas/Id"
         token:
-          $ref: "#/components/schemas/__schema52"
+          $ref: "#/components/schemas/__schema53"
       required:
         - id
         - token
@@ -188,7 +191,7 @@ components:
         id:
           $ref: "#/components/schemas/Id"
         prefix:
-          $ref: "#/components/schemas/__schema36"
+          $ref: "#/components/schemas/__schema37"
       required:
         - id
         - prefix
@@ -216,7 +219,7 @@ components:
       additionalProperties: false
       properties:
         attemptCount:
-          $ref: "#/components/schemas/__schema80"
+          $ref: "#/components/schemas/__schema81"
         broadcastId:
           $ref: "#/components/schemas/Id"
         channelId:
@@ -224,19 +227,19 @@ components:
         endpointId:
           $ref: "#/components/schemas/Id"
         endpointName:
-          $ref: "#/components/schemas/__schema78"
-        endpointUrl:
           $ref: "#/components/schemas/__schema79"
+        endpointUrl:
+          $ref: "#/components/schemas/__schema80"
         id:
           $ref: "#/components/schemas/Id"
         lastDurationMs:
-          $ref: "#/components/schemas/__schema82"
-        lastError:
           $ref: "#/components/schemas/__schema83"
+        lastError:
+          $ref: "#/components/schemas/__schema84"
         lastStatusCode:
-          $ref: "#/components/schemas/__schema81"
+          $ref: "#/components/schemas/__schema82"
         status:
-          $ref: "#/components/schemas/__schema72"
+          $ref: "#/components/schemas/__schema73"
         updatedAt:
           $ref: "#/components/schemas/DateTime"
       required:
@@ -257,23 +260,23 @@ components:
       additionalProperties: false
       properties:
         attemptCount:
-          $ref: "#/components/schemas/__schema73"
+          $ref: "#/components/schemas/__schema74"
         endpointId:
           $ref: "#/components/schemas/Id"
         endpointName:
-          $ref: "#/components/schemas/__schema70"
-        endpointUrl:
           $ref: "#/components/schemas/__schema71"
+        endpointUrl:
+          $ref: "#/components/schemas/__schema72"
         id:
           $ref: "#/components/schemas/Id"
         lastDurationMs:
-          $ref: "#/components/schemas/__schema75"
-        lastError:
           $ref: "#/components/schemas/__schema76"
+        lastError:
+          $ref: "#/components/schemas/__schema77"
         lastStatusCode:
-          $ref: "#/components/schemas/__schema74"
+          $ref: "#/components/schemas/__schema75"
         status:
-          $ref: "#/components/schemas/__schema72"
+          $ref: "#/components/schemas/__schema73"
         updatedAt:
           $ref: "#/components/schemas/DateTime"
       required:
@@ -292,31 +295,31 @@ components:
       additionalProperties: false
       properties:
         autoDisabledAt:
-          $ref: "#/components/schemas/__schema47"
+          $ref: "#/components/schemas/__schema48"
         channelId:
           $ref: "#/components/schemas/Id"
         createdAt:
           $ref: "#/components/schemas/DateTime"
         enabled:
-          $ref: "#/components/schemas/__schema46"
+          $ref: "#/components/schemas/__schema47"
         headers:
-          $ref: "#/components/schemas/__schema45"
+          $ref: "#/components/schemas/__schema46"
         id:
           $ref: "#/components/schemas/Id"
         lastSuccessAt:
-          $ref: "#/components/schemas/__schema50"
+          $ref: "#/components/schemas/__schema51"
         name:
-          $ref: "#/components/schemas/__schema42"
+          $ref: "#/components/schemas/__schema43"
         p95Ms:
-          $ref: "#/components/schemas/__schema49"
+          $ref: "#/components/schemas/__schema50"
         successRate24h:
-          $ref: "#/components/schemas/__schema48"
+          $ref: "#/components/schemas/__schema49"
         timeoutMs:
-          $ref: "#/components/schemas/__schema44"
+          $ref: "#/components/schemas/__schema45"
         updatedAt:
           $ref: "#/components/schemas/DateTime"
         url:
-          $ref: "#/components/schemas/__schema43"
+          $ref: "#/components/schemas/__schema44"
       required:
         - id
         - channelId
@@ -347,9 +350,9 @@ components:
       additionalProperties: false
       properties:
         items:
-          $ref: "#/components/schemas/__schema41"
+          $ref: "#/components/schemas/__schema42"
         nextCursor:
-          $ref: "#/components/schemas/__schema51"
+          $ref: "#/components/schemas/__schema52"
       required:
         - items
         - nextCursor
@@ -371,7 +374,7 @@ components:
       additionalProperties: false
       properties:
         error:
-          $ref: "#/components/schemas/__schema39"
+          $ref: "#/components/schemas/__schema40"
       required:
         - error
       type: object
@@ -379,15 +382,15 @@ components:
       additionalProperties: false
       properties:
         deadLettered:
-          $ref: "#/components/schemas/__schema64"
-        failed:
-          $ref: "#/components/schemas/__schema63"
-        pending:
           $ref: "#/components/schemas/__schema65"
+        failed:
+          $ref: "#/components/schemas/__schema64"
+        pending:
+          $ref: "#/components/schemas/__schema66"
         succeeded:
-          $ref: "#/components/schemas/__schema62"
+          $ref: "#/components/schemas/__schema63"
         total:
-          $ref: "#/components/schemas/__schema61"
+          $ref: "#/components/schemas/__schema62"
       required:
         - total
         - succeeded
@@ -414,9 +417,9 @@ components:
         id:
           $ref: "#/components/schemas/Id"
         label:
-          $ref: "#/components/schemas/__schema54"
+          $ref: "#/components/schemas/__schema55"
         token:
-          $ref: "#/components/schemas/__schema58"
+          $ref: "#/components/schemas/__schema59"
       required:
         - id
         - token
@@ -427,9 +430,9 @@ components:
       additionalProperties: false
       properties:
         items:
-          $ref: "#/components/schemas/__schema53"
+          $ref: "#/components/schemas/__schema54"
         nextCursor:
-          $ref: "#/components/schemas/__schema57"
+          $ref: "#/components/schemas/__schema58"
       required:
         - items
         - nextCursor
@@ -442,11 +445,11 @@ components:
         id:
           $ref: "#/components/schemas/Id"
         label:
-          $ref: "#/components/schemas/__schema54"
-        lastUsedAt:
-          $ref: "#/components/schemas/__schema56"
-        prefix:
           $ref: "#/components/schemas/__schema55"
+        lastUsedAt:
+          $ref: "#/components/schemas/__schema57"
+        prefix:
+          $ref: "#/components/schemas/__schema56"
       required:
         - id
         - label
@@ -553,28 +556,36 @@ components:
       minimum: 0
       type: integer
     __schema35:
+      description: "Issue #45: how many of this Channel's Endpoints are currently auto-disabled (ADR 0003) — `autoDisabledAt IS NOT NULL`, cleared the moment an operator re-enables one. An auto-disabled Endpoint is otherwise silent: the Channel keeps accepting Broadcasts while fan-out to that target quietly stops, so this is surfaced on the directory row rather than only on the Endpoints tab."
+      maximum: 9007199254740991
+      minimum: 0
+      type: integer
+    __schema36:
       items:
         $ref: "#/components/schemas/ChannelTokenSummary"
       type: array
-    __schema36:
+    __schema37:
       description: First ~8 chars of the token for recognition; never full secret
       type: string
-    __schema37:
+    __schema38:
       anyOf:
         - $ref: "#/components/schemas/DateTime"
         - type: "null"
-    __schema38:
+    __schema39:
       anyOf:
         - type: string
         - type: "null"
-    __schema39:
+    __schema4:
+      $ref: "#/components/schemas/__schema5"
+      default: []
+    __schema40:
       additionalProperties: false
       properties:
         code:
           description: Stable machine code (e.g. validation_failed, not_found, unauthorized, conflict)
           type: string
         details:
-          $ref: "#/components/schemas/__schema40"
+          $ref: "#/components/schemas/__schema41"
           description: Present for validation_failed (Zod issues)
         message:
           type: string
@@ -582,10 +593,7 @@ components:
         - code
         - message
       type: object
-    __schema4:
-      $ref: "#/components/schemas/__schema5"
-      default: []
-    __schema40:
+    __schema41:
       items:
         additionalProperties: false
         properties:
@@ -598,46 +606,40 @@ components:
           - message
         type: object
       type: array
-    __schema41:
+    __schema42:
       items:
         $ref: "#/components/schemas/Endpoint"
       type: array
-    __schema42:
+    __schema43:
       anyOf:
         - type: string
         - type: "null"
-    __schema43:
+    __schema44:
       format: uri
       type: string
-    __schema44:
+    __schema45:
       anyOf:
         - maximum: 9007199254740991
           minimum: 1
           type: integer
         - type: "null"
-    __schema45:
+    __schema46:
       additionalProperties:
         type: string
       propertyNames:
         type: string
       type: object
-    __schema46:
-      type: boolean
     __schema47:
+      type: boolean
+    __schema48:
       anyOf:
         - $ref: "#/components/schemas/DateTime"
         - type: "null"
-    __schema48:
+    __schema49:
       anyOf:
         - maximum: 1
           minimum: 0
           type: number
-        - type: "null"
-    __schema49:
-      anyOf:
-        - maximum: 9007199254740991
-          minimum: -9007199254740991
-          type: integer
         - type: "null"
     __schema5:
       items:
@@ -646,51 +648,53 @@ components:
       type: array
     __schema50:
       anyOf:
-        - $ref: "#/components/schemas/DateTime"
+        - maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: integer
         - type: "null"
     __schema51:
       anyOf:
-        - type: string
+        - $ref: "#/components/schemas/DateTime"
         - type: "null"
     __schema52:
+      anyOf:
+        - type: string
+        - type: "null"
+    __schema53:
       description: Plaintext ingest token — shown once
       type: string
-    __schema53:
+    __schema54:
       items:
         $ref: "#/components/schemas/OperatorTokenSummary"
       type: array
-    __schema54:
+    __schema55:
       description: Operator-chosen name identifying the holder, e.g. a CI job or laptop
       maxLength: 200
       minLength: 1
       type: string
-    __schema55:
+    __schema56:
       description: First ~8 chars of the token for recognition; never full secret
       type: string
-    __schema56:
+    __schema57:
       anyOf:
         - $ref: "#/components/schemas/DateTime"
         - type: "null"
-    __schema57:
+    __schema58:
       anyOf:
         - type: string
         - type: "null"
-    __schema58:
+    __schema59:
       description: Plaintext operator token — shown once
       type: string
-    __schema59:
-      items:
-        $ref: "#/components/schemas/BroadcastListItem"
-      type: array
     __schema6:
       default: false
       type: boolean
     __schema60:
-      type: string
+      items:
+        $ref: "#/components/schemas/BroadcastListItem"
+      type: array
     __schema61:
-      maximum: 9007199254740991
-      minimum: 0
-      type: integer
+      type: string
     __schema62:
       maximum: 9007199254740991
       minimum: 0
@@ -704,32 +708,36 @@ components:
       minimum: 0
       type: integer
     __schema65:
-      description: pending + in_progress for list summaries
       maximum: 9007199254740991
       minimum: 0
       type: integer
     __schema66:
+      description: pending + in_progress for list summaries
+      maximum: 9007199254740991
+      minimum: 0
+      type: integer
+    __schema67:
       anyOf:
         - type: string
         - type: "null"
-    __schema67:
-      type: string
     __schema68:
-      description: Raw inbound body (UTF-8 text for MVP sketch)
       type: string
     __schema69:
-      items:
-        $ref: "#/components/schemas/DeliveryItem"
-      type: array
+      description: Raw inbound body (UTF-8 text for MVP sketch)
+      type: string
     __schema7:
       $ref: "#/components/schemas/__schema1"
     __schema70:
+      items:
+        $ref: "#/components/schemas/DeliveryItem"
+      type: array
+    __schema71:
       anyOf:
         - type: string
         - type: "null"
-    __schema71:
-      type: string
     __schema72:
+      type: string
+    __schema73:
       enum:
         - pending
         - in_progress
@@ -737,16 +745,10 @@ components:
         - failed
         - dead_lettered
       type: string
-    __schema73:
+    __schema74:
       maximum: 9007199254740991
       minimum: 0
       type: integer
-    __schema74:
-      anyOf:
-        - maximum: 9007199254740991
-          minimum: -9007199254740991
-          type: integer
-        - type: "null"
     __schema75:
       anyOf:
         - maximum: 9007199254740991
@@ -755,31 +757,31 @@ components:
         - type: "null"
     __schema76:
       anyOf:
-        - type: string
+        - maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: integer
         - type: "null"
     __schema77:
-      $ref: "#/components/schemas/Id"
-      description: New Broadcast id from replay
-    __schema78:
       anyOf:
         - type: string
         - type: "null"
+    __schema78:
+      $ref: "#/components/schemas/Id"
+      description: New Broadcast id from replay
     __schema79:
-      type: string
+      anyOf:
+        - type: string
+        - type: "null"
     __schema8:
       anyOf:
         - type: string
         - type: "null"
     __schema80:
+      type: string
+    __schema81:
       maximum: 9007199254740991
       minimum: 0
       type: integer
-    __schema81:
-      anyOf:
-        - maximum: 9007199254740991
-          minimum: -9007199254740991
-          type: integer
-        - type: "null"
     __schema82:
       anyOf:
         - maximum: 9007199254740991
@@ -788,22 +790,22 @@ components:
         - type: "null"
     __schema83:
       anyOf:
-        - type: string
-        - type: "null"
-    __schema84:
-      items:
-        $ref: "#/components/schemas/Attempt"
-      type: array
-    __schema85:
-      maximum: 9007199254740991
-      minimum: 1
-      type: integer
-    __schema86:
-      anyOf:
         - maximum: 9007199254740991
           minimum: -9007199254740991
           type: integer
         - type: "null"
+    __schema84:
+      anyOf:
+        - type: string
+        - type: "null"
+    __schema85:
+      items:
+        $ref: "#/components/schemas/Attempt"
+      type: array
+    __schema86:
+      maximum: 9007199254740991
+      minimum: 1
+      type: integer
     __schema87:
       anyOf:
         - maximum: 9007199254740991
@@ -812,7 +814,9 @@ components:
         - type: "null"
     __schema88:
       anyOf:
-        - type: string
+        - maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: integer
         - type: "null"
     __schema89:
       anyOf:
@@ -820,6 +824,10 @@ components:
         - type: "null"
     __schema9:
       type: boolean
+    __schema90:
+      anyOf:
+        - type: string
+        - type: "null"
   securitySchemes:
     OperatorBearer:
       bearerFormat: API key

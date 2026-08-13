@@ -17,6 +17,39 @@ async function flushAsync(): Promise<void> {
   });
 }
 
+/** A Channel list item with the boring fields filled in, so a case states only what it varies. */
+function channelItem(
+  overrides: { id: string; slug: string } & Partial<{
+    description: string | null;
+    enabled: boolean;
+    endpointCount: number;
+    hasBroadcasts: boolean;
+    recentFailedDeliveryCount: number;
+    autoDisabledEndpointCount: number;
+  }>,
+): Record<string, unknown> {
+  return {
+    description: null,
+    enabled: true,
+    endpointCount: 1,
+    hasBroadcasts: true,
+    recentFailedDeliveryCount: 0,
+    autoDisabledEndpointCount: 0,
+    tokens: [],
+    deletedAt: null,
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+/** Channel slugs in DOM order — the directory must not re-sort the ranked response. */
+function renderedSlugsInOrder(): string[] {
+  return Array.from(document.querySelectorAll(".channel-slug")).map((node) =>
+    (node.textContent ?? "").trim(),
+  );
+}
+
 /** Simulates the tab being backgrounded/foregrounded (jsdom never changes this on its own). */
 function setDocumentVisibility(state: "visible" | "hidden"): void {
   Object.defineProperty(document, "visibilityState", {
@@ -198,6 +231,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
                 endpointCount: 1,
                 hasBroadcasts: true,
                 recentFailedDeliveryCount: 0,
+                autoDisabledEndpointCount: 0,
                 tokens: [],
                 deletedAt: null,
                 createdAt: "2026-08-10T00:00:00.000Z",
@@ -211,6 +245,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
                 endpointCount: 1,
                 hasBroadcasts: true,
                 recentFailedDeliveryCount: 4,
+                autoDisabledEndpointCount: 0,
                 tokens: [],
                 deletedAt: null,
                 createdAt: "2026-08-10T00:00:00.000Z",
@@ -224,6 +259,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
                 endpointCount: 0,
                 hasBroadcasts: false,
                 recentFailedDeliveryCount: 0,
+                autoDisabledEndpointCount: 0,
                 tokens: [],
                 deletedAt: null,
                 createdAt: "2026-08-10T00:00:00.000Z",
@@ -243,5 +279,62 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
     expect(await screen.findByText("No failures (24h)")).toBeTruthy();
     expect(screen.getByText("4 failing (24h)")).toBeTruthy();
     expect(screen.getByText("No activity")).toBeTruthy();
+  });
+
+  it("renders Channel rows unhealthy-first, in the order the API ranked them (issue #45)", async () => {
+    // The API ranks by health (`listChannels`' health tier ahead of the
+    // `(slug, id)` tie-break), so the directory must render the response order
+    // verbatim: no client-side re-sort may put a healthy Channel above one
+    // needing attention, and a disabled Channel must stay parked last even
+    // though its slug sorts first alphabetically.
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+      if (path === "/channels" && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            items: [
+              channelItem({
+                id: "11111111-1111-1111-1111-111111111111",
+                slug: "zeta-auto-disabled",
+                autoDisabledEndpointCount: 2,
+              }),
+              channelItem({
+                id: "22222222-2222-2222-2222-222222222222",
+                slug: "yankee-failing",
+                recentFailedDeliveryCount: 4,
+              }),
+              channelItem({ id: "33333333-3333-3333-3333-333333333333", slug: "healthy" }),
+              channelItem({
+                id: "44444444-4444-4444-4444-444444444444",
+                slug: "alpha-disabled",
+                enabled: false,
+                recentFailedDeliveryCount: 3,
+              }),
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    renderRoutes("/");
+    await flushAsync();
+
+    expect(await screen.findByText("zeta-auto-disabled")).toBeTruthy();
+    expect(renderedSlugsInOrder()).toEqual([
+      "zeta-auto-disabled",
+      "yankee-failing",
+      "healthy",
+      "alpha-disabled",
+    ]);
+
+    // The auto-disabled Endpoint count reaches the row itself, not just the API.
+    expect(screen.getByText("2 auto-disabled")).toBeTruthy();
+
+    // Disabled is a choice, broken is not: identical-shaped counts, distinct tone.
+    expect(screen.getByText("4 failing (24h)").className).toContain("status-badge-danger");
+    expect(screen.getByText("3 failing (24h)").className).toContain("status-badge-neutral");
   });
 });

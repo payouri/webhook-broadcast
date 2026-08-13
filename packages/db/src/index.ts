@@ -46,6 +46,7 @@ export {
   deleteEndpoint,
   maybeAutoDisableEndpoint,
   getEndpointHealthByIds,
+  getAutoDisabledEndpointCountsByChannelIds,
   encodeEndpointCursor,
   decodeEndpointCursor,
   type EndpointRow,

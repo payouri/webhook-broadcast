@@ -76,6 +76,18 @@ export const channelSchema = z
           "— the single window constant every layer defers to, computed in one grouped query per " +
           "list request rather than once per Channel.",
       }),
+    autoDisabledEndpointCount: z
+      .number()
+      .int()
+      .min(0)
+      .meta({
+        description:
+          "Issue #45: how many of this Channel's Endpoints are currently auto-disabled (ADR " +
+          "0003) — `autoDisabledAt IS NOT NULL`, cleared the moment an operator re-enables one. " +
+          "An auto-disabled Endpoint is otherwise silent: the Channel keeps accepting Broadcasts " +
+          "while fan-out to that target quietly stops, so this is surfaced on the directory row " +
+          "rather than only on the Endpoints tab.",
+      }),
     tokens: z.array(channelTokenSummarySchema),
     deletedAt: dateTimeSchema.nullable(),
     createdAt: dateTimeSchema,

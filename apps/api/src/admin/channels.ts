@@ -12,6 +12,7 @@ import {
   OpenIngestSlugTooShortError,
   decodeChannelCursor,
   encodeChannelCursor,
+  getAutoDisabledEndpointCountsByChannelIds,
   getChannelById,
   getChannelIdsWithAnyBroadcast,
   getEndpointCountsByChannelIds,
@@ -34,6 +35,7 @@ function toWireChannel(
   tokens: ChannelTokenSummaryRow[],
   hasBroadcasts: boolean,
   recentFailures: ChannelRecentFailureCountRow | undefined,
+  autoDisabledEndpointCount: number,
 ): Channel {
   return {
     id: row.id,
@@ -46,6 +48,7 @@ function toWireChannel(
     hasBroadcasts,
     recentFailedDeliveryCount:
       (recentFailures?.failedCount ?? 0) + (recentFailures?.deadLetteredCount ?? 0),
+    autoDisabledEndpointCount,
     tokens: tokens.map((token) => ({
       id: token.id,
       prefix: token.prefix,
@@ -59,18 +62,30 @@ function toWireChannel(
 
 /**
  * Endpoint count, token summaries, the recent-failure aggregate (issue #44),
- * and "has ever had a Broadcast" are each hydrated in one batched pass per
- * response — one grouped query per aggregate for the whole page of
- * Channels, never one query per Channel.
+ * the auto-disabled-Endpoint aggregate (issue #45), and "has ever had a
+ * Broadcast" are each hydrated in one batched pass per response — one
+ * grouped query per aggregate for the whole page of Channels, never one
+ * query per Channel.
+ *
+ * `now` defaults fresh for single-row callers (create/get/patch), but the
+ * list route passes the exact `now` it gave `listChannels` so the displayed
+ * `recentFailedDeliveryCount` can never disagree with the health rank that
+ * ordered the page around it.
  */
-async function hydrateChannels(db: Database, rows: ChannelRow[]): Promise<Channel[]> {
+async function hydrateChannels(
+  db: Database,
+  rows: ChannelRow[],
+  now: Date = new Date(),
+): Promise<Channel[]> {
   const ids = rows.map((row) => row.id);
-  const [counts, tokens, everBroadcast, recentFailures] = await Promise.all([
-    getEndpointCountsByChannelIds(db, ids),
-    getTokenSummariesByChannelIds(db, ids),
-    getChannelIdsWithAnyBroadcast(db, ids),
-    getRecentFailureCountsByChannelIds(db, ids, new Date()),
-  ]);
+  const [counts, tokens, everBroadcast, recentFailures, autoDisabledEndpointCounts] =
+    await Promise.all([
+      getEndpointCountsByChannelIds(db, ids),
+      getTokenSummariesByChannelIds(db, ids),
+      getChannelIdsWithAnyBroadcast(db, ids),
+      getRecentFailureCountsByChannelIds(db, ids, now),
+      getAutoDisabledEndpointCountsByChannelIds(db, ids),
+    ]);
   return rows.map((row) =>
     toWireChannel(
       row,
@@ -78,6 +93,7 @@ async function hydrateChannels(db: Database, rows: ChannelRow[]): Promise<Channe
       tokens.get(row.id) ?? [],
       everBroadcast.has(row.id),
       recentFailures.get(row.id),
+      autoDisabledEndpointCounts.get(row.id) ?? 0,
     ),
   );
 }
@@ -96,14 +112,16 @@ export function registerChannelRoutes(router: Router, db: Database): void {
       return;
     }
 
+    const now = new Date();
     const { items, nextCursor } = await listChannels(db, {
       cursor,
       limit: parsedQuery.data.limit,
       slug: parsedQuery.data.slug,
+      now,
     });
     ctx.status = 200;
     ctx.body = {
-      items: await hydrateChannels(db, items),
+      items: await hydrateChannels(db, items, now),
       nextCursor: nextCursor ? encodeChannelCursor(nextCursor) : null,
     };
   });

@@ -1,7 +1,26 @@
-import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  getTableName,
+  gt,
+  inArray,
+  isNull,
+  or,
+  sql,
+  type Column,
+  type SQL,
+} from "drizzle-orm";
 import type { Database } from "../client.js";
 import { isCheckViolation, isUniqueViolation } from "../pgErrors.js";
-import { channels, channelTokens, endpoints, MIN_OPEN_INGEST_SLUG_LENGTH } from "../schema.js";
+import {
+  channels,
+  channelTokens,
+  deliveries,
+  endpoints,
+  MIN_OPEN_INGEST_SLUG_LENGTH,
+} from "../schema.js";
+import { CHANNEL_RECENT_FAILURE_WINDOW_MS } from "./deliveries.js";
 
 /** Must match the constraint name given to `check(...)` in `../schema.ts`. */
 const OPEN_INGEST_SLUG_LENGTH_CHECK = "channel_open_ingest_slug_length_chk";
@@ -108,7 +127,15 @@ export async function getActiveChannelBySlug(
   return row;
 }
 
+/**
+ * Issue #45: the Channel directory's health-first ordering key, in a single
+ * tuple alongside the existing `(slug, id)` tie-break — a disabled Channel
+ * is its own tier (2) regardless of any failure history, per the AC that
+ * disabled is a choice and must never sort or read like a broken one, which
+ * always ranks tier 0 ahead of an ordinary healthy Channel (tier 1).
+ */
 export interface ChannelCursor {
+  healthRank: number;
   slug: string;
   id: string;
 }
@@ -123,8 +150,10 @@ export function decodeChannelCursor(cursor: string): ChannelCursor | undefined {
     if (
       typeof parsed === "object" &&
       parsed !== null &&
+      "healthRank" in parsed &&
       "slug" in parsed &&
       "id" in parsed &&
+      typeof (parsed as { healthRank: unknown }).healthRank === "number" &&
       typeof (parsed as { slug: unknown }).slug === "string" &&
       typeof (parsed as { id: unknown }).id === "string"
     ) {
@@ -136,13 +165,84 @@ export function decodeChannelCursor(cursor: string): ChannelCursor | undefined {
   }
 }
 
+/**
+ * A `"table"."column"` reference that renders the same in every clause.
+ *
+ * Interpolating a Drizzle column object into a raw `sql` fragment qualifies it
+ * in `WHERE` and `ORDER BY` but leaves it *bare* in a `SELECT` list. The rank
+ * below is deliberately the same fragment in all three clauses and contains
+ * correlated subqueries, so a bare `"channel_id" = "id"` inside `EXISTS` would
+ * rebind to the subquery's own table (`endpoint.channel_id = endpoint.id`),
+ * making the `EXISTS` always false in the `SELECT` list alone. `ORDER BY` would
+ * then rank correctly while the value handed to the cursor said otherwise, and
+ * every
+ * Channel needing attention would vanish at the first page boundary. Qualifying
+ * explicitly removes the clause-dependence rather than relying on it.
+ */
+function qualified(column: Column): SQL {
+  return sql`${sql.identifier(getTableName(column.table))}.${sql.identifier(column.name)}`;
+}
+
+/**
+ * Issue #45: 0 = needs attention (enabled, and either an Endpoint is
+ * currently auto-disabled or it has a `failed`/`dead_lettered` Delivery
+ * inside `CHANNEL_RECENT_FAILURE_WINDOW_MS`), 1 = healthy or quiet, 2 =
+ * disabled. Disabled is checked first and short-circuits the rest — a
+ * disabled Channel carrying stale failures still ranks tier 2, never tier 0,
+ * because the AC treats "disabled" (a choice) and "broken" (not a choice) as
+ * mutually exclusive outcomes. Built once and reused verbatim in both the
+ * `WHERE` cursor comparison and the `ORDER BY` so the two can never disagree
+ * about a given Channel's rank.
+ */
+function channelHealthRankSql(since: Date): SQL<number> {
+  return sql<number>`
+    case
+      when not ${qualified(channels.enabled)} then 2
+      when exists (
+        select 1 from ${endpoints}
+        where ${qualified(endpoints.channelId)} = ${qualified(channels.id)}
+          and ${qualified(endpoints.autoDisabledAt)} is not null
+      ) or exists (
+        select 1 from ${deliveries}
+        where ${qualified(deliveries.channelId)} = ${qualified(channels.id)}
+          and ${qualified(deliveries.status)} in ('failed', 'dead_lettered')
+          and ${qualified(deliveries.updatedAt)} >= ${since}
+      ) then 0
+      else 1
+    end
+  `;
+}
+
 export async function listChannels(
   db: Database,
-  options: { cursor?: ChannelCursor | undefined; limit: number; slug?: string | undefined },
+  options: {
+    cursor?: ChannelCursor | undefined;
+    limit: number;
+    slug?: string | undefined;
+    now: Date;
+  },
 ): Promise<{ items: ChannelRow[]; nextCursor: ChannelCursor | null }> {
-  const { cursor, limit, slug } = options;
+  const { cursor, limit, slug, now } = options;
+  const since = new Date(now.getTime() - CHANNEL_RECENT_FAILURE_WINDOW_MS);
+  const healthRank = channelHealthRankSql(since);
+
   const rows = await db
-    .select()
+    .select({
+      id: channels.id,
+      slug: channels.slug,
+      description: channels.description,
+      enabled: channels.enabled,
+      forwardHeaders: channels.forwardHeaders,
+      allowUnauthenticatedIngest: channels.allowUnauthenticatedIngest,
+      deletedAt: channels.deletedAt,
+      createdAt: channels.createdAt,
+      updatedAt: channels.updatedAt,
+      // Mapped explicitly because this value round-trips through the opaque
+      // cursor as JSON: `decodeChannelCursor` rejects a `healthRank` that is
+      // not a `number`, so a driver handing back a string would break
+      // pagination rather than merely mistyping a field.
+      healthRank: healthRank.mapWith(Number),
+    })
     .from(channels)
     .where(
       and(
@@ -150,19 +250,27 @@ export async function listChannels(
         slug !== undefined ? eq(channels.slug, slug) : undefined,
         cursor
           ? or(
-              gt(channels.slug, cursor.slug),
-              and(eq(channels.slug, cursor.slug), gt(channels.id, cursor.id)),
+              sql`${healthRank} > ${cursor.healthRank}`,
+              and(
+                sql`${healthRank} = ${cursor.healthRank}`,
+                or(
+                  gt(channels.slug, cursor.slug),
+                  and(eq(channels.slug, cursor.slug), gt(channels.id, cursor.id)),
+                ),
+              ),
             )
           : undefined,
       ),
     )
-    .orderBy(asc(channels.slug), asc(channels.id))
+    .orderBy(sql`${healthRank} asc`, asc(channels.slug), asc(channels.id))
     .limit(limit + 1);
 
   const hasMore = rows.length > limit;
-  const items = hasMore ? rows.slice(0, limit) : rows;
-  const last = items[items.length - 1];
-  const nextCursor = hasMore && last ? { slug: last.slug, id: last.id } : null;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+  const items: ChannelRow[] = page.map(({ healthRank: _healthRank, ...row }) => row);
+  const last = page[page.length - 1];
+  const nextCursor =
+    hasMore && last ? { healthRank: last.healthRank, slug: last.slug, id: last.id } : null;
   return { items, nextCursor };
 }
 

@@ -82,34 +82,70 @@ export function DeliveryStatusBadge({ status }: { status: DeliveryStatus }) {
 }
 
 /**
- * Channel directory failure signal (issue #44): ADR 0004 wants the directory
- * to answer "which Channels exist and are they healthy?" without opening
- * each one, so this reads through the same vocabulary as every other status
- * here rather than inventing a fourth way to show state.
+ * Channel directory health signal (issues #44 and #45): ADR 0004 wants the
+ * directory to answer "which Channels exist and are they healthy?" without
+ * opening each one, so this reads through the same vocabulary as every other
+ * status here rather than inventing a fourth way to show state.
  *
- * Three distinct renderings, per the issue's acceptance criteria:
- *  - `hasBroadcasts` false: this Channel has never taken a Broadcast at all.
- *    That is "no activity", not "healthy" — neutral/outlined, same family as
- *    `EnabledStatusBadge`'s "Disabled".
- *  - zero recent failures: Signal Live, filled — healthy, and its text says
- *    so, not just its color.
- *  - one or more: Signal Cut, filled, and the label carries the count so a
- *    screen reader (or a colorblind operator) gets the number, not a dot.
+ * Renderings, in order:
+ *  - either count non-zero: the label carries both counts (when present) so
+ *    a screen reader (or a colorblind operator) gets the numbers, not a
+ *    dot. An auto-disabled Endpoint (ADR 0003) is otherwise silent — the
+ *    Channel keeps accepting Broadcasts while fan-out to that target
+ *    quietly stops — so it is named here rather than only on the Endpoints
+ *    tab. Tone then depends on `enabled`: a Channel still switched on is
+ *    genuinely broken (Signal Cut, filled); one the operator has already
+ *    turned off is parked, not urgent (neutral, outlined) — disabled is a
+ *    choice, broken is not, and this badge must never blend the two even
+ *    though the underlying counts can be identical. `EnabledStatusBadge`
+ *    already names "Disabled" beside this badge, so this one still leads
+ *    with the counts rather than repeating that word. This mirrors the
+ *    Channel directory's ordering (`packages/db`'s `listChannels`), which
+ *    parks a disabled Channel in its own tier below any enabled-but-broken
+ *    one for the same reason.
+ *  - `hasBroadcasts` false: this Channel has taken no Broadcast inside
+ *    ADR 0002's retention window. That is "no activity", not "healthy" —
+ *    neutral/outlined, same family as `EnabledStatusBadge`'s "Disabled".
+ *  - otherwise: Signal Live, filled — healthy, and its text says so, not
+ *    just its color.
+ *
+ * The counts are checked *before* `hasBroadcasts` deliberately. Only an
+ * operator clears `autoDisabledAt` (ADR 0003), but the retention sweeper
+ * deletes Broadcasts (and cascades their Deliveries) after
+ * `HISTORY_RETENTION_DAYS`, so a Channel can hold an auto-disabled Endpoint
+ * while `hasBroadcasts` has fallen back to false. `listChannels` ranks that
+ * Channel as needing attention and puts it at the top of the directory;
+ * short-circuiting on `hasBroadcasts` first would label that very row "No
+ * activity" and hide the one fact issue #45 exists to surface.
  */
 export function ChannelHealthBadge({
+  enabled,
   hasBroadcasts,
   recentFailedDeliveryCount,
+  autoDisabledEndpointCount,
 }: {
+  enabled: boolean;
   hasBroadcasts: boolean;
   recentFailedDeliveryCount: number;
+  autoDisabledEndpointCount: number;
 }) {
+  const parts: string[] = [];
+  if (recentFailedDeliveryCount > 0) {
+    parts.push(`${recentFailedDeliveryCount} failing (24h)`);
+  }
+  if (autoDisabledEndpointCount > 0) {
+    parts.push(`${autoDisabledEndpointCount} auto-disabled`);
+  }
+  if (parts.length > 0) {
+    const label = parts.join(" · ");
+    return enabled ? (
+      <StatusBadge label={label} tone="danger" form="filled" />
+    ) : (
+      <StatusBadge label={label} tone="neutral" form="outlined" />
+    );
+  }
   if (!hasBroadcasts) {
     return <StatusBadge label="No activity" tone="neutral" form="outlined" />;
   }
-  if (recentFailedDeliveryCount === 0) {
-    return <StatusBadge label="No failures (24h)" tone="success" form="filled" />;
-  }
-  return (
-    <StatusBadge label={`${recentFailedDeliveryCount} failing (24h)`} tone="danger" form="filled" />
-  );
+  return <StatusBadge label="No failures (24h)" tone="success" form="filled" />;
 }

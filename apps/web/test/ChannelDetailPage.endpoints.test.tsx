@@ -29,6 +29,7 @@ function channelBody() {
     endpointCount: 1,
     hasBroadcasts: true,
     recentFailedDeliveryCount: 0,
+    autoDisabledEndpointCount: 0,
     tokens: [],
     deletedAt: null,
     createdAt: "2026-08-10T00:00:00.000Z",

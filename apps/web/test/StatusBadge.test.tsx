@@ -93,30 +93,122 @@ describe("StatusBadge — one status vocabulary, never color alone", () => {
     }
   });
 
-  describe("ChannelHealthBadge — issue #44 directory failure signal", () => {
+  describe("ChannelHealthBadge — issues #44 and #45 directory health signal", () => {
     it("reads as 'no activity' rather than healthy for a Channel with no Broadcasts", () => {
-      render(<ChannelHealthBadge hasBroadcasts={false} recentFailedDeliveryCount={0} />);
+      render(
+        <ChannelHealthBadge
+          enabled={true}
+          hasBroadcasts={false}
+          recentFailedDeliveryCount={0}
+          autoDisabledEndpointCount={0}
+        />,
+      );
       const badge = screen.getByText("No activity");
       expect(badge.className).toContain("status-badge-neutral");
       expect(badge.className).toContain("status-badge-outlined");
     });
 
     it("labels zero recent failures as healthy, distinct in text and tone from a failing Channel", () => {
-      render(<ChannelHealthBadge hasBroadcasts={true} recentFailedDeliveryCount={0} />);
+      render(
+        <ChannelHealthBadge
+          enabled={true}
+          hasBroadcasts={true}
+          recentFailedDeliveryCount={0}
+          autoDisabledEndpointCount={0}
+        />,
+      );
       const healthy = screen.getByText("No failures (24h)");
       expect(healthy.className).toContain("status-badge-success");
       expect(healthy.className).toContain("status-badge-filled");
       cleanup();
 
-      render(<ChannelHealthBadge hasBroadcasts={true} recentFailedDeliveryCount={3} />);
+      render(
+        <ChannelHealthBadge
+          enabled={true}
+          hasBroadcasts={true}
+          recentFailedDeliveryCount={3}
+          autoDisabledEndpointCount={0}
+        />,
+      );
       const failing = screen.getByText("3 failing (24h)");
       expect(failing.className).toContain("status-badge-danger");
       expect(failing.className).toContain("status-badge-filled");
     });
 
     it("carries the failure count in its text, not only in color", () => {
-      render(<ChannelHealthBadge hasBroadcasts={true} recentFailedDeliveryCount={7} />);
+      render(
+        <ChannelHealthBadge
+          enabled={true}
+          hasBroadcasts={true}
+          recentFailedDeliveryCount={7}
+          autoDisabledEndpointCount={0}
+        />,
+      );
       expect(screen.getByText("7 failing (24h)")).toBeTruthy();
+    });
+
+    it("names a non-zero auto-disabled Endpoint count using the shared vocabulary (issue #45)", () => {
+      render(
+        <ChannelHealthBadge
+          enabled={true}
+          hasBroadcasts={true}
+          recentFailedDeliveryCount={0}
+          autoDisabledEndpointCount={2}
+        />,
+      );
+      const badge = screen.getByText("2 auto-disabled");
+      expect(badge.className).toContain("status-badge-danger");
+      expect(badge.className).toContain("status-badge-filled");
+    });
+
+    it("combines both facts when a Channel has recent failures and an auto-disabled Endpoint", () => {
+      render(
+        <ChannelHealthBadge
+          enabled={true}
+          hasBroadcasts={true}
+          recentFailedDeliveryCount={2}
+          autoDisabledEndpointCount={1}
+        />,
+      );
+      expect(screen.getByText("2 failing (24h) · 1 auto-disabled")).toBeTruthy();
+    });
+
+    it("never renders the broken (danger) tone for a disabled Channel, even with the same counts", () => {
+      // Disabled is a choice, broken is not (issue #45 AC) — a Channel the
+      // operator has turned off must read distinctly from one that is
+      // actively failing, even while it still carries stale counts from
+      // before it was disabled.
+      render(
+        <ChannelHealthBadge
+          enabled={false}
+          hasBroadcasts={true}
+          recentFailedDeliveryCount={2}
+          autoDisabledEndpointCount={1}
+        />,
+      );
+      const badge = screen.getByText("2 failing (24h) · 1 auto-disabled");
+      expect(badge.className).toContain("status-badge-neutral");
+      expect(badge.className).toContain("status-badge-outlined");
+      expect(badge.className).not.toContain("status-badge-danger");
+    });
+
+    it("still names an auto-disabled Endpoint once the Channel's Broadcasts have aged out of retention", () => {
+      // Only an operator clears `autoDisabledAt` (ADR 0003), but the retention
+      // sweeper deletes Broadcasts after HISTORY_RETENTION_DAYS (ADR 0002), so
+      // `hasBroadcasts` can fall back to false while an Endpoint is still
+      // auto-disabled. `listChannels` ranks that Channel first; the badge must
+      // not then read "No activity" and hide the very fact issue #45 surfaces.
+      render(
+        <ChannelHealthBadge
+          enabled={true}
+          hasBroadcasts={false}
+          recentFailedDeliveryCount={0}
+          autoDisabledEndpointCount={1}
+        />,
+      );
+      const badge = screen.getByText("1 auto-disabled");
+      expect(badge.className).toContain("status-badge-danger");
+      expect(screen.queryByText("No activity")).toBeNull();
     });
   });
 });

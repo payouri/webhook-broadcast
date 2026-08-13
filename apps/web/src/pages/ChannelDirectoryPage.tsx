@@ -107,8 +107,10 @@ export function ChannelDirectoryPage() {
                     {channel.description ?? "No description"}
                   </span>
                   <ChannelHealthBadge
+                    enabled={channel.enabled}
                     hasBroadcasts={channel.hasBroadcasts}
                     recentFailedDeliveryCount={channel.recentFailedDeliveryCount}
+                    autoDisabledEndpointCount={channel.autoDisabledEndpointCount}
                   />
                   <span className="channel-meta">
                     {channel.endpointCount} Endpoint{channel.endpointCount === 1 ? "" : "s"}

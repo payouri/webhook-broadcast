@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import type { Database } from "../client.js";
 import { isUniqueViolation } from "../pgErrors.js";
 import { attempts, deliveries, endpoints } from "../schema.js";
@@ -207,6 +207,29 @@ export async function maybeAutoDisableEndpoint(
     .where(and(eq(endpoints.id, input.endpointId), isNull(endpoints.autoDisabledAt)))
     .returning({ id: endpoints.id });
   return rows.length > 0;
+}
+
+/**
+ * Channel directory (issue #45): how many of a Channel's Endpoints are
+ * *currently* auto-disabled (ADR 0003) — `autoDisabledAt IS NOT NULL`, which
+ * `PATCH .../endpoints/:id` with `enabled: true` clears, so a re-enabled
+ * Endpoint drops out immediately rather than staying counted forever. One
+ * grouped query for every requested Channel, never one per Channel — same
+ * shape as `getEndpointCountsByChannelIds`.
+ */
+export async function getAutoDisabledEndpointCountsByChannelIds(
+  db: Database,
+  channelIds: string[],
+): Promise<Map<string, number>> {
+  if (channelIds.length === 0) {
+    return new Map();
+  }
+  const rows = await db
+    .select({ channelId: endpoints.channelId, count: sql<number>`count(*)`.mapWith(Number) })
+    .from(endpoints)
+    .where(and(inArray(endpoints.channelId, channelIds), isNotNull(endpoints.autoDisabledAt)))
+    .groupBy(endpoints.channelId);
+  return new Map(rows.map((row) => [row.channelId, row.count]));
 }
 
 /** Endpoint health aggregates for the admin list (ADR 0007 — computed in SQL). */
