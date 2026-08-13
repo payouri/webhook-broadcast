@@ -32,6 +32,13 @@ export default defineConfig({
       "/channels": adminApiProxy,
       "/broadcasts": adminApiProxy,
       "/deliveries": adminApiProxy,
+      // `/ingest` is proxied too (issue #47) so the ingest URL the dashboard
+      // shows — built from this origin, `apps/web/src/lib/ingestUrl.ts` —
+      // actually resolves in dev, mirroring nginx.conf. It gets no `bypass`:
+      // /ingest is not a client-side route, so a producer that advertises
+      // `Accept: text/html` must still reach the api and get its 202 rather
+      // than a 200 SPA shell that swallows the Broadcast.
+      "/ingest": { target: "http://localhost:8080", changeOrigin: true },
     },
   },
 });

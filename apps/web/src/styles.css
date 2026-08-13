@@ -522,6 +522,21 @@ button:disabled {
   white-space: nowrap;
 }
 
+/* A machine-exact string beside its copy action (issue #47): the ingest URL,
+   and a minted token's plaintext. */
+.copy-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.copy-row code {
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+}
+
 .token-row {
   display: grid;
   grid-template-columns: 1fr auto auto;

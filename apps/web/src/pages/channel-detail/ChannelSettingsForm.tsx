@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { MIN_OPEN_INGEST_SLUG_LENGTH, type Channel } from "@webhook-broadcast/contract";
 import { api } from "../../lib/api.js";
+import { ingestUrl } from "../../lib/ingestUrl.js";
 
 export function ChannelSettingsForm({
   channel,
@@ -70,6 +71,17 @@ export function ChannelSettingsForm({
         onChange={(event) => setSlug(event.target.value)}
         required
       />
+      {/* Only the changed case is stated here: while the slug is untouched the
+          Channel's ingest URL is already on screen in the panel above, and
+          repeating it verbatim under the field adds a third copy of the same
+          string to this tab. */}
+      {slug !== channel.slug && (
+        <p className="error-text" role="alert">
+          Renaming the slug changes the ingest URL to <code>{ingestUrl(slug || "…")}</code>.
+          Producers still posting to <code>{ingestUrl(channel.slug)}</code> will stop being
+          accepted.
+        </p>
+      )}
 
       <label htmlFor="settings-description">Description</label>
       <textarea

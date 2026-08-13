@@ -15,6 +15,7 @@ import { ChannelDangerZonePanel } from "./channel-detail/ChannelDangerZonePanel.
 import { ChannelSettingsForm } from "./channel-detail/ChannelSettingsForm.js";
 import { ChannelTokensPanel } from "./channel-detail/ChannelTokensPanel.js";
 import { EndpointsTab } from "./channel-detail/EndpointsTab.js";
+import { IngestUrlPanel } from "./channel-detail/IngestUrlPanel.js";
 
 type Tab = "activity" | "endpoints" | "settings";
 
@@ -119,6 +120,8 @@ export function ChannelDetailPage() {
               </span>
             )}
           </header>
+
+          <IngestUrlPanel channel={channel} />
 
           <nav className="tabs">
             {TABS.map((candidateTab) => (

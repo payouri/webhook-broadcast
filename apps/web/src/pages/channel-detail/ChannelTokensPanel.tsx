@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Channel, ChannelTokenCreated } from "@webhook-broadcast/contract";
+import { CopyButton } from "../../components/CopyButton.js";
 import { api } from "../../lib/api.js";
 
 /** Settings tab token management (ADR 0004/0005): mint once, list id/prefix/createdAt, revoke. */
@@ -67,9 +68,13 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
       )}
 
       {mintedToken && (
-        <p className="success-text">
-          New token (shown once): <code>{mintedToken.token}</code>
-        </p>
+        <div className="stack">
+          <p className="success-text">New token — this is the only time it is shown:</p>
+          <div className="copy-row">
+            <code>{mintedToken.token}</code>
+            <CopyButton value={mintedToken.token} />
+          </div>
+        </div>
       )}
 
       {tokens === null && !error && <p className="muted">Loading…</p>}
@@ -121,6 +126,10 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
         </ul>
       )}
 
+      <p className="muted">
+        A minted token is shown once, right here — it cannot be retrieved later, only revoked and
+        replaced with a new one.
+      </p>
       <button type="button" onClick={() => void handleMint()} disabled={minting}>
         {minting ? "Minting…" : "Mint new token"}
       </button>
