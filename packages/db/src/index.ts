@@ -3,6 +3,7 @@ export { createDb, type Database } from "./client.js";
 export { runMigrations } from "./migrate.js";
 export {
   ChannelSlugConflictError,
+  OpenIngestSlugTooShortError,
   insertChannel,
   getChannelById,
   getActiveChannelBySlug,

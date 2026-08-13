@@ -67,6 +67,7 @@ describe("retention sweeper (prune seam)", () => {
       slug: `channel-${randomUUID()}`,
       description: null,
       enabled: true,
+      allowUnauthenticatedIngest: false,
       createdAt: now,
       updatedAt: now,
     });

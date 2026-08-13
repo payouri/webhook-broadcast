@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgEnum,
   pgTable,
@@ -10,7 +11,16 @@ import {
   customType,
   uniqueIndex,
   index,
+  check,
 } from "drizzle-orm/pg-core";
+
+/**
+ * Issue #38: an open (unauthenticated-ingest) Channel has nothing but its
+ * slug standing between the public and its fan-out, so the slug must not be
+ * short/guessable in that mode. Enforced as a DB check so it holds across
+ * every write path (create and update), not just one validator.
+ */
+export const MIN_OPEN_INGEST_SLUG_LENGTH = 24;
 
 /** Drizzle has no built-in `bytea` helper; ADR 0002 stores the inbound body raw. */
 const bytea = customType<{ data: Buffer }>({
@@ -27,22 +37,40 @@ export const deliveryStatus = pgEnum("delivery_status", [
   "dead_lettered",
 ]);
 
-export const channels = pgTable("channel", {
-  id: uuid("id").primaryKey(),
-  slug: text("slug").notNull().unique(),
-  description: text("description"),
-  enabled: boolean("enabled").notNull().default(true),
-  /**
-   * Issue #37: allow-listed inbound header names forwarded to every
-   * Endpoint on delivery. Empty by default (current behaviour unchanged).
-   * Case-insensitive names; "authorization" is never forwarded even if
-   * present here (ADR 0002's ingest token lives there).
-   */
-  forwardHeaders: jsonb("forward_headers").notNull().default([]).$type<string[]>(),
-  deletedAt: timestamp("deleted_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
-});
+export const channels = pgTable(
+  "channel",
+  {
+    id: uuid("id").primaryKey(),
+    slug: text("slug").notNull().unique(),
+    description: text("description"),
+    enabled: boolean("enabled").notNull().default(true),
+    /**
+     * Issue #37: allow-listed inbound header names forwarded to every
+     * Endpoint on delivery. Empty by default (current behaviour unchanged).
+     * Case-insensitive names; "authorization" is never forwarded even if
+     * present here (ADR 0002's ingest token lives there).
+     */
+    forwardHeaders: jsonb("forward_headers").notNull().default([]).$type<string[]>(),
+    /**
+     * Issue #38: opt-in per Channel to accept `POST /ingest/:slug` without
+     * an ingest token. Off by default — every existing Channel keeps
+     * requiring its token. When on, the slug alone gates the fan-out.
+     */
+    allowUnauthenticatedIngest: boolean("allow_unauthenticated_ingest").notNull().default(false),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    // A CHECK constraint's expression is fixed DDL, not a parameterized
+    // query — `sql.raw` inlines the length literal instead of binding it,
+    // which `drizzle-kit generate` cannot do for a CHECK clause.
+    check(
+      "channel_open_ingest_slug_length_chk",
+      sql`NOT ${t.allowUnauthenticatedIngest} OR length(${t.slug}) >= ${sql.raw(String(MIN_OPEN_INGEST_SLUG_LENGTH))}`,
+    ),
+  ],
+);
 
 export const channelTokens = pgTable(
   "channel_token",

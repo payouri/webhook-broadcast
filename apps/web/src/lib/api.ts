@@ -105,12 +105,14 @@ export interface ChannelInput {
   slug: string;
   description?: string | undefined;
   enabled?: boolean | undefined;
+  allowUnauthenticatedIngest?: boolean | undefined;
 }
 
 export interface ChannelPatch {
   slug?: string;
   description?: string | null;
   enabled?: boolean;
+  allowUnauthenticatedIngest?: boolean;
 }
 
 export interface EndpointInput {
@@ -145,6 +147,9 @@ export const api = {
           slug: input.slug,
           ...(input.description !== undefined ? { description: input.description } : {}),
           ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
+          ...(input.allowUnauthenticatedIngest !== undefined
+            ? { allowUnauthenticatedIngest: input.allowUnauthenticatedIngest }
+            : {}),
         },
       }),
     ),

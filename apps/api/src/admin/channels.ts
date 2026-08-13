@@ -9,6 +9,7 @@ import {
 } from "@webhook-broadcast/contract";
 import {
   ChannelSlugConflictError,
+  OpenIngestSlugTooShortError,
   decodeChannelCursor,
   encodeChannelCursor,
   getChannelById,
@@ -35,6 +36,7 @@ function toWireChannel(
     description: row.description,
     enabled: row.enabled,
     forwardHeaders: row.forwardHeaders,
+    allowUnauthenticatedIngest: row.allowUnauthenticatedIngest,
     endpointCount,
     tokens: tokens.map((token) => ({
       id: token.id,
@@ -103,6 +105,7 @@ export function registerChannelRoutes(router: Router, db: Database): void {
         description: parsedBody.data.description ?? null,
         enabled: parsedBody.data.enabled,
         forwardHeaders: parsedBody.data.forwardHeaders,
+        allowUnauthenticatedIngest: parsedBody.data.allowUnauthenticatedIngest,
         createdAt: now,
         updatedAt: now,
       });
@@ -113,6 +116,11 @@ export function registerChannelRoutes(router: Router, db: Database): void {
       if (error instanceof ChannelSlugConflictError) {
         ctx.status = 409;
         ctx.body = errorBody("conflict", error.message);
+        return;
+      }
+      if (error instanceof OpenIngestSlugTooShortError) {
+        ctx.status = 400;
+        ctx.body = errorBody("validation_failed", error.message);
         return;
       }
       throw error;
@@ -168,6 +176,11 @@ export function registerChannelRoutes(router: Router, db: Database): void {
       if (error instanceof ChannelSlugConflictError) {
         ctx.status = 409;
         ctx.body = errorBody("conflict", error.message);
+        return;
+      }
+      if (error instanceof OpenIngestSlugTooShortError) {
+        ctx.status = 400;
+        ctx.body = errorBody("validation_failed", error.message);
         return;
       }
       throw error;

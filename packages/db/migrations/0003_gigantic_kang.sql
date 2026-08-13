@@ -1,0 +1,2 @@
+ALTER TABLE "channel" ADD COLUMN "allow_unauthenticated_ingest" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "channel" ADD CONSTRAINT "channel_open_ingest_slug_length_chk" CHECK (NOT "channel"."allow_unauthenticated_ingest" OR length("channel"."slug") >= 24);

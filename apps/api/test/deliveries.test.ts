@@ -66,6 +66,7 @@ describe("Delivery detail + Retry Delivery — /deliveries/:id (admin HTTP seam)
       slug: `channel-${randomUUID()}`,
       description: null,
       enabled: true,
+      allowUnauthenticatedIngest: false,
       createdAt: now,
       updatedAt: now,
     });

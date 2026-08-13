@@ -203,6 +203,7 @@ describe("Admin auth + Channel CRUD (HTTP seam)", () => {
         slug: "orders",
         description: "Order events",
         enabled: true,
+        allowUnauthenticatedIngest: false,
         endpointCount: 0,
         tokens: [],
         deletedAt: null,
@@ -393,6 +394,115 @@ describe("Admin auth + Channel CRUD (HTTP seam)", () => {
         authed({ method: "DELETE" }),
       );
       expect(deleteResponse.status).toBe(404);
+    });
+  });
+
+  // Issue #38: a Channel opts into POST /ingest/:slug accepting no token.
+  // The slug then becomes the only gate, so a short/guessable slug is
+  // rejected the same way in both create and update.
+  describe("unauthenticated-ingest opt-in", () => {
+    function authed(init: RequestInit = {}): RequestInit {
+      return { ...init, headers: { authorization: `Bearer ${OPERATOR_API_KEY}`, ...init.headers } };
+    }
+    const LONG_SLUG = "unipile-hosted-auth-notify-abc123";
+
+    it("creates a Channel with allowUnauthenticatedIngest: true given a sufficiently long slug", async () => {
+      const response = await fetch(
+        `${baseUrl}/channels`,
+        authed({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug: LONG_SLUG, allowUnauthenticatedIngest: true }),
+        }),
+      );
+      expect(response.status).toBe(201);
+      await expect(response.json()).resolves.toMatchObject({
+        slug: LONG_SLUG,
+        allowUnauthenticatedIngest: true,
+      });
+    });
+
+    it("rejects creating an open Channel with a short slug", async () => {
+      const response = await fetch(
+        `${baseUrl}/channels`,
+        authed({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug: "short", allowUnauthenticatedIngest: true }),
+        }),
+      );
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        error: { code: "validation_failed" },
+      });
+    });
+
+    it("allows a short slug when allowUnauthenticatedIngest stays false", async () => {
+      const response = await fetch(
+        `${baseUrl}/channels`,
+        authed({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug: "short" }),
+        }),
+      );
+      expect(response.status).toBe(201);
+    });
+
+    it("rejects enabling open ingest on an existing Channel whose slug is too short", async () => {
+      const createResponse = await fetch(
+        `${baseUrl}/channels`,
+        authed({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug: "short" }),
+        }),
+      );
+      const created = (await createResponse.json()) as Channel;
+
+      const patchResponse = await fetch(
+        `${baseUrl}/channels/${created.id}`,
+        authed({
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ allowUnauthenticatedIngest: true }),
+        }),
+      );
+      expect(patchResponse.status).toBe(400);
+      await expect(patchResponse.json()).resolves.toMatchObject({
+        error: { code: "validation_failed" },
+      });
+
+      const getResponse = await fetch(`${baseUrl}/channels/${created.id}`, authed());
+      await expect(getResponse.json()).resolves.toMatchObject({
+        allowUnauthenticatedIngest: false,
+      });
+    });
+
+    it("allows enabling open ingest while lengthening the slug in the same patch", async () => {
+      const createResponse = await fetch(
+        `${baseUrl}/channels`,
+        authed({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug: "short" }),
+        }),
+      );
+      const created = (await createResponse.json()) as Channel;
+
+      const patchResponse = await fetch(
+        `${baseUrl}/channels/${created.id}`,
+        authed({
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug: LONG_SLUG, allowUnauthenticatedIngest: true }),
+        }),
+      );
+      expect(patchResponse.status).toBe(200);
+      await expect(patchResponse.json()).resolves.toMatchObject({
+        slug: LONG_SLUG,
+        allowUnauthenticatedIngest: true,
+      });
     });
   });
 });

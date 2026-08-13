@@ -76,6 +76,7 @@ describe("fanOutBroadcast", () => {
       slug: `ch-${randomUUID()}`,
       description: null,
       enabled: true,
+      allowUnauthenticatedIngest: false,
       createdAt: now,
       updatedAt: now,
     });

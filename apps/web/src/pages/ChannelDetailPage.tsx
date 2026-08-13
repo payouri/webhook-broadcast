@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import type {
-  BroadcastDetail,
-  BroadcastListItem,
-  Channel,
-  ChannelTokenCreated,
-  Endpoint,
+import {
+  MIN_OPEN_INGEST_SLUG_LENGTH,
+  type BroadcastDetail,
+  type BroadcastListItem,
+  type Channel,
+  type ChannelTokenCreated,
+  type Endpoint,
 } from "@webhook-broadcast/contract";
 import { InlineLoadError } from "../components/InlineLoadError.js";
 import { api } from "../lib/api.js";
@@ -56,6 +57,14 @@ export function ChannelDetailPage({
           <header className="channel-header">
             <span className={`status-dot ${channel.enabled ? "status-on" : "status-off"}`} />
             <h2>{channel.slug}</h2>
+            {channel.allowUnauthenticatedIngest && (
+              <span
+                className="muted"
+                title="This Channel accepts POST /ingest without a token — the slug alone gates its fan-out."
+              >
+                unauthenticated ingest
+              </span>
+            )}
           </header>
 
           <nav className="tabs">
@@ -392,6 +401,9 @@ function ChannelSettingsForm({
   const [slug, setSlug] = useState(channel.slug);
   const [description, setDescription] = useState(channel.description ?? "");
   const [enabled, setEnabled] = useState(channel.enabled);
+  const [allowUnauthenticatedIngest, setAllowUnauthenticatedIngest] = useState(
+    channel.allowUnauthenticatedIngest,
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -400,6 +412,7 @@ function ChannelSettingsForm({
     setSlug(channel.slug);
     setDescription(channel.description ?? "");
     setEnabled(channel.enabled);
+    setAllowUnauthenticatedIngest(channel.allowUnauthenticatedIngest);
     setSaved(false);
   }, [channel]);
 
@@ -413,6 +426,7 @@ function ChannelSettingsForm({
         slug,
         description: description.length > 0 ? description : null,
         enabled,
+        allowUnauthenticatedIngest,
       });
       onSaved(updated);
       setSaved(true);
@@ -449,6 +463,22 @@ function ChannelSettingsForm({
         />
         Enabled
       </label>
+
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          checked={allowUnauthenticatedIngest}
+          onChange={(event) => setAllowUnauthenticatedIngest(event.target.checked)}
+        />
+        Accept unauthenticated ingest
+      </label>
+      {allowUnauthenticatedIngest && (
+        <p className="muted">
+          POST /ingest/{slug || "…"} will accept events without an ingest token. The slug is then
+          the only thing gating this Channel&apos;s fan-out — use a long, unguessable slug (at least{" "}
+          {MIN_OPEN_INGEST_SLUG_LENGTH} characters).
+        </p>
+      )}
 
       {error && (
         <p className="error-text" role="alert">

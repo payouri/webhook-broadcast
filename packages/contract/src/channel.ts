@@ -51,6 +51,11 @@ export const channelSchema = z
       description:
         "Allow-listed inbound header names forwarded to every Endpoint on delivery. Empty by default.",
     }),
+    allowUnauthenticatedIngest: z.boolean().meta({
+      description:
+        "Issue #38: when true, POST /ingest/:slug accepts this Channel's events without an " +
+        "ingest token — the slug is the only thing gating its fan-out. Off by default.",
+    }),
     endpointCount: z.number().int().min(0),
     tokens: z.array(channelTokenSummarySchema),
     deletedAt: dateTimeSchema.nullable(),
@@ -68,13 +73,40 @@ const slugSchema = z
   .max(200)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "slug must be lowercase kebab-case (a-z, 0-9, -)");
 
+/**
+ * Mirrors the `channel_open_ingest_slug_length_chk` DB constraint
+ * (`packages/db/src/schema.ts`) — kept as a literal here rather than an
+ * import so `contract` (used by `web`) never depends on `db`. The DB check
+ * is what actually enforces this; this copy only gives the admin API a
+ * 400 instead of a 500 on violation.
+ */
+export const MIN_OPEN_INGEST_SLUG_LENGTH = 24;
+
+function refineOpenIngestSlugLength<
+  T extends { slug?: string | undefined; allowUnauthenticatedIngest?: boolean | undefined },
+>(value: T, ctx: z.core.$RefinementCtx<T>): void {
+  if (
+    value.allowUnauthenticatedIngest &&
+    value.slug !== undefined &&
+    value.slug.length < MIN_OPEN_INGEST_SLUG_LENGTH
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["slug"],
+      message: `slug must be at least ${MIN_OPEN_INGEST_SLUG_LENGTH} characters when allowUnauthenticatedIngest is true`,
+    });
+  }
+}
+
 export const channelCreateSchema = z
   .object({
     slug: slugSchema,
     description: z.string().optional(),
     enabled: z.boolean().default(true),
     forwardHeaders: forwardHeadersSchema.default([]),
+    allowUnauthenticatedIngest: z.boolean().default(false),
   })
+  .superRefine(refineOpenIngestSlugLength)
   .meta({ id: "ChannelCreate" });
 
 export type ChannelCreate = z.infer<typeof channelCreateSchema>;
@@ -85,10 +117,12 @@ export const channelUpdateSchema = z
     description: z.string().nullable().optional(),
     enabled: z.boolean().optional(),
     forwardHeaders: forwardHeadersSchema.optional(),
+    allowUnauthenticatedIngest: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "at least one field must be provided",
   })
+  .superRefine(refineOpenIngestSlugLength)
   .meta({ id: "ChannelUpdate" });
 
 export type ChannelUpdate = z.infer<typeof channelUpdateSchema>;

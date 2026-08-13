@@ -28,18 +28,18 @@ export interface IngestRouteConfig {
  * `POST /ingest/:slug` — Channel-token auth, arbitrary body, outside the
  * published admin OpenAPI (ADR 0005). Mounted before `@koa/bodyparser` in
  * `app.ts` so the raw bytes reach `readLimitedBody` untouched.
+ *
+ * Issue #38: a Channel with `allowUnauthenticatedIngest` set skips the
+ * token check entirely — the slug is then the only thing gating its
+ * fan-out. Off by default; opt-in per Channel via the admin API.
  */
 export function registerIngestRoutes(router: Router, config: IngestRouteConfig): void {
   router.post("/ingest/:slug", async (ctx) => {
     const { slug } = ctx.params as { slug: string };
 
-    const token = extractBearerToken(ctx.headers.authorization);
-    if (!token) {
-      ctx.status = 401;
-      ctx.body = errorBody("unauthorized", "missing ingest token");
-      return;
-    }
-
+    // Unknown slug always looks like "invalid ingest token" — including for
+    // a request with no Authorization header at all — so a probe can never
+    // distinguish "no such Channel" from "this Channel is open" (issue #38).
     const channel = await getActiveChannelBySlug(config.db, slug);
     if (!channel) {
       ctx.status = 401;
@@ -47,11 +47,20 @@ export function registerIngestRoutes(router: Router, config: IngestRouteConfig):
       return;
     }
 
-    const channelToken = await findChannelTokenByHash(config.db, channel.id, hashToken(token));
-    if (!channelToken) {
-      ctx.status = 401;
-      ctx.body = errorBody("unauthorized", "invalid ingest token");
-      return;
+    if (!channel.allowUnauthenticatedIngest) {
+      const token = extractBearerToken(ctx.headers.authorization);
+      if (!token) {
+        ctx.status = 401;
+        ctx.body = errorBody("unauthorized", "missing ingest token");
+        return;
+      }
+
+      const channelToken = await findChannelTokenByHash(config.db, channel.id, hashToken(token));
+      if (!channelToken) {
+        ctx.status = 401;
+        ctx.body = errorBody("unauthorized", "invalid ingest token");
+        return;
+      }
     }
 
     // Fast-reject on a declared Content-Length before touching the socket;

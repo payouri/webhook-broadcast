@@ -184,6 +184,57 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
     });
   });
 
+  // Issue #38: a Channel that opts into unauthenticated ingest must accept
+  // POST /ingest/:slug with no Authorization header at all — the slug is
+  // then the only thing gating its fan-out.
+  it("accepts an unauthenticated POST for a Channel with allowUnauthenticatedIngest set", async () => {
+    const openSlug = "unipile-hosted-auth-notify-abc123";
+    const createResponse = await fetch(
+      `${baseUrl}/channels`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ slug: openSlug, allowUnauthenticatedIngest: true }),
+      }),
+    );
+    const channel = (await createResponse.json()) as Channel;
+
+    const response = await fetch(`${baseUrl}/ingest/${openSlug}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ hello: "world" }),
+    });
+
+    expect(response.status).toBe(202);
+    const body = (await response.json()) as { id: string };
+    expect(body.id).toEqual(expect.any(String));
+
+    const activity = await fetch(`${baseUrl}/channels/${channel.id}/broadcasts`, authed());
+    const activityBody = (await activity.json()) as { items: { id: string }[] };
+    expect(activityBody.items).toHaveLength(1);
+    expect(activityBody.items[0]?.id).toEqual(body.id);
+  });
+
+  it("still accepts a Bearer token on an open Channel without requiring it to be valid", async () => {
+    const openSlug = "unipile-hosted-auth-notify-xyz789";
+    await fetch(
+      `${baseUrl}/channels`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ slug: openSlug, allowUnauthenticatedIngest: true }),
+      }),
+    );
+
+    const response = await fetch(`${baseUrl}/ingest/${openSlug}`, {
+      method: "POST",
+      headers: { authorization: "Bearer whatever-nonsense" },
+      body: "hi",
+    });
+
+    expect(response.status).toBe(202);
+  });
+
   it("rejects ingest for a soft-deleted Channel without revealing channel state", async () => {
     const channel = await createChannel({ slug: "orders" });
     const token = await mintToken(channel.id);

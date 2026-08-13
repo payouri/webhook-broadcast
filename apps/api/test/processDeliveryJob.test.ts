@@ -74,6 +74,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       description: null,
       enabled: true,
       forwardHeaders: input.forwardHeaders ?? [],
+      allowUnauthenticatedIngest: false,
       createdAt: now,
       updatedAt: now,
     });

@@ -7,6 +7,7 @@ export type { HealthResponse, ReadyResponse } from "./health.js";
 export { errorEnvelopeSchema, errorBody } from "./errors.js";
 export type { ErrorEnvelope, ErrorCode } from "./errors.js";
 export {
+  MIN_OPEN_INGEST_SLUG_LENGTH,
   idSchema,
   dateTimeSchema,
   channelTokenSummarySchema,

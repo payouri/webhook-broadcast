@@ -1,7 +1,14 @@
 import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import type { Database } from "../client.js";
-import { isUniqueViolation } from "../pgErrors.js";
-import { channels, channelTokens, endpoints } from "../schema.js";
+import { isCheckViolation, isUniqueViolation } from "../pgErrors.js";
+import { channels, channelTokens, endpoints, MIN_OPEN_INGEST_SLUG_LENGTH } from "../schema.js";
+
+/** Must match the constraint name given to `check(...)` in `../schema.ts`. */
+const OPEN_INGEST_SLUG_LENGTH_CHECK = "channel_open_ingest_slug_length_chk";
+
+function isOpenIngestSlugCheckViolation(error: unknown): boolean {
+  return isCheckViolation(error, OPEN_INGEST_SLUG_LENGTH_CHECK);
+}
 
 export interface ChannelRow {
   id: string;
@@ -9,6 +16,7 @@ export interface ChannelRow {
   description: string | null;
   enabled: boolean;
   forwardHeaders: string[];
+  allowUnauthenticatedIngest: boolean;
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -27,6 +35,22 @@ export class ChannelSlugConflictError extends Error {
   }
 }
 
+/**
+ * The check is on the resulting row, so a PATCH that only flips the flag
+ * violates it without naming a slug — `slug` is undefined there rather than
+ * an empty string, so the message never claims a slug the caller never sent.
+ */
+export class OpenIngestSlugTooShortError extends Error {
+  constructor(readonly slug: string | undefined) {
+    super(
+      slug === undefined
+        ? `this Channel's slug is too short for unauthenticated ingest (minimum ${MIN_OPEN_INGEST_SLUG_LENGTH} characters)`
+        : `slug "${slug}" is too short for an unauthenticated-ingest Channel (minimum ${MIN_OPEN_INGEST_SLUG_LENGTH} characters)`,
+    );
+    this.name = "OpenIngestSlugTooShortError";
+  }
+}
+
 export async function insertChannel(
   db: Database,
   input: {
@@ -35,6 +59,7 @@ export async function insertChannel(
     description: string | null;
     enabled: boolean;
     forwardHeaders?: string[] | undefined;
+    allowUnauthenticatedIngest: boolean;
     createdAt: Date;
     updatedAt: Date;
   },
@@ -51,6 +76,9 @@ export async function insertChannel(
   } catch (error) {
     if (isUniqueViolation(error)) {
       throw new ChannelSlugConflictError(input.slug);
+    }
+    if (isOpenIngestSlugCheckViolation(error)) {
+      throw new OpenIngestSlugTooShortError(input.slug);
     }
     throw error;
   }
@@ -146,6 +174,7 @@ export async function updateChannel(
     description?: string | null | undefined;
     enabled?: boolean | undefined;
     forwardHeaders?: string[] | undefined;
+    allowUnauthenticatedIngest?: boolean | undefined;
     updatedAt: Date;
   },
 ): Promise<ChannelRow | undefined> {
@@ -159,6 +188,9 @@ export async function updateChannel(
   } catch (error) {
     if (isUniqueViolation(error) && patch.slug !== undefined) {
       throw new ChannelSlugConflictError(patch.slug);
+    }
+    if (isOpenIngestSlugCheckViolation(error)) {
+      throw new OpenIngestSlugTooShortError(patch.slug);
     }
     throw error;
   }
