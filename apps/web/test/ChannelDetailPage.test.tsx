@@ -116,9 +116,10 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
     expect(await screen.findByText(/No Broadcasts yet/)).toBeTruthy();
   });
 
-  it("mints an ingest token, shows the plaintext once, and revoke removes it from the list", async () => {
+  it("mints an ingest token, shows the plaintext once, and revoke requires confirmation", async () => {
     const tokenId = "33333333-3333-3333-3333-333333333333";
     let mintedOnServer = false;
+    let revokedOnServer = false;
 
     fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
       const path = requestPath(input);
@@ -151,6 +152,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
       }
       if (path === `/channels/${CHANNEL_ID}/tokens/${tokenId}` && method === "DELETE") {
         mintedOnServer = false;
+        revokedOnServer = true;
         return Promise.resolve(new Response(null, { status: 204 }));
       }
       throw new Error(`unexpected fetch: ${method} ${path}`);
@@ -165,11 +167,75 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
     expect(await screen.findByText(/wbt_abcd1234-plaintext-secret/)).toBeTruthy();
     expect(await screen.findByText("wbt_abcd1234…")).toBeTruthy();
 
+    // Revoke opens an in-place confirmation instead of revoking immediately.
     fireEvent.click(await screen.findByRole("button", { name: "Revoke" }));
 
+    // The confirmation names the affected token and what stops working.
+    expect(
+      await screen.findByText(/Any producer using wbt_abcd1234… stops being accepted/),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Confirm revoke" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
+
+    // Nothing was revoked by opening the confirmation.
+    expect(revokedOnServer).toBe(false);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm revoke" }));
+
+    // The token itself is gone — not merely the resting row's Revoke button.
     await waitFor(() => {
       expect(screen.queryByText("wbt_abcd1234…")).toBeNull();
     });
+    expect(revokedOnServer).toBe(true);
+  });
+
+  it("dismisses token revoke confirmation and leaves token untouched", async () => {
+    const tokenId = "33333333-3333-3333-3333-333333333333";
+
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(
+            200,
+            baseChannel([
+              { id: tokenId, prefix: "wbt_abcd1234", createdAt: "2026-08-10T12:00:00.000Z" },
+            ]),
+          ),
+        );
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Revoke" }));
+
+    // Confirmation is shown
+    expect(await screen.findByText(/Any producer using.*stops being accepted/)).toBeTruthy();
+
+    // Cancel the revoke
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+
+    // Back to the resting row: token still listed, confirmation gone.
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Revoke" })).toBeTruthy();
+    });
+    expect(screen.queryByRole("button", { name: "Confirm revoke" })).toBeNull();
+    expect(screen.getByText("wbt_abcd1234…")).toBeTruthy();
+
+    // Dismissing left the token untouched: no revoke ever reached the server.
+    const revokeCalls = fetchMock.mock.calls.filter(
+      ([input, init]) =>
+        requestMethod(input as string | URL | Request, init as RequestInit) === "DELETE",
+    );
+    expect(revokeCalls).toHaveLength(0);
   });
 
   it("replays a Broadcast from its detail panel (issue #22)", async () => {
@@ -578,5 +644,259 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
 
     expect(screen.queryByRole("button", { name: "Confirm delete" })).toBeNull();
     expect(screen.getByRole("button", { name: "Delete Channel" })).toBeTruthy();
+  });
+});
+
+describe("ChannelDetailPage — Settings channel disable guard (issue #46)", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    stubFetchMock(fetchMock);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it("shows warning when disabling a Channel with enabled Endpoints", async () => {
+    const enabledEndpointId = "66666666-6666-6666-6666-666666666666";
+    const disabledEndpointId = "77777777-7777-7777-7777-777777777777";
+
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      if (path === `/channels/${CHANNEL_ID}/endpoints` && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            items: [
+              {
+                id: enabledEndpointId,
+                channelId: CHANNEL_ID,
+                name: "webhook-1",
+                url: "https://example.com/webhook",
+                timeoutMs: null,
+                headers: {},
+                enabled: true,
+                createdAt: "2026-08-10T00:00:00.000Z",
+                updatedAt: "2026-08-10T00:00:00.000Z",
+              },
+              {
+                id: disabledEndpointId,
+                channelId: CHANNEL_ID,
+                name: "webhook-2",
+                url: "https://example.com/webhook2",
+                timeoutMs: null,
+                headers: {},
+                enabled: false,
+                createdAt: "2026-08-10T00:00:00.000Z",
+                updatedAt: "2026-08-10T00:00:00.000Z",
+              },
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+
+    // Initially, no warning (channel is enabled)
+    expect(screen.queryByText(/Disabling this Channel stops fan-out/)).toBeNull();
+
+    // Disable the channel
+    const enabledToggle = await screen.findByLabelText("Enabled");
+    fireEvent.click(enabledToggle);
+
+    // Warning appears showing count of enabled Endpoints
+    expect(
+      await screen.findByText(/Disabling this Channel stops fan-out to 1 enabled Endpoint/),
+    ).toBeTruthy();
+  });
+
+  it("shows correct plural when disabling Channel with multiple enabled Endpoints", async () => {
+    const endpoint1Id = "66666666-6666-6666-6666-666666666666";
+    const endpoint2Id = "77777777-7777-7777-7777-777777777777";
+
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      if (path === `/channels/${CHANNEL_ID}/endpoints` && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            items: [
+              {
+                id: endpoint1Id,
+                channelId: CHANNEL_ID,
+                name: "webhook-1",
+                url: "https://example.com/webhook1",
+                timeoutMs: null,
+                headers: {},
+                enabled: true,
+                createdAt: "2026-08-10T00:00:00.000Z",
+                updatedAt: "2026-08-10T00:00:00.000Z",
+              },
+              {
+                id: endpoint2Id,
+                channelId: CHANNEL_ID,
+                name: "webhook-2",
+                url: "https://example.com/webhook2",
+                timeoutMs: null,
+                headers: {},
+                enabled: true,
+                createdAt: "2026-08-10T00:00:00.000Z",
+                updatedAt: "2026-08-10T00:00:00.000Z",
+              },
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+
+    // Disable the channel
+    const enabledToggle = await screen.findByLabelText("Enabled");
+    fireEvent.click(enabledToggle);
+
+    // Warning shows plural Endpoints
+    expect(
+      await screen.findByText(/Disabling this Channel stops fan-out to 2 enabled Endpoints/),
+    ).toBeTruthy();
+  });
+
+  it("does not show warning when disabling Channel with no enabled Endpoints", async () => {
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      if (path === `/channels/${CHANNEL_ID}/endpoints` && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            items: [
+              {
+                id: "88888888-8888-8888-8888-888888888888",
+                channelId: CHANNEL_ID,
+                name: "webhook-1",
+                url: "https://example.com/webhook",
+                timeoutMs: null,
+                headers: {},
+                enabled: false,
+                createdAt: "2026-08-10T00:00:00.000Z",
+                updatedAt: "2026-08-10T00:00:00.000Z",
+              },
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+
+    // Disable the channel
+    const enabledToggle = await screen.findByLabelText("Enabled");
+    await flushAsync();
+    fireEvent.click(enabledToggle);
+    await flushAsync();
+
+    // No warning when there are no enabled Endpoints
+    expect(screen.queryByText(/Disabling this Channel stops fan-out/)).toBeNull();
+  });
+
+  it("does not show warning when re-enabling a Channel", async () => {
+    const baseChannelDisabled = {
+      id: CHANNEL_ID,
+      slug: "orders",
+      description: "Order events",
+      enabled: false,
+      endpointCount: 1,
+      tokens: [],
+      deletedAt: null,
+      createdAt: "2026-08-10T00:00:00.000Z",
+      updatedAt: "2026-08-10T00:00:00.000Z",
+    };
+
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannelDisabled));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      if (path === `/channels/${CHANNEL_ID}/endpoints` && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            items: [
+              {
+                id: "88888888-8888-8888-8888-888888888888",
+                channelId: CHANNEL_ID,
+                name: "webhook-1",
+                url: "https://example.com/webhook",
+                timeoutMs: null,
+                headers: {},
+                enabled: true,
+                createdAt: "2026-08-10T00:00:00.000Z",
+                updatedAt: "2026-08-10T00:00:00.000Z",
+              },
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+
+    // Re-enable the channel
+    const enabledToggle = await screen.findByLabelText("Enabled");
+    await flushAsync();
+    fireEvent.click(enabledToggle);
+
+    // No warning when enabling (only destructive direction is guarded)
+    expect(screen.queryByText(/Disabling this Channel stops fan-out/)).toBeNull();
+
+    // Unchecking again returns to the Channel's saved state, so no fan-out is being stopped
+    // and there is still nothing to warn about.
+    fireEvent.click(enabledToggle);
+    await flushAsync();
+    expect(screen.queryByText(/Disabling this Channel stops fan-out/)).toBeNull();
   });
 });

@@ -8,6 +8,8 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [minting, setMinting] = useState(false);
   const [mintedToken, setMintedToken] = useState<ChannelTokenCreated | null>(null);
+  const [confirmingRevokeId, setConfirmingRevokeId] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -20,6 +22,7 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
   }, [channelId]);
 
   useEffect(() => {
+    setConfirmingRevokeId(null);
     void load();
   }, [load]);
 
@@ -38,15 +41,19 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
   }
 
   async function handleRevoke(tokenId: string): Promise<void> {
+    setRevoking(true);
     setError(null);
     try {
       await api.revokeChannelToken(channelId, tokenId);
       if (mintedToken?.id === tokenId) {
         setMintedToken(null);
       }
+      setConfirmingRevokeId(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to revoke token");
+    } finally {
+      setRevoking(false);
     }
   }
 
@@ -72,16 +79,43 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
       {tokens !== null && tokens.length > 0 && (
         <ul className="token-list">
           {tokens.map((token) => (
-            <li key={token.id} className="token-row">
-              <span className="token-prefix">{token.prefix}…</span>
-              <span className="muted">{new Date(token.createdAt).toLocaleString()}</span>
-              <button
-                type="button"
-                className="button-ghost"
-                onClick={() => void handleRevoke(token.id)}
-              >
-                Revoke
-              </button>
+            <li key={token.id}>
+              {confirmingRevokeId === token.id ? (
+                <div className="confirm-region stack">
+                  <p>
+                    Any producer using {token.prefix}… stops being accepted. This cannot be undone.
+                  </p>
+                  <div className="inline-form">
+                    <button
+                      type="button"
+                      onClick={() => void handleRevoke(token.id)}
+                      disabled={revoking}
+                    >
+                      {revoking ? "Revoking…" : "Confirm revoke"}
+                    </button>
+                    <button
+                      type="button"
+                      className="button-ghost"
+                      onClick={() => setConfirmingRevokeId(null)}
+                      disabled={revoking}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="token-row">
+                  <span className="token-prefix">{token.prefix}…</span>
+                  <span className="muted">{new Date(token.createdAt).toLocaleString()}</span>
+                  <button
+                    type="button"
+                    className="button-ghost"
+                    onClick={() => setConfirmingRevokeId(token.id)}
+                  >
+                    Revoke
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>

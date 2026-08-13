@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { MIN_OPEN_INGEST_SLUG_LENGTH, type Channel } from "@webhook-broadcast/contract";
 import { api } from "../../lib/api.js";
 
@@ -18,6 +18,18 @@ export function ChannelSettingsForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [enabledEndpointCount, setEnabledEndpointCount] = useState<number | null>(null);
+
+  const loadEnabledEndpointCount = useCallback(async () => {
+    try {
+      const endpoints = await api.listEndpoints(channel.id);
+      setEnabledEndpointCount(endpoints.items.filter((endpoint) => endpoint.enabled).length);
+    } catch {
+      // Count unknown: the disable warning is suppressed rather than shown without a count, and
+      // the form stays usable either way.
+      setEnabledEndpointCount(null);
+    }
+  }, [channel.id]);
 
   useEffect(() => {
     setSlug(channel.slug);
@@ -25,7 +37,8 @@ export function ChannelSettingsForm({
     setEnabled(channel.enabled);
     setAllowUnauthenticatedIngest(channel.allowUnauthenticatedIngest);
     setSaved(false);
-  }, [channel]);
+    void loadEnabledEndpointCount();
+  }, [channel, loadEnabledEndpointCount]);
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -74,6 +87,12 @@ export function ChannelSettingsForm({
         />
         Enabled
       </label>
+      {!enabled && channel.enabled && enabledEndpointCount !== null && enabledEndpointCount > 0 && (
+        <p className="error-text" role="alert">
+          Disabling this Channel stops fan-out to {enabledEndpointCount} enabled{" "}
+          {enabledEndpointCount === 1 ? "Endpoint" : "Endpoints"}.
+        </p>
+      )}
 
       <label className="checkbox-row">
         <input
