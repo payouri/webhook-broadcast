@@ -133,9 +133,26 @@ export async function getActiveChannelBySlug(
  * is its own tier (2) regardless of any failure history, per the AC that
  * disabled is a choice and must never sort or read like a broken one, which
  * always ranks tier 0 ahead of an ordinary healthy Channel (tier 1).
+ *
+ * Issue #66: unhealthy Channels are now ranked by severity: within tier 0
+ * (needs attention), a higher recent failure count sorts ahead of a lower one,
+ * so the worst Channel lands at the top of an operator's glance. The tie-break
+ * between failure count and auto-disabled Endpoint count is deliberate:
+ * failure count takes priority (how acutely the Channel is failing), then
+ * auto-disabled count (how many Endpoints are out of service), then slug and id
+ * for deterministic pagination.
+ *
+ * Every leg is validated on decode, including the two #66 added. A cursor minted
+ * before #66 carries only `(healthRank, slug, id)`, and tolerating that shape
+ * would feed `undefined` into the keyset `WHERE` as a bound parameter, which the
+ * driver refuses — verified: the request 500s. Validating here turns a stale
+ * cursor from a server error into the 400 the contract already defines for an
+ * unreadable one, which is what a client mid-pagination across a deploy gets.
  */
 export interface ChannelCursor {
   healthRank: number;
+  recentFailureCount: number;
+  autoDisabledEndpointCount: number;
   slug: string;
   id: string;
 }
@@ -151,9 +168,14 @@ export function decodeChannelCursor(cursor: string): ChannelCursor | undefined {
       typeof parsed === "object" &&
       parsed !== null &&
       "healthRank" in parsed &&
+      "recentFailureCount" in parsed &&
+      "autoDisabledEndpointCount" in parsed &&
       "slug" in parsed &&
       "id" in parsed &&
       typeof (parsed as { healthRank: unknown }).healthRank === "number" &&
+      typeof (parsed as { recentFailureCount: unknown }).recentFailureCount === "number" &&
+      typeof (parsed as { autoDisabledEndpointCount: unknown }).autoDisabledEndpointCount ===
+        "number" &&
       typeof (parsed as { slug: unknown }).slug === "string" &&
       typeof (parsed as { id: unknown }).id === "string"
     ) {
@@ -169,15 +191,15 @@ export function decodeChannelCursor(cursor: string): ChannelCursor | undefined {
  * A `"table"."column"` reference that renders the same in every clause.
  *
  * Interpolating a Drizzle column object into a raw `sql` fragment qualifies it
- * in `WHERE` and `ORDER BY` but leaves it *bare* in a `SELECT` list. The rank
- * below is deliberately the same fragment in all three clauses and contains
- * correlated subqueries, so a bare `"channel_id" = "id"` inside `EXISTS` would
- * rebind to the subquery's own table (`endpoint.channel_id = endpoint.id`),
- * making the `EXISTS` always false in the `SELECT` list alone. `ORDER BY` would
- * then rank correctly while the value handed to the cursor said otherwise, and
- * every
- * Channel needing attention would vanish at the first page boundary. Qualifying
- * explicitly removes the clause-dependence rather than relying on it.
+ * in `WHERE` and `ORDER BY` but leaves it *bare* in a `SELECT` list. Each
+ * ordering fragment below — the health rank and, since #66, the two severity
+ * counts — is deliberately the same fragment in all three clauses and contains
+ * a correlated subquery, so a bare `"channel_id" = "id"` would rebind to the
+ * subquery's own table (`endpoint.channel_id = endpoint.id`), making the
+ * subquery match everything or nothing in the `SELECT` list alone. `ORDER BY`
+ * would then rank correctly while the value handed to the cursor said
+ * otherwise, and Channels would vanish or repeat at the first page boundary.
+ * Qualifying explicitly removes the clause-dependence rather than relying on it.
  */
 function qualified(column: Column): SQL {
   return sql`${sql.identifier(getTableName(column.table))}.${sql.identifier(column.name)}`;
@@ -226,6 +248,33 @@ export async function listChannels(
   const since = new Date(now.getTime() - CHANNEL_RECENT_FAILURE_WINDOW_MS);
   const healthRank = channelHealthRankSql(since);
 
+  // Issue #66's severity legs, built once and reused verbatim in the `SELECT`,
+  // the keyset `WHERE` and the `ORDER BY` — the same discipline `healthRank`
+  // follows, so the value a cursor carries forward can never disagree with the
+  // ordering that produced it. Both count over exactly the predicates
+  // `channelHealthRankSql` tests for tier 0, so a Channel that ranks "needs
+  // attention" always has a non-zero count on at least one of them.
+  const recentFailureCountSubquery = sql<number>`
+    coalesce(
+      (select count(*)::integer
+       from ${deliveries}
+       where ${qualified(deliveries.channelId)} = ${qualified(channels.id)}
+         and ${qualified(deliveries.status)} in ('failed', 'dead_lettered')
+         and ${qualified(deliveries.updatedAt)} >= ${since}),
+      0
+    )
+  `;
+
+  const autoDisabledCountSubquery = sql<number>`
+    coalesce(
+      (select count(*)::integer
+       from ${endpoints}
+       where ${qualified(endpoints.channelId)} = ${qualified(channels.id)}
+         and ${qualified(endpoints.autoDisabledAt)} is not null),
+      0
+    )
+  `;
+
   const rows = await db
     .select({
       id: channels.id,
@@ -237,11 +286,13 @@ export async function listChannels(
       deletedAt: channels.deletedAt,
       createdAt: channels.createdAt,
       updatedAt: channels.updatedAt,
-      // Mapped explicitly because this value round-trips through the opaque
-      // cursor as JSON: `decodeChannelCursor` rejects a `healthRank` that is
-      // not a `number`, so a driver handing back a string would break
-      // pagination rather than merely mistyping a field.
+      // Mapped explicitly because these values round-trip through the opaque
+      // cursor as JSON: `decodeChannelCursor` rejects values that are not
+      // `number`, so a driver handing back a string would break pagination
+      // rather than merely mistyping a field.
       healthRank: healthRank.mapWith(Number),
+      recentFailureCount: recentFailureCountSubquery.mapWith(Number),
+      autoDisabledEndpointCount: autoDisabledCountSubquery.mapWith(Number),
     })
     .from(channels)
     .where(
@@ -254,23 +305,56 @@ export async function listChannels(
               and(
                 sql`${healthRank} = ${cursor.healthRank}`,
                 or(
-                  gt(channels.slug, cursor.slug),
-                  and(eq(channels.slug, cursor.slug), gt(channels.id, cursor.id)),
+                  sql`${recentFailureCountSubquery} < ${cursor.recentFailureCount}`,
+                  and(
+                    sql`${recentFailureCountSubquery} = ${cursor.recentFailureCount}`,
+                    or(
+                      sql`${autoDisabledCountSubquery} < ${cursor.autoDisabledEndpointCount}`,
+                      and(
+                        sql`${autoDisabledCountSubquery} = ${cursor.autoDisabledEndpointCount}`,
+                        or(
+                          gt(channels.slug, cursor.slug),
+                          and(eq(channels.slug, cursor.slug), gt(channels.id, cursor.id)),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             )
           : undefined,
       ),
     )
-    .orderBy(sql`${healthRank} asc`, asc(channels.slug), asc(channels.id))
+    .orderBy(
+      sql`${healthRank} asc`,
+      sql`${recentFailureCountSubquery} desc`,
+      sql`${autoDisabledCountSubquery} desc`,
+      asc(channels.slug),
+      asc(channels.id),
+    )
     .limit(limit + 1);
 
   const hasMore = rows.length > limit;
   const page = hasMore ? rows.slice(0, limit) : rows;
-  const items: ChannelRow[] = page.map(({ healthRank: _healthRank, ...row }) => row);
+  const items: ChannelRow[] = page.map(
+    ({
+      healthRank: _healthRank,
+      recentFailureCount: _rfc,
+      autoDisabledEndpointCount: _adec,
+      ...row
+    }) => row,
+  );
   const last = page[page.length - 1];
   const nextCursor =
-    hasMore && last ? { healthRank: last.healthRank, slug: last.slug, id: last.id } : null;
+    hasMore && last
+      ? {
+          healthRank: last.healthRank,
+          recentFailureCount: last.recentFailureCount,
+          autoDisabledEndpointCount: last.autoDisabledEndpointCount,
+          slug: last.slug,
+          id: last.id,
+        }
+      : null;
   return { items, nextCursor };
 }
 

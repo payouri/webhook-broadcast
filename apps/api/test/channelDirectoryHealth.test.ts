@@ -408,12 +408,16 @@ describe("Channel directory — auto-disabled Endpoints and health-first orderin
     const now = new Date();
 
     // Tier 0: needs attention — recent failed/dead-lettered Deliveries.
+    // Issue #66: within tier 0, this comes first because it has 1 recent failure
+    // (failure count is the primary sort within the unhealthy tier).
     const failing = await createChannel("failing");
     const failingEndpoint = await createEndpoint(failing.id, "https://example.com/failing");
     await deliverOne(failing.id, failingEndpoint.id, "dead_lettered", now);
 
     // Tier 0: needs attention — a currently auto-disabled Endpoint, zero
     // recent Delivery failures on its own.
+    // Issue #66: within tier 0, this comes second because it has 0 recent failures
+    // and 1 auto-disabled endpoint (the tie-break when failure count is equal).
     const autoDisabledChannel = await createChannel("auto-disabled-channel");
     const autoDisabledEndpoint = await createEndpoint(
       autoDisabledChannel.id,
@@ -442,9 +446,12 @@ describe("Channel directory — auto-disabled Endpoints and health-first orderin
     const list = await fetchChannelList();
     const slugs = list.items.map((item) => item.slug);
 
+    // Issue #66: failing comes before auto-disabled-channel because it has 1
+    // recent failure while auto-disabled-channel has 0. Healthy and quiet are
+    // tier 1 (no attention needed). Disabled is tier 2, always last.
     expect(slugs).toEqual([
-      "auto-disabled-channel",
       "failing",
+      "auto-disabled-channel",
       "healthy",
       "quiet",
       "disabled-with-failures",
@@ -452,16 +459,20 @@ describe("Channel directory — auto-disabled Endpoints and health-first orderin
   });
 
   it("keeps the health-first order across cursor pages, without dropping or repeating a Channel", async () => {
-    // The opaque cursor grew a `healthRank` leg alongside `(slug, id)`. Walking
-    // the directory one Channel at a time is the only thing that exercises the
-    // rank in the keyset `WHERE` as well as the `ORDER BY`; if the two ever
-    // disagreed, a page boundary is where a Channel would vanish or repeat.
+    // The cursor now includes `healthRank`, `recentFailureCount`, and
+    // `autoDisabledEndpointCount` alongside `(slug, id)`. Walking the directory
+    // one Channel at a time exercises these keys in both the keyset WHERE
+    // clause and the ORDER BY; if the two ever disagreed, a Channel would vanish
+    // or repeat at a page boundary.
     const now = new Date();
 
+    // Tier 0: failing with 1 failure; ranks first among tier 0.
     const failing = await createChannel("zeta-failing");
     const failingEndpoint = await createEndpoint(failing.id, "https://example.com/zeta-failing");
     await deliverOne(failing.id, failingEndpoint.id, "dead_lettered", now);
 
+    // Tier 0: auto-disabled with 0 failures; ranks second among tier 0
+    // (tie-broken by auto-disabled count).
     const autoDisabledChannel = await createChannel("yankee-auto-disabled");
     const autoDisabledEndpoint = await createEndpoint(
       autoDisabledChannel.id,
@@ -469,7 +480,10 @@ describe("Channel directory — auto-disabled Endpoints and health-first orderin
     );
     await autoDisable(autoDisabledChannel.id, autoDisabledEndpoint.id, now);
 
+    // Tier 1: quiet — enabled, no Broadcasts.
     await createChannel("mike-quiet");
+
+    // Tier 2: disabled — last regardless of failures.
     const disabled = await createChannel("alpha-disabled", false);
     const disabledEndpoint = await createEndpoint(
       disabled.id,
@@ -479,8 +493,8 @@ describe("Channel directory — auto-disabled Endpoints and health-first orderin
 
     const expected = (await fetchChannelList()).items.map((item) => item.slug);
     expect(expected).toEqual([
-      "yankee-auto-disabled",
       "zeta-failing",
+      "yankee-auto-disabled",
       "mike-quiet",
       "alpha-disabled",
     ]);
@@ -503,7 +517,7 @@ describe("Channel directory — auto-disabled Endpoints and health-first orderin
     expect(paged).toEqual(expected);
   });
 
-  it("orders Channels with identical health deterministically by slug then id", async () => {
+  it("orders Channels with identical failure count deterministically by slug then id", async () => {
     const now = new Date();
     const b = await createChannel("tie-b");
     const bEndpoint = await createEndpoint(b.id, "https://example.com/tie-b");
@@ -520,5 +534,158 @@ describe("Channel directory — auto-disabled Endpoints and health-first orderin
     const secondSlugs = second.items.map((item) => item.slug);
     expect(firstSlugs).toEqual(["tie-a", "tie-b"]);
     expect(secondSlugs).toEqual(firstSlugs);
+  });
+
+  /**
+   * Issue #66: unhealthy Channels rank by severity — failure count is the
+   * primary sort within the "needs attention" tier, so the worst Channel
+   * (highest failure count) lands at the top where an operator's glance reads
+   * it first. The tie-break is auto-disabled Endpoint count, then slug and id.
+   */
+  it("ranks failing Channels by recent failure count within the unhealthy tier", async () => {
+    const now = new Date();
+
+    // Tier 0: three failing Channels with different failure counts.
+    // Issue #66 AC: higher failure count sorts ahead.
+    const sevenFailures = await createChannel("seven-failures");
+    const sevenEndpoint = await createEndpoint(sevenFailures.id, "https://example.com/seven");
+    for (let i = 0; i < 7; i += 1) {
+      await deliverOne(sevenFailures.id, sevenEndpoint.id, "failed", now);
+    }
+
+    const nineteenFailures = await createChannel("nineteen-failures");
+    const nineteenEndpoint = await createEndpoint(
+      nineteenFailures.id,
+      "https://example.com/nineteen",
+    );
+    for (let i = 0; i < 19; i += 1) {
+      await deliverOne(nineteenFailures.id, nineteenEndpoint.id, "failed", now);
+    }
+
+    const oneFailure = await createChannel("one-failure");
+    const oneEndpoint = await createEndpoint(oneFailure.id, "https://example.com/one");
+    await deliverOne(oneFailure.id, oneEndpoint.id, "dead_lettered", now);
+
+    // Tier 1: a healthy Channel (should come after all the failing ones).
+    const healthy = await createChannel("healthy");
+    const healthyEndpoint = await createEndpoint(healthy.id, "https://example.com/healthy");
+    await deliverOne(healthy.id, healthyEndpoint.id, "succeeded", now);
+
+    const list = await fetchChannelList();
+    const slugs = list.items.map((item) => item.slug);
+
+    // The most broken (19 failures) comes first, then 7, then 1.
+    // Healthy comes last.
+    expect(slugs).toEqual(["nineteen-failures", "seven-failures", "one-failure", "healthy"]);
+  });
+
+  it("tie-breaks unhealthy Channels with equal failure count by auto-disabled Endpoint count", async () => {
+    const now = new Date();
+
+    // Both have 1 recent failure, but one has an auto-disabled Endpoint.
+    // Issue #66 AC: the tie-break is deliberate — auto-disabled count is secondary.
+    const failureWithAutoDisabled = await createChannel("failure-with-auto-disabled");
+    const failureEndpoint1 = await createEndpoint(
+      failureWithAutoDisabled.id,
+      "https://example.com/fail1",
+    );
+    const failureEndpoint2 = await createEndpoint(
+      failureWithAutoDisabled.id,
+      "https://example.com/fail2",
+    );
+    await deliverOne(failureWithAutoDisabled.id, failureEndpoint1.id, "failed", now);
+    await autoDisable(failureWithAutoDisabled.id, failureEndpoint2.id, now);
+
+    const failureOnly = await createChannel("failure-only");
+    const failureOnlyEndpoint = await createEndpoint(
+      failureOnly.id,
+      "https://example.com/failonly",
+    );
+    await deliverOne(failureOnly.id, failureOnlyEndpoint.id, "failed", now);
+
+    const list = await fetchChannelList();
+    const slugs = list.items.map((item) => item.slug);
+
+    // Both have 1 failure; failure-with-auto-disabled has 1 auto-disabled,
+    // failure-only has 0. So failure-with-auto-disabled comes first.
+    expect(slugs).toEqual(["failure-with-auto-disabled", "failure-only"]);
+  });
+
+  it("maintains severity ordering across cursor pages without duplication or skipping", async () => {
+    const now = new Date();
+
+    const nineteen = await createChannel("nineteen");
+    const nineteenEndpoint = await createEndpoint(nineteen.id, "https://example.com/nineteen");
+    for (let i = 0; i < 19; i += 1) {
+      await deliverOne(nineteen.id, nineteenEndpoint.id, "failed", now);
+    }
+
+    const seven = await createChannel("seven");
+    const sevenEndpoint = await createEndpoint(seven.id, "https://example.com/seven");
+    for (let i = 0; i < 7; i += 1) {
+      await deliverOne(seven.id, sevenEndpoint.id, "failed", now);
+    }
+
+    const oneFailure = await createChannel("one");
+    const oneEndpoint = await createEndpoint(oneFailure.id, "https://example.com/one");
+    await deliverOne(oneFailure.id, oneEndpoint.id, "failed", now);
+
+    const healthy = await createChannel("healthy");
+    const healthyEndpoint = await createEndpoint(healthy.id, "https://example.com/healthy");
+    await deliverOne(healthy.id, healthyEndpoint.id, "succeeded", now);
+
+    // Walk the list one Channel at a time; keyset pagination exercises the
+    // cursor comparison in the WHERE clause, which must match the ORDER BY,
+    // or a Channel would vanish or repeat at a page boundary.
+    const expected = ["nineteen", "seven", "one", "healthy"];
+    const paged: string[] = [];
+    let cursor: string | null = null;
+    for (let page = 0; page < expected.length + 1; page += 1) {
+      const query = cursor === null ? "?limit=1" : `?limit=1&cursor=${encodeURIComponent(cursor)}`;
+      const response = await fetch(`${baseUrl}/channels${query}`, authed());
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as ChannelList;
+      paged.push(...body.items.map((item) => item.slug));
+      cursor = body.nextCursor;
+      if (cursor === null) {
+        break;
+      }
+    }
+
+    expect(cursor).toBeNull();
+    expect(paged).toEqual(expected);
+  });
+
+  /**
+   * Issue #66 widened the cursor tuple, so a cursor minted by the previous
+   * deploy — still live in an open tab or a client's retry — arrives carrying
+   * only `(healthRank, slug, id)`. Accepting it pushes `undefined` into the
+   * keyset `WHERE` as a bound parameter and the request 500s — this test fails
+   * with exactly that status if the decode guard is ever loosened. Rejecting it
+   * gives the client the 400 the contract already defines for an unreadable
+   * cursor, so a directory paged across a deploy degrades honestly.
+   */
+  it("rejects a cursor minted before the severity legs existed rather than failing the request", async () => {
+    const now = new Date();
+
+    const failing = await createChannel("stale-cursor-failing");
+    const failingEndpoint = await createEndpoint(
+      failing.id,
+      "https://example.com/stale-cursor-failing",
+    );
+    await deliverOne(failing.id, failingEndpoint.id, "failed", now);
+    await createChannel("stale-cursor-healthy");
+
+    const legacyCursor = Buffer.from(
+      JSON.stringify({ healthRank: 0, slug: "stale-cursor-failing", id: failing.id }),
+      "utf8",
+    ).toString("base64url");
+
+    const response = await fetch(
+      `${baseUrl}/channels?limit=1&cursor=${encodeURIComponent(legacyCursor)}`,
+      authed(),
+    );
+
+    expect(response.status).toBe(400);
   });
 });
