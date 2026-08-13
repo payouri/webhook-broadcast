@@ -20,3 +20,9 @@ Single-context — `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agen
 `DESIGN.md` (visual: colors, typography, elevation, components) at the repo root. Read both before
 any work on `apps/web`. `PRODUCT.md` binds the UI to `CONTEXT.md`'s vocabulary: Channel, Endpoint,
 Broadcast, Replay, Delivery, Attempt. Never "event", "message", "job", "subscriber".
+
+`apps/web` styles itself with hand-written CSS in `apps/web/src/styles.css` and takes no pre-styled
+component kit (shadcn/ui, MUI, Mantine). Read `docs/adr/0013-headless-overlay-primitives-not-a-component-kit.md`
+before adding any UI dependency. A surface that genuinely needs to float above content takes the
+headless `radix-ui` primitive for its behavior only, dressed in the existing classes; see
+`DESIGN.md` §5 Overlays for the terms.

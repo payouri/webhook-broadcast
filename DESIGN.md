@@ -274,6 +274,11 @@ Not applicable. If a future floating surface genuinely requires separation from 
 (a dropdown, a popover, a command palette), it earns exactly one shadow token at that time and it
 must be introduced here first, not invented at the call site.
 
+Such a surface takes its _behavior_ from a headless primitive and its _appearance_ from this
+document: the matching `radix-ui` primitive, dressed in this system's own classes. Never a
+pre-styled component kit, which arrives with the shadows, untinted greys, and radii this section
+exists to forbid. §5 Overlays states the terms; ADR 0013 records why.
+
 ### Named Rules
 
 **The No Shadow Rule.** `box-shadow` is prohibited except as a focus ring. A drop shadow on a card,
@@ -381,6 +386,30 @@ Dashed 1px Hairline Strong, 8px radius, 24px padding, centered, Body in Ink Mute
 the next action in the domain's own words: _"No Broadcasts yet. Send a request to
 `POST /ingest/<slug>` with a Channel token."_ Never _"Nothing here."_ No illustration, ever.
 
+### Overlays
+
+There are none today, and this section is a set of terms rather than a permission. Inline expansion
+is still the answer for detail: Broadcast detail, Delivery detail, and Endpoint editing all expand in
+place, and §6 keeps modals out. Reach for a floating surface only when the interaction genuinely
+needs to sit above content and inline expansion has been tried and does not fit (a filter dropdown, a
+command palette, a tooltip on a truncated header). "It would be quicker as a modal" is not that.
+
+When one is earned:
+
+- **Behavior comes from `radix-ui`**, the individual headless primitive, never a pre-styled kit. The
+  primitive is taken for what is genuinely hard to hand-roll and easy to get wrong: focus moves into
+  the surface on open, stays trapped while it is open, and returns to the trigger on close; `Escape`
+  dismisses; a press outside dismisses; and the trigger carries `aria-expanded` and `aria-haspopup`.
+  A floating surface missing any of these is unfinished, whatever it looks like.
+- **Appearance comes from this document.** Surface ground, 1px Hairline, `{rounded.md}`, and the
+  single shadow token introduced in §4 for exactly this purpose. No kit stylesheet, no second
+  palette, no new radius. Interactive rows inside a floating surface follow the row spec in Cards /
+  Containers.
+- **Motion is opacity only**, 150ms on `cubic-bezier(0.22, 1, 0.36, 1)`. No zoom, no slide, no
+  origin-based scale. The surface appears; it does not perform.
+- **The shadow token lands in §4 before the call site uses it.** Introduced there first, not
+  invented here.
+
 ## 6. Do's and Don'ts
 
 ### Do:
@@ -424,6 +453,10 @@ the next action in the domain's own words: _"No Broadcasts yet. Send a request t
 - **Don't** nest a panel inside a panel. Nested detail becomes an inset Surface Sunk region.
 - **Don't** reach for a modal. Broadcast detail, Delivery detail, and Endpoint editing are all
   inline expansions, and every future detail view should be too.
+- **Don't** add a pre-styled component kit (shadcn/ui, MUI, Mantine) to `apps/web`. Each one ships
+  its own shadows, untinted greys, radii, and status variants, so adopting one means overriding it at
+  every point this document has an opinion. Overlay _behavior_ comes from headless `radix-ui`
+  primitives dressed in these classes; see §5 Overlays and ADR 0013.
 - **Don't** write reassurance copy. No "Oops", no "Something went wrong", no exclamation marks.
 - **Don't** animate layout properties, add bounce or elastic easing, or animate anything that is not
   a state change.
