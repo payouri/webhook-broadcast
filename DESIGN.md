@@ -529,6 +529,13 @@ The unit the dashboard exists to display, and the thing an operator scans twenty
   reports system state, and the accent belongs to the selected row.
 - **Selected or expanded** (`aria-expanded="true"`): Anodize Wash ground, Anodize border. Nothing
   else in the system uses that wash.
+- **What the row does decides its element.** A row that navigates is an `a` (a router `Link`), so
+  cmd-click, middle-click, "open in new tab", "copy link address", the hover URL preview, and the
+  screen reader's "link" announcement all come for free; a Channel directory row is one. A row that
+  expands in place is a `button` carrying `aria-expanded`; Activity and Endpoint rows are those. The
+  `.row` classes carry the whole appearance either way, so the swap is a change of element and never
+  of look — including `text-decoration: none`, without which an anchor row arrives underlined, the
+  same failure the Controls note above records.
 - An expandable row ends with a **disclosure chevron**, so whether it opens and whether it is open
   now are shapes at rest rather than discoveries.
 - **Expanded** detail is a Well, inset from the row, holding the full Endpoint URL, the last error in

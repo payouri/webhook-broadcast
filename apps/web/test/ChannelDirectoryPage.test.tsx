@@ -337,4 +337,50 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
     expect(screen.getByText("4 failing (24h)").className).toContain("lamp-cut");
     expect(screen.getByText("3 failing (24h)").className).toContain("lamp-neutral");
   });
+
+  it("renders each Channel row as a link carrying its drill-down href (issue #55)", async () => {
+    // The row is an anchor, not a button, so cmd-click, middle-click, "open in
+    // new tab" and "copy link address" all work and a screen reader announces
+    // a link. A real `href` is what carries every one of those behaviours, so
+    // the destination is asserted on the attribute rather than by clicking:
+    // programmatic navigation would pass a click-based test with a `<button>`
+    // again.
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+      if (path === "/channels" && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            items: [
+              channelItem({
+                id: "22222222-2222-2222-2222-222222222222",
+                slug: "failing",
+                recentFailedDeliveryCount: 4,
+              }),
+              channelItem({ id: "33333333-3333-3333-3333-333333333333", slug: "healthy" }),
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    renderRoutes("/");
+    await flushAsync();
+
+    const rows = await screen.findAllByRole("link");
+    const hrefs = rows.map((row) => row.getAttribute("href"));
+
+    // The smart drill-down survives the element change: a Channel with recent
+    // failures still addresses the failures-filtered Activity view, a healthy
+    // one still addresses the Channel itself.
+    expect(hrefs).toContain(
+      "/channels/22222222-2222-2222-2222-222222222222/activity?filter=failed",
+    );
+    expect(hrefs).toContain("/channels/33333333-3333-3333-3333-333333333333");
+
+    // And nothing in the directory list is still a button pretending to navigate.
+    expect(document.querySelectorAll("button.row-channel")).toHaveLength(0);
+  });
 });

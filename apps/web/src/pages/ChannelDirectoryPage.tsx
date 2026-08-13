@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router";
+import { Link } from "react-router";
 import { Inbox, Plus, Radio } from "lucide-react";
 import type { Channel } from "@webhook-broadcast/contract";
 import { EmptyState } from "../components/EmptyState.js";
@@ -18,7 +18,6 @@ import {
 
 /** Landing page (ADR 0004): "which Channels exist and are they healthy?" */
 export function ChannelDirectoryPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -126,11 +125,7 @@ export function ChannelDirectoryPage() {
                 {/* A Channel with recent failures lands straight on the filtered
                     Activity view: the count this row names and the Broadcasts
                     behind it are one navigation apart. */}
-                <button
-                  type="button"
-                  className="row row-channel"
-                  onClick={() => navigate(channelActivityHref(channel))}
-                >
+                <Link to={channelActivityHref(channel)} className="row row-channel">
                   <EnabledStatusBadge enabled={channel.enabled} />
                   <span className="row-name">{channel.slug}</span>
                   <span className="muted row-truncate">
@@ -145,7 +140,7 @@ export function ChannelDirectoryPage() {
                   <span className="row-meta">
                     {channel.endpointCount} Endpoint{channel.endpointCount === 1 ? "" : "s"}
                   </span>
-                </button>
+                </Link>
               </li>
             ))}
           </ul>

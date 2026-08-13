@@ -1058,8 +1058,17 @@ input[type="number"] {
     border-color 150ms var(--ease-out);
 }
 
-button.row {
+/*
+ * A row that navigates renders as an `<a>` (issue #55), so it has to undo the
+ * user agent's link underline the same way `.control` does. This is the exact
+ * failure the Controls note above records: geometry lives on the class so the
+ * element may change freely, and an anchor that kept its underline would be a
+ * change of appearance, not just of element.
+ */
+button.row,
+a.row {
   cursor: pointer;
+  text-decoration: none;
 }
 
 /*
@@ -1067,12 +1076,14 @@ button.row {
  * row with the accent: this row is reporting system state, so the accent is
  * reserved for the selected one below.
  */
-button.row:hover {
+button.row:hover,
+a.row:hover {
   background: var(--well);
   border-color: var(--score-strong);
 }
 
-button.row:active {
+button.row:active,
+a.row:active {
   box-shadow: inset 0 2px 3px var(--lip-shade);
 }
 
