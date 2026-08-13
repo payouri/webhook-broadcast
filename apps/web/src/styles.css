@@ -916,6 +916,17 @@ button:disabled {
 }
 
 /*
+ * Issue #52: the auto-disable explanation and its re-enable action sit below
+ * the Endpoint row, in the same `<li>` but outside the row's own `<button>`
+ * (so re-enabling never opens edit mode) — same Surface Sunk ground and
+ * spacing rhythm as `.broadcast-detail`/`.delivery-detail`, one plain
+ * `margin-top` since `.confirm-region` on its own carries none.
+ */
+.endpoint-autodisabled-notice {
+  margin-top: 6px;
+}
+
+/*
  * An Endpoint's own edit form, opened in place of its row (issue #49): the
  * Endpoints list itself is no longer wrapped in a panel, so this can no
  * longer read as "a card nested inside another card" the way it used to —

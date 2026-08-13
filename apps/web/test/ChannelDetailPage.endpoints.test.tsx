@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FRESHNESS_POLL_MS } from "../src/lib/freshness.js";
 import {
@@ -99,7 +99,14 @@ describe("Channel Detail — Endpoints tab", () => {
       }
       if (path === `/channels/${CHANNEL_ID}/endpoints/${ENDPOINT_ID}` && method === "PATCH") {
         const patch = (await readJsonBody(input, init)) as Partial<EndpointJson>;
-        const updated: EndpointJson = { ...endpoints[0]!, ...patch };
+        const updated: EndpointJson = {
+          ...endpoints[0]!,
+          ...patch,
+          // Mirrors `apps/api/src/admin/endpoints.ts`: setting `enabled: true`
+          // clears `autoDisabledAt` server-side even though the client never
+          // sends that field itself.
+          ...(patch.enabled === true ? { autoDisabledAt: null } : {}),
+        };
         endpoints = [updated, ...endpoints.slice(1)];
         return jsonResponse(200, updated);
       }
@@ -137,7 +144,7 @@ describe("Channel Detail — Endpoints tab", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
 
-    expect(await screen.findByText(/auto-disabled/i)).toBeTruthy();
+    expect(await screen.findByText("Auto-disabled")).toBeTruthy();
     expect(screen.getByText(/50% ok \(24h\)/)).toBeTruthy();
     expect(screen.getByText(/p95 120ms/)).toBeTruthy();
   });
@@ -212,6 +219,49 @@ describe("Channel Detail — Endpoints tab", () => {
       await vi.advanceTimersByTimeAsync(FRESHNESS_POLL_MS);
     });
     expect(endpointCalls()).toBe(initialCalls + 1);
+  });
+
+  it("explains an auto-disabled Endpoint and offers a direct re-enable action", async () => {
+    endpoints = [
+      endpointBody({
+        enabled: false,
+        autoDisabledAt: "2026-08-10T12:00:00.000Z",
+      }),
+    ];
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    await screen.findByText("Auto-disabled");
+
+    // Names the failure streak, the (unnumbered) threshold, and states it
+    // does not recover on its own — never entering edit mode to say so.
+    expect(screen.getByText(/failure streak/i)).toBeTruthy();
+    expect(screen.getByText(/configured auto-disable window/i)).toBeTruthy();
+    expect(screen.getByText(/does not recover on its own/i)).toBeTruthy();
+    expect(screen.queryByLabelText("URL", { selector: `#endpoint-url-${ENDPOINT_ID}` })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Re-enable" }));
+
+    await waitFor(() => {
+      expect(
+        // The body is asserted by outcome rather than by reading it back: the
+        // mock only clears `autoDisabledAt` when the patch carries
+        // `enabled: true`, so the row flipping to Enabled below can only
+        // happen if that is what was sent.
+        fetchMock.mock.calls.some(
+          ([input, init]) =>
+            requestPath(input) === `/channels/${CHANNEL_ID}/endpoints/${ENDPOINT_ID}` &&
+            requestMethod(input, init) === "PATCH",
+        ),
+      ).toBe(true);
+    });
+
+    // The row returns to the Enabled presentation without a manual refresh.
+    await waitFor(() => {
+      expect(screen.queryByText("Auto-disabled")).toBeNull();
+    });
+    expect(within(screen.getByText("Primary").closest("li")!).getByText("Enabled")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Re-enable" })).toBeNull();
   });
 
   it("shows a Retry control when Endpoints fail to load", async () => {

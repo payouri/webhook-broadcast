@@ -11,6 +11,82 @@ import {
 } from "../../lib/freshness.js";
 import { EndpointForm } from "./EndpointForm.js";
 
+/**
+ * Issue #52: an auto-disabled Endpoint (ADR 0003) was the interface's one
+ * genuinely silent failure — the row named the state and a timestamp and
+ * nothing else, so an operator who has not read the ADR could not tell what
+ * triggered it, whether it recovers, or what to do. This sits below the row
+ * (never inside its `<button>`, so the re-enable action never opens edit
+ * mode) on the same Surface Sunk ground `ChannelDangerZonePanel`'s confirm
+ * region uses (The Inward Depth Rule) — attached to the row it explains
+ * rather than a step removed in an edit form.
+ *
+ * The threshold is named as "the configured auto-disable window" rather than
+ * a hardcoded duration: `ENDPOINT_AUTO_DISABLE_AFTER_MS` is not on the wire
+ * today, and a deployment may have overridden its default, so printing the
+ * built-in default here would be printing a fact that is not necessarily
+ * true of this deployment. Stating the rule without the number stays correct
+ * either way (issue #52's stated fallback when surfacing the env var would
+ * be a disproportionate contract change for this one line of copy).
+ */
+function EndpointAutoDisabledNotice({
+  channelId,
+  endpoint,
+  onReenabled,
+}: {
+  channelId: string;
+  endpoint: Endpoint;
+  onReenabled: () => Promise<void>;
+}) {
+  const [reenabling, setReenabling] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleReenable(): Promise<void> {
+    setReenabling(true);
+    setError(null);
+    try {
+      await api.updateEndpoint(channelId, endpoint.id, { enabled: true });
+      await onReenabled();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to re-enable Endpoint");
+      setReenabling(false);
+    }
+  }
+
+  return (
+    <div className="confirm-region endpoint-autodisabled-notice stack">
+      <p>
+        Auto-disabled: a failure streak — every Delivery failed, with no successful Delivery in
+        between — held past the configured auto-disable window. It does not recover on its own; only
+        an operator re-enabling it resumes Deliveries.
+      </p>
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="inline-form">
+        {/* Ghost, not the filled Patch Plum default: DESIGN.md §5 Buttons
+            reserves Primary for "the single committing action in a panel …
+            one per panel, never two", and this notice renders once per
+            auto-disabled Endpoint, so a filled button here would stack N of
+            them down one list and spend the One Voice Rule's 10% budget on a
+            failure state — the volume PRODUCT.md principle 4 rules out.
+            `ChannelTokensPanel`'s per-token confirm region reasons the same
+            way, and the tab's one Primary stays "Add Endpoint". */}
+        <button
+          type="button"
+          className="button-ghost"
+          onClick={() => void handleReenable()}
+          disabled={reenabling}
+        >
+          {reenabling ? "Re-enabling…" : "Re-enable"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function EndpointsTab({ channelId }: { channelId: string }) {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -114,6 +190,13 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
                       </span>
                     )}
                   </button>
+                  {endpoint.autoDisabledAt && (
+                    <EndpointAutoDisabledNotice
+                      channelId={channelId}
+                      endpoint={endpoint}
+                      onReenabled={refresh}
+                    />
+                  )}
                 </li>
               ),
             )}
