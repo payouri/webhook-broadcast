@@ -246,33 +246,33 @@ export interface components {
   schemas: {
     Attempt: {
       at: components["schemas"]["DateTime"];
-      durationMs: components["schemas"]["__schema85"];
-      error: components["schemas"]["__schema86"];
+      durationMs: components["schemas"]["__schema87"];
+      error: components["schemas"]["__schema88"];
       id: components["schemas"]["Id"];
-      n: components["schemas"]["__schema83"];
-      statusCode: components["schemas"]["__schema84"];
+      n: components["schemas"]["__schema85"];
+      statusCode: components["schemas"]["__schema86"];
     };
     AttemptList: {
-      items: components["schemas"]["__schema82"];
-      nextCursor: components["schemas"]["__schema87"];
+      items: components["schemas"]["__schema84"];
+      nextCursor: components["schemas"]["__schema89"];
     };
     BroadcastAccepted: {
-      id: components["schemas"]["__schema75"];
+      id: components["schemas"]["__schema77"];
     };
     BroadcastDetail: {
-      body: components["schemas"]["__schema66"];
+      body: components["schemas"]["__schema68"];
       channelId: components["schemas"]["Id"];
-      contentType: components["schemas"]["__schema65"];
-      deliveries: components["schemas"]["__schema67"];
+      contentType: components["schemas"]["__schema67"];
+      deliveries: components["schemas"]["__schema69"];
       id: components["schemas"]["Id"];
       receivedAt: components["schemas"]["DateTime"];
     };
     BroadcastList: {
-      items: components["schemas"]["__schema57"];
-      nextCursor: components["schemas"]["__schema64"];
+      items: components["schemas"]["__schema59"];
+      nextCursor: components["schemas"]["__schema66"];
     };
     BroadcastListItem: {
-      bodyPreview: components["schemas"]["__schema58"];
+      bodyPreview: components["schemas"]["__schema60"];
       channelId: components["schemas"]["Id"];
       fanout: components["schemas"]["FanoutSummary"];
       id: components["schemas"]["Id"];
@@ -281,14 +281,16 @@ export interface components {
     Channel: {
       allowUnauthenticatedIngest: components["schemas"]["__schema31"];
       createdAt: components["schemas"]["DateTime"];
-      deletedAt: components["schemas"]["__schema35"];
+      deletedAt: components["schemas"]["__schema37"];
       description: components["schemas"]["__schema27"];
       enabled: components["schemas"]["__schema28"];
       endpointCount: components["schemas"]["__schema32"];
       forwardHeaders: components["schemas"]["__schema29"];
+      hasBroadcasts: components["schemas"]["__schema33"];
       id: components["schemas"]["Id"];
+      recentFailedDeliveryCount: components["schemas"]["__schema34"];
       slug: components["schemas"]["__schema26"];
-      tokens: components["schemas"]["__schema33"];
+      tokens: components["schemas"]["__schema35"];
       updatedAt: components["schemas"]["DateTime"];
     };
     ChannelCreate: {
@@ -300,17 +302,17 @@ export interface components {
     };
     ChannelList: {
       items: components["schemas"]["__schema25"];
-      nextCursor: components["schemas"]["__schema36"];
+      nextCursor: components["schemas"]["__schema38"];
     };
     ChannelTokenCreated: {
       createdAt: components["schemas"]["DateTime"];
       id: components["schemas"]["Id"];
-      token: components["schemas"]["__schema50"];
+      token: components["schemas"]["__schema52"];
     };
     ChannelTokenSummary: {
       createdAt: components["schemas"]["DateTime"];
       id: components["schemas"]["Id"];
-      prefix: components["schemas"]["__schema34"];
+      prefix: components["schemas"]["__schema36"];
     };
     ChannelUpdate: {
       allowUnauthenticatedIngest?: components["schemas"]["__schema11"];
@@ -325,45 +327,45 @@ export interface components {
      */
     DateTime: string;
     Delivery: {
-      attemptCount: components["schemas"]["__schema78"];
+      attemptCount: components["schemas"]["__schema80"];
       broadcastId: components["schemas"]["Id"];
       channelId: components["schemas"]["Id"];
       endpointId: components["schemas"]["Id"];
-      endpointName: components["schemas"]["__schema76"];
-      endpointUrl: components["schemas"]["__schema77"];
+      endpointName: components["schemas"]["__schema78"];
+      endpointUrl: components["schemas"]["__schema79"];
       id: components["schemas"]["Id"];
-      lastDurationMs: components["schemas"]["__schema80"];
-      lastError: components["schemas"]["__schema81"];
-      lastStatusCode: components["schemas"]["__schema79"];
-      status: components["schemas"]["__schema70"];
+      lastDurationMs: components["schemas"]["__schema82"];
+      lastError: components["schemas"]["__schema83"];
+      lastStatusCode: components["schemas"]["__schema81"];
+      status: components["schemas"]["__schema72"];
       updatedAt: components["schemas"]["DateTime"];
     };
     DeliveryItem: {
-      attemptCount: components["schemas"]["__schema71"];
+      attemptCount: components["schemas"]["__schema73"];
       endpointId: components["schemas"]["Id"];
-      endpointName: components["schemas"]["__schema68"];
-      endpointUrl: components["schemas"]["__schema69"];
+      endpointName: components["schemas"]["__schema70"];
+      endpointUrl: components["schemas"]["__schema71"];
       id: components["schemas"]["Id"];
-      lastDurationMs: components["schemas"]["__schema73"];
-      lastError: components["schemas"]["__schema74"];
-      lastStatusCode: components["schemas"]["__schema72"];
-      status: components["schemas"]["__schema70"];
+      lastDurationMs: components["schemas"]["__schema75"];
+      lastError: components["schemas"]["__schema76"];
+      lastStatusCode: components["schemas"]["__schema74"];
+      status: components["schemas"]["__schema72"];
       updatedAt: components["schemas"]["DateTime"];
     };
     Endpoint: {
-      autoDisabledAt?: components["schemas"]["__schema45"];
+      autoDisabledAt?: components["schemas"]["__schema47"];
       channelId: components["schemas"]["Id"];
       createdAt: components["schemas"]["DateTime"];
-      enabled: components["schemas"]["__schema44"];
-      headers: components["schemas"]["__schema43"];
+      enabled: components["schemas"]["__schema46"];
+      headers: components["schemas"]["__schema45"];
       id: components["schemas"]["Id"];
-      lastSuccessAt?: components["schemas"]["__schema48"];
-      name: components["schemas"]["__schema40"];
-      p95Ms?: components["schemas"]["__schema47"];
-      successRate24h?: components["schemas"]["__schema46"];
-      timeoutMs: components["schemas"]["__schema42"];
+      lastSuccessAt?: components["schemas"]["__schema50"];
+      name: components["schemas"]["__schema42"];
+      p95Ms?: components["schemas"]["__schema49"];
+      successRate24h?: components["schemas"]["__schema48"];
+      timeoutMs: components["schemas"]["__schema44"];
       updatedAt: components["schemas"]["DateTime"];
-      url: components["schemas"]["__schema41"];
+      url: components["schemas"]["__schema43"];
     };
     EndpointCreate: {
       enabled?: components["schemas"]["__schema18"];
@@ -373,8 +375,8 @@ export interface components {
       url: components["schemas"]["__schema14"];
     };
     EndpointList: {
-      items: components["schemas"]["__schema39"];
-      nextCursor: components["schemas"]["__schema49"];
+      items: components["schemas"]["__schema41"];
+      nextCursor: components["schemas"]["__schema51"];
     };
     EndpointUpdate: {
       enabled?: components["schemas"]["__schema23"];
@@ -384,14 +386,14 @@ export interface components {
       url?: components["schemas"]["__schema20"];
     };
     ErrorEnvelope: {
-      error: components["schemas"]["__schema37"];
+      error: components["schemas"]["__schema39"];
     };
     FanoutSummary: {
-      deadLettered: components["schemas"]["__schema62"];
-      failed: components["schemas"]["__schema61"];
-      pending: components["schemas"]["__schema63"];
-      succeeded: components["schemas"]["__schema60"];
-      total: components["schemas"]["__schema59"];
+      deadLettered: components["schemas"]["__schema64"];
+      failed: components["schemas"]["__schema63"];
+      pending: components["schemas"]["__schema65"];
+      succeeded: components["schemas"]["__schema62"];
+      total: components["schemas"]["__schema61"];
     };
     /** Format: uuid */
     Id: string;
@@ -401,19 +403,19 @@ export interface components {
     OperatorTokenCreated: {
       createdAt: components["schemas"]["DateTime"];
       id: components["schemas"]["Id"];
-      label: components["schemas"]["__schema52"];
-      token: components["schemas"]["__schema56"];
+      label: components["schemas"]["__schema54"];
+      token: components["schemas"]["__schema58"];
     };
     OperatorTokenList: {
-      items: components["schemas"]["__schema51"];
-      nextCursor: components["schemas"]["__schema55"];
+      items: components["schemas"]["__schema53"];
+      nextCursor: components["schemas"]["__schema57"];
     };
     OperatorTokenSummary: {
       createdAt: components["schemas"]["DateTime"];
       id: components["schemas"]["Id"];
-      label: components["schemas"]["__schema52"];
-      lastUsedAt: components["schemas"]["__schema54"];
-      prefix: components["schemas"]["__schema53"];
+      label: components["schemas"]["__schema54"];
+      lastUsedAt: components["schemas"]["__schema56"];
+      prefix: components["schemas"]["__schema55"];
     };
     __schema0: string;
     __schema1: string;
@@ -451,89 +453,93 @@ export interface components {
     /** @description Issue #38: when true, POST /ingest/:slug accepts this Channel's events without an ingest token — the slug is the only thing gating its fan-out. Off by default. */
     __schema31: boolean;
     __schema32: number;
-    __schema33: components["schemas"]["ChannelTokenSummary"][];
+    /** @description Issue #44: whether this Channel has any retained Broadcast — ADR 0002's retention window bounds this, so a Channel whose whole history has been swept reads as false again. false distinguishes 'no activity' from a healthy Channel: a Channel with zero recent failures because it has taken no traffic must not read the same as one that is actually fine. */
+    __schema33: boolean;
+    /** @description Issue #44: count of this Channel's `failed` + `dead_lettered` Deliveries within the recent health window (packages/db's CHANNEL_RECENT_FAILURE_WINDOW_MS, currently 24h) — the single window constant every layer defers to, computed in one grouped query per list request rather than once per Channel. */
+    __schema34: number;
+    __schema35: components["schemas"]["ChannelTokenSummary"][];
     /** @description First ~8 chars of the token for recognition; never full secret */
-    __schema34: string;
-    __schema35: components["schemas"]["DateTime"] | null;
-    __schema36: string | null;
-    __schema37: {
+    __schema36: string;
+    __schema37: components["schemas"]["DateTime"] | null;
+    __schema38: string | null;
+    __schema39: {
       /** @description Stable machine code (e.g. validation_failed, not_found, unauthorized, conflict) */
       code: string;
       /** @description Present for validation_failed (Zod issues) */
-      details?: components["schemas"]["__schema38"];
+      details?: components["schemas"]["__schema40"];
       message: string;
     };
-    __schema38: {
+    /** @default [] */
+    __schema4: components["schemas"]["__schema5"];
+    __schema40: {
       message: string;
       path: string;
     }[];
-    __schema39: components["schemas"]["Endpoint"][];
-    /** @default [] */
-    __schema4: components["schemas"]["__schema5"];
-    __schema40: string | null;
+    __schema41: components["schemas"]["Endpoint"][];
+    __schema42: string | null;
     /** Format: uri */
-    __schema41: string;
-    __schema42: number | null;
-    __schema43: {
+    __schema43: string;
+    __schema44: number | null;
+    __schema45: {
       [key: string]: string;
     };
-    __schema44: boolean;
-    __schema45: components["schemas"]["DateTime"] | null;
-    __schema46: number | null;
-    __schema47: number | null;
-    __schema48: components["schemas"]["DateTime"] | null;
-    __schema49: string | null;
+    __schema46: boolean;
+    __schema47: components["schemas"]["DateTime"] | null;
+    __schema48: number | null;
+    __schema49: number | null;
     __schema5: string[];
+    __schema50: components["schemas"]["DateTime"] | null;
+    __schema51: string | null;
     /** @description Plaintext ingest token — shown once */
-    __schema50: string;
-    __schema51: components["schemas"]["OperatorTokenSummary"][];
-    /** @description Operator-chosen name identifying the holder, e.g. a CI job or laptop */
     __schema52: string;
+    __schema53: components["schemas"]["OperatorTokenSummary"][];
+    /** @description Operator-chosen name identifying the holder, e.g. a CI job or laptop */
+    __schema54: string;
     /** @description First ~8 chars of the token for recognition; never full secret */
-    __schema53: string;
-    __schema54: components["schemas"]["DateTime"] | null;
-    __schema55: string | null;
+    __schema55: string;
+    __schema56: components["schemas"]["DateTime"] | null;
+    __schema57: string | null;
     /** @description Plaintext operator token — shown once */
-    __schema56: string;
-    __schema57: components["schemas"]["BroadcastListItem"][];
     __schema58: string;
-    __schema59: number;
+    __schema59: components["schemas"]["BroadcastListItem"][];
     /** @default false */
     __schema6: boolean;
-    __schema60: number;
+    __schema60: string;
     __schema61: number;
     __schema62: number;
-    /** @description pending + in_progress for list summaries */
     __schema63: number;
-    __schema64: string | null;
-    __schema65: string;
+    __schema64: number;
+    /** @description pending + in_progress for list summaries */
+    __schema65: number;
+    __schema66: string | null;
+    __schema67: string;
     /** @description Raw inbound body (UTF-8 text for MVP sketch) */
-    __schema66: string;
-    __schema67: components["schemas"]["DeliveryItem"][];
-    __schema68: string | null;
-    __schema69: string;
+    __schema68: string;
+    __schema69: components["schemas"]["DeliveryItem"][];
     __schema7: components["schemas"]["__schema1"];
+    __schema70: string | null;
+    __schema71: string;
     /** @enum {string} */
-    __schema70: "pending" | "in_progress" | "succeeded" | "failed" | "dead_lettered";
-    __schema71: number;
-    __schema72: number | null;
-    __schema73: number | null;
-    __schema74: string | null;
-    /** @description New Broadcast id from replay */
-    __schema75: components["schemas"]["Id"];
+    __schema72: "pending" | "in_progress" | "succeeded" | "failed" | "dead_lettered";
+    __schema73: number;
+    __schema74: number | null;
+    __schema75: number | null;
     __schema76: string | null;
-    __schema77: string;
-    __schema78: number;
-    __schema79: number | null;
+    /** @description New Broadcast id from replay */
+    __schema77: components["schemas"]["Id"];
+    __schema78: string | null;
+    __schema79: string;
     __schema8: string | null;
-    __schema80: number | null;
-    __schema81: string | null;
-    __schema82: components["schemas"]["Attempt"][];
-    __schema83: number;
-    __schema84: number | null;
-    __schema85: number | null;
-    __schema86: string | null;
-    __schema87: string | null;
+    __schema80: number;
+    __schema81: number | null;
+    __schema82: number | null;
+    __schema83: string | null;
+    __schema84: components["schemas"]["Attempt"][];
+    __schema85: number;
+    __schema86: number | null;
+    __schema87: number | null;
+    __schema88: string | null;
+    __schema89: string | null;
     __schema9: boolean;
   };
   responses: never;

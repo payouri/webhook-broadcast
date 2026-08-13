@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import type { Channel } from "@webhook-broadcast/contract";
 import { InlineLoadError } from "../components/InlineLoadError.js";
-import { EnabledStatusBadge } from "../components/StatusBadge.js";
+import { ChannelHealthBadge, EnabledStatusBadge } from "../components/StatusBadge.js";
 import { api } from "../lib/api.js";
 import {
   freshnessRefetchInterval,
@@ -106,6 +106,10 @@ export function ChannelDirectoryPage() {
                   <span className="muted channel-description">
                     {channel.description ?? "No description"}
                   </span>
+                  <ChannelHealthBadge
+                    hasBroadcasts={channel.hasBroadcasts}
+                    recentFailedDeliveryCount={channel.recentFailedDeliveryCount}
+                  />
                   <span className="channel-meta">
                     {channel.endpointCount} Endpoint{channel.endpointCount === 1 ? "" : "s"}
                   </span>

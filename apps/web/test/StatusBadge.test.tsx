@@ -3,6 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DeliveryStatus } from "@webhook-broadcast/contract";
 import {
+  ChannelHealthBadge,
   DeliveryStatusBadge,
   EnabledStatusBadge,
   StatusBadge,
@@ -90,5 +91,32 @@ describe("StatusBadge — one status vocabulary, never color alone", () => {
         tones[0],
       );
     }
+  });
+
+  describe("ChannelHealthBadge — issue #44 directory failure signal", () => {
+    it("reads as 'no activity' rather than healthy for a Channel with no Broadcasts", () => {
+      render(<ChannelHealthBadge hasBroadcasts={false} recentFailedDeliveryCount={0} />);
+      const badge = screen.getByText("No activity");
+      expect(badge.className).toContain("status-badge-neutral");
+      expect(badge.className).toContain("status-badge-outlined");
+    });
+
+    it("labels zero recent failures as healthy, distinct in text and tone from a failing Channel", () => {
+      render(<ChannelHealthBadge hasBroadcasts={true} recentFailedDeliveryCount={0} />);
+      const healthy = screen.getByText("No failures (24h)");
+      expect(healthy.className).toContain("status-badge-success");
+      expect(healthy.className).toContain("status-badge-filled");
+      cleanup();
+
+      render(<ChannelHealthBadge hasBroadcasts={true} recentFailedDeliveryCount={3} />);
+      const failing = screen.getByText("3 failing (24h)");
+      expect(failing.className).toContain("status-badge-danger");
+      expect(failing.className).toContain("status-badge-filled");
+    });
+
+    it("carries the failure count in its text, not only in color", () => {
+      render(<ChannelHealthBadge hasBroadcasts={true} recentFailedDeliveryCount={7} />);
+      expect(screen.getByText("7 failing (24h)")).toBeTruthy();
+    });
   });
 });

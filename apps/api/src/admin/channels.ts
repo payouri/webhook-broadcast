@@ -13,12 +13,15 @@ import {
   decodeChannelCursor,
   encodeChannelCursor,
   getChannelById,
+  getChannelIdsWithAnyBroadcast,
   getEndpointCountsByChannelIds,
+  getRecentFailureCountsByChannelIds,
   getTokenSummariesByChannelIds,
   insertChannel,
   listChannels,
   softDeleteChannel,
   updateChannel,
+  type ChannelRecentFailureCountRow,
   type ChannelRow,
   type ChannelTokenSummaryRow,
   type Database,
@@ -29,6 +32,8 @@ function toWireChannel(
   row: ChannelRow,
   endpointCount: number,
   tokens: ChannelTokenSummaryRow[],
+  hasBroadcasts: boolean,
+  recentFailures: ChannelRecentFailureCountRow | undefined,
 ): Channel {
   return {
     id: row.id,
@@ -38,6 +43,9 @@ function toWireChannel(
     forwardHeaders: row.forwardHeaders,
     allowUnauthenticatedIngest: row.allowUnauthenticatedIngest,
     endpointCount,
+    hasBroadcasts,
+    recentFailedDeliveryCount:
+      (recentFailures?.failedCount ?? 0) + (recentFailures?.deadLetteredCount ?? 0),
     tokens: tokens.map((token) => ({
       id: token.id,
       prefix: token.prefix,
@@ -49,14 +57,29 @@ function toWireChannel(
   };
 }
 
-/** Endpoint count and token summaries are separate tables — hydrate in one batched pass per response. */
+/**
+ * Endpoint count, token summaries, the recent-failure aggregate (issue #44),
+ * and "has ever had a Broadcast" are each hydrated in one batched pass per
+ * response — one grouped query per aggregate for the whole page of
+ * Channels, never one query per Channel.
+ */
 async function hydrateChannels(db: Database, rows: ChannelRow[]): Promise<Channel[]> {
   const ids = rows.map((row) => row.id);
-  const [counts, tokens] = await Promise.all([
+  const [counts, tokens, everBroadcast, recentFailures] = await Promise.all([
     getEndpointCountsByChannelIds(db, ids),
     getTokenSummariesByChannelIds(db, ids),
+    getChannelIdsWithAnyBroadcast(db, ids),
+    getRecentFailureCountsByChannelIds(db, ids, new Date()),
   ]);
-  return rows.map((row) => toWireChannel(row, counts.get(row.id) ?? 0, tokens.get(row.id) ?? []));
+  return rows.map((row) =>
+    toWireChannel(
+      row,
+      counts.get(row.id) ?? 0,
+      tokens.get(row.id) ?? [],
+      everBroadcast.has(row.id),
+      recentFailures.get(row.id),
+    ),
+  );
 }
 
 export function registerChannelRoutes(router: Router, db: Database): void {

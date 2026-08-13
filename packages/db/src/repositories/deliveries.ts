@@ -1,9 +1,22 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { Database } from "../client.js";
 import { attempts, broadcasts, channels, deliveries, endpoints } from "../schema.js";
 
 export type DeliveryStatus = (typeof deliveries.$inferSelect)["status"];
+
+/**
+ * Issue #44: the single documented window for the Channel directory's
+ * failure signal — how far back a `failed`/`dead_lettered` Delivery still
+ * counts toward "recent". One constant used by the aggregate query below;
+ * nothing else recomputes or restates this number.
+ */
+export const CHANNEL_RECENT_FAILURE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export interface ChannelRecentFailureCountRow {
+  failedCount: number;
+  deadLetteredCount: number;
+}
 
 export interface DeliveryRow {
   id: string;
@@ -326,4 +339,54 @@ export async function retryDeadLetteredDelivery(
     .where(and(eq(deliveries.id, deliveryId), eq(deliveries.status, "dead_lettered")))
     .returning({ id: deliveries.id });
   return rows.length > 0;
+}
+
+/**
+ * Channel directory failure signal (issue #44): one grouped query for every
+ * requested Channel, never one query per Channel. Counts `failed` and
+ * `dead_lettered` Deliveries whose `updatedAt` falls inside
+ * `CHANNEL_RECENT_FAILURE_WINDOW_MS` of `now`. Every status transition writes
+ * `updatedAt` (see `completeDelivery`), so it is when the Delivery entered its
+ * terminal state — a re-queued `dead_lettered` Delivery (ADR 0003) bumps it
+ * again and drops out of the count, which is what an operator wants.
+ *
+ * `now` is caller-supplied so the window is deterministic under test rather
+ * than reading the wall clock inside the query. Both statuses are also filtered
+ * in the `where`, so the scan touches only failure rows; a Channel with nothing
+ * failed recently (or no Deliveries at all) is therefore absent from the
+ * returned Map entirely, and callers treat a missing entry as zero.
+ */
+export async function getRecentFailureCountsByChannelIds(
+  db: Database,
+  channelIds: string[],
+  now: Date,
+): Promise<Map<string, ChannelRecentFailureCountRow>> {
+  if (channelIds.length === 0) {
+    return new Map();
+  }
+  const since = new Date(now.getTime() - CHANNEL_RECENT_FAILURE_WINDOW_MS);
+  const rows = await db
+    .select({
+      channelId: deliveries.channelId,
+      failedCount: sql<number>`count(*) filter (where ${deliveries.status} = 'failed')`.mapWith(
+        Number,
+      ),
+      deadLetteredCount:
+        sql<number>`count(*) filter (where ${deliveries.status} = 'dead_lettered')`.mapWith(Number),
+    })
+    .from(deliveries)
+    .where(
+      and(
+        inArray(deliveries.channelId, channelIds),
+        inArray(deliveries.status, ["failed", "dead_lettered"]),
+        gte(deliveries.updatedAt, since),
+      ),
+    )
+    .groupBy(deliveries.channelId);
+  return new Map(
+    rows.map((row) => [
+      row.channelId,
+      { failedCount: row.failedCount, deadLetteredCount: row.deadLetteredCount },
+    ]),
+  );
 }

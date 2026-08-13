@@ -181,4 +181,67 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
 
     expect(await screen.findByText("orders")).toBeTruthy();
   });
+
+  it("renders the recent-failure signal on each Channel directory row (issue #44)", async () => {
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+      if (path === "/channels" && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            items: [
+              {
+                id: "11111111-1111-1111-1111-111111111111",
+                slug: "orders",
+                description: null,
+                enabled: true,
+                endpointCount: 1,
+                hasBroadcasts: true,
+                recentFailedDeliveryCount: 0,
+                tokens: [],
+                deletedAt: null,
+                createdAt: "2026-08-10T00:00:00.000Z",
+                updatedAt: "2026-08-10T00:00:00.000Z",
+              },
+              {
+                id: "22222222-2222-2222-2222-222222222222",
+                slug: "invoices",
+                description: null,
+                enabled: true,
+                endpointCount: 1,
+                hasBroadcasts: true,
+                recentFailedDeliveryCount: 4,
+                tokens: [],
+                deletedAt: null,
+                createdAt: "2026-08-10T00:00:00.000Z",
+                updatedAt: "2026-08-10T00:00:00.000Z",
+              },
+              {
+                id: "33333333-3333-3333-3333-333333333333",
+                slug: "quiet",
+                description: null,
+                enabled: true,
+                endpointCount: 0,
+                hasBroadcasts: false,
+                recentFailedDeliveryCount: 0,
+                tokens: [],
+                deletedAt: null,
+                createdAt: "2026-08-10T00:00:00.000Z",
+                updatedAt: "2026-08-10T00:00:00.000Z",
+              },
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    renderRoutes("/");
+    await flushAsync();
+
+    expect(await screen.findByText("No failures (24h)")).toBeTruthy();
+    expect(screen.getByText("4 failing (24h)")).toBeTruthy();
+    expect(screen.getByText("No activity")).toBeTruthy();
+  });
 });

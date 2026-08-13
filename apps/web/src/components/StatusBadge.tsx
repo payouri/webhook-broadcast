@@ -80,3 +80,36 @@ export function DeliveryStatusBadge({ status }: { status: DeliveryStatus }) {
   const { tone, form } = DELIVERY_STATUS_PRESENTATION[status];
   return <StatusBadge label={deliveryStatusLabel(status)} tone={tone} form={form} />;
 }
+
+/**
+ * Channel directory failure signal (issue #44): ADR 0004 wants the directory
+ * to answer "which Channels exist and are they healthy?" without opening
+ * each one, so this reads through the same vocabulary as every other status
+ * here rather than inventing a fourth way to show state.
+ *
+ * Three distinct renderings, per the issue's acceptance criteria:
+ *  - `hasBroadcasts` false: this Channel has never taken a Broadcast at all.
+ *    That is "no activity", not "healthy" — neutral/outlined, same family as
+ *    `EnabledStatusBadge`'s "Disabled".
+ *  - zero recent failures: Signal Live, filled — healthy, and its text says
+ *    so, not just its color.
+ *  - one or more: Signal Cut, filled, and the label carries the count so a
+ *    screen reader (or a colorblind operator) gets the number, not a dot.
+ */
+export function ChannelHealthBadge({
+  hasBroadcasts,
+  recentFailedDeliveryCount,
+}: {
+  hasBroadcasts: boolean;
+  recentFailedDeliveryCount: number;
+}) {
+  if (!hasBroadcasts) {
+    return <StatusBadge label="No activity" tone="neutral" form="outlined" />;
+  }
+  if (recentFailedDeliveryCount === 0) {
+    return <StatusBadge label="No failures (24h)" tone="success" form="filled" />;
+  }
+  return (
+    <StatusBadge label={`${recentFailedDeliveryCount} failing (24h)`} tone="danger" form="filled" />
+  );
+}

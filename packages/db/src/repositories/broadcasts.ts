@@ -128,6 +128,28 @@ export async function deleteBroadcastsReceivedBefore(db: Database, cutoff: Date)
   return deleted.length;
 }
 
+/**
+ * Channel directory (issue #44): which of these Channels have ever received
+ * a Broadcast at all, distinguishing "no activity" from "healthy" — a
+ * Channel can have zero recent failures either because it is fine or because
+ * it has never taken any traffic, and those two must not render the same.
+ * One grouped query for every requested Channel, never one per Channel.
+ */
+export async function getChannelIdsWithAnyBroadcast(
+  db: Database,
+  channelIds: string[],
+): Promise<Set<string>> {
+  if (channelIds.length === 0) {
+    return new Set();
+  }
+  const rows = await db
+    .select({ channelId: broadcasts.channelId })
+    .from(broadcasts)
+    .where(inArray(broadcasts.channelId, channelIds))
+    .groupBy(broadcasts.channelId);
+  return new Set(rows.map((row) => row.channelId));
+}
+
 export interface FanoutSummaryRow {
   total: number;
   succeeded: number;

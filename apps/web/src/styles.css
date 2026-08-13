@@ -218,7 +218,7 @@ button:disabled {
 .channel-row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(var(--status-stamp-column), auto) auto 1fr auto;
+  grid-template-columns: minmax(var(--status-stamp-column), auto) auto 1fr auto auto;
   align-items: center;
   gap: 12px;
   padding: 12px;

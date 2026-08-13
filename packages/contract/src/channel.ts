@@ -57,6 +57,25 @@ export const channelSchema = z
         "ingest token — the slug is the only thing gating its fan-out. Off by default.",
     }),
     endpointCount: z.number().int().min(0),
+    hasBroadcasts: z.boolean().meta({
+      description:
+        "Issue #44: whether this Channel has any retained Broadcast — ADR 0002's retention " +
+        "window bounds this, so a Channel whose whole history has been swept reads as false " +
+        "again. false distinguishes 'no activity' from a healthy Channel: a Channel with zero " +
+        "recent failures because it has taken no traffic must not read the same as one that is " +
+        "actually fine.",
+    }),
+    recentFailedDeliveryCount: z
+      .number()
+      .int()
+      .min(0)
+      .meta({
+        description:
+          "Issue #44: count of this Channel's `failed` + `dead_lettered` Deliveries within the " +
+          "recent health window (packages/db's CHANNEL_RECENT_FAILURE_WINDOW_MS, currently 24h) " +
+          "— the single window constant every layer defers to, computed in one grouped query per " +
+          "list request rather than once per Channel.",
+      }),
     tokens: z.array(channelTokenSummarySchema),
     deletedAt: dateTimeSchema.nullable(),
     createdAt: dateTimeSchema,
