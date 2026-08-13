@@ -36,7 +36,7 @@ export function ChannelDirectoryPage({
     try {
       await api.createChannel({
         slug,
-        description: description.length > 0 ? description : undefined,
+        ...(description.length > 0 ? { description } : {}),
       });
       setSlug("");
       setDescription("");

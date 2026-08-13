@@ -29,9 +29,9 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
         <EndpointForm
           onSubmit={async (input) => {
             await api.createEndpoint(channelId, {
-              name: input.name ?? undefined,
               url: input.url,
-              timeoutMs: input.timeoutMs ?? undefined,
+              ...(input.name !== null ? { name: input.name } : {}),
+              ...(input.timeoutMs !== null ? { timeoutMs: input.timeoutMs } : {}),
               headers: input.headers,
               enabled: input.enabled,
             });

@@ -1,5 +1,20 @@
 import type { LoginResponse } from "@webhook-broadcast/contract";
-import { getAdminFetchClient } from "@webhook-broadcast/contract/client";
+import { getAdminFetchClient, type paths } from "@webhook-broadcast/contract/client";
+
+/**
+ * Request-body shapes lifted straight from the published OpenAPI contract
+ * (`paths`) rather than hand-duplicated as parallel `*Input`/`*Patch`
+ * interfaces — see issue #28. Callers build these object literals with
+ * conditional spreads instead of explicit `key: undefined`, so they satisfy
+ * `exactOptionalPropertyTypes` without this wrapper loosening the types.
+ */
+type ChannelCreateBody = paths["/channels"]["post"]["requestBody"]["content"]["application/json"];
+type ChannelUpdateBody =
+  paths["/channels/{channelId}"]["patch"]["requestBody"]["content"]["application/json"];
+type EndpointCreateBody =
+  paths["/channels/{channelId}/endpoints"]["post"]["requestBody"]["content"]["application/json"];
+type EndpointUpdateBody =
+  paths["/channels/{channelId}/endpoints/{endpointId}"]["patch"]["requestBody"]["content"]["application/json"];
 
 export interface ApiErrorDetail {
   path: string;
@@ -101,36 +116,6 @@ async function authRequest<TResponse>(path: string, init: RequestInit = {}): Pro
   return body as TResponse;
 }
 
-export interface ChannelInput {
-  slug: string;
-  description?: string | undefined;
-  enabled?: boolean | undefined;
-  allowUnauthenticatedIngest?: boolean | undefined;
-}
-
-export interface ChannelPatch {
-  slug?: string;
-  description?: string | null;
-  enabled?: boolean;
-  allowUnauthenticatedIngest?: boolean;
-}
-
-export interface EndpointInput {
-  name?: string | undefined;
-  url: string;
-  timeoutMs?: number | undefined;
-  headers?: Record<string, string> | undefined;
-  enabled?: boolean | undefined;
-}
-
-export interface EndpointPatch {
-  name?: string | null;
-  url?: string;
-  timeoutMs?: number | null;
-  headers?: Record<string, string>;
-  enabled?: boolean;
-}
-
 export const api = {
   login: (apiKey: string) =>
     authRequest<LoginResponse>("/auth/login", {
@@ -140,24 +125,13 @@ export const api = {
   logout: () => authRequest<void>("/auth/logout", { method: "POST" }),
   session: () => authRequest<{ ok: true }>("/auth/session"),
   listChannels: async () => unwrap(await getAdminFetchClient().GET("/channels")),
-  createChannel: async (input: ChannelInput) =>
-    unwrap(
-      await getAdminFetchClient().POST("/channels", {
-        body: {
-          slug: input.slug,
-          ...(input.description !== undefined ? { description: input.description } : {}),
-          ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
-          ...(input.allowUnauthenticatedIngest !== undefined
-            ? { allowUnauthenticatedIngest: input.allowUnauthenticatedIngest }
-            : {}),
-        },
-      }),
-    ),
+  createChannel: async (input: ChannelCreateBody) =>
+    unwrap(await getAdminFetchClient().POST("/channels", { body: input })),
   getChannel: async (channelId: string) =>
     unwrap(
       await getAdminFetchClient().GET("/channels/{channelId}", { params: { path: { channelId } } }),
     ),
-  updateChannel: async (channelId: string, patch: ChannelPatch) =>
+  updateChannel: async (channelId: string, patch: ChannelUpdateBody) =>
     unwrap(
       await getAdminFetchClient().PATCH("/channels/{channelId}", {
         params: { path: { channelId } },
@@ -176,20 +150,14 @@ export const api = {
         params: { path: { channelId } },
       }),
     ),
-  createEndpoint: async (channelId: string, input: EndpointInput) =>
+  createEndpoint: async (channelId: string, input: EndpointCreateBody) =>
     unwrap(
       await getAdminFetchClient().POST("/channels/{channelId}/endpoints", {
         params: { path: { channelId } },
-        body: {
-          url: input.url,
-          ...(input.name !== undefined ? { name: input.name } : {}),
-          ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {}),
-          ...(input.headers !== undefined ? { headers: input.headers } : {}),
-          ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
-        },
+        body: input,
       }),
     ),
-  updateEndpoint: async (channelId: string, endpointId: string, patch: EndpointPatch) =>
+  updateEndpoint: async (channelId: string, endpointId: string, patch: EndpointUpdateBody) =>
     unwrap(
       await getAdminFetchClient().PATCH("/channels/{channelId}/endpoints/{endpointId}", {
         params: { path: { channelId, endpointId } },
