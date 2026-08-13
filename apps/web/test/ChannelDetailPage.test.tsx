@@ -242,12 +242,63 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
     expect(screen.queryByRole("button", { name: "Confirm revoke" })).toBeNull();
     expect(screen.getByText("wbt_abcd1234…")).toBeTruthy();
 
+    // Cancelling returns focus to the exact trigger that opened the region
+    // (issue #61), not wherever the browser defaults to once it unmounts.
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Revoke" }));
+
     // Dismissing left the token untouched: no revoke ever reached the server.
     const revokeCalls = fetchMock.mock.calls.filter(
       ([input, init]) =>
         requestMethod(input as string | URL | Request, init as RequestInit) === "DELETE",
     );
     expect(revokeCalls).toHaveLength(0);
+  });
+
+  it("moves focus into the revoke confirm region on open and closes it on Escape", async () => {
+    const tokenId = "33333333-3333-3333-3333-333333333333";
+
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(
+            200,
+            baseChannel([
+              { id: tokenId, prefix: "wbt_abcd1234", createdAt: "2026-08-10T12:00:00.000Z" },
+            ]),
+          ),
+        );
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Revoke" }));
+
+    // The overlay focus contract (DESIGN.md #4): the row this button lived on
+    // is gone, so focus moves onto the confirm region's first control rather
+    // than falling back to <body>.
+    const confirmButton = await screen.findByRole("button", { name: "Confirm revoke" });
+    expect(document.activeElement).toBe(confirmButton);
+
+    const region = confirmButton.closest('[role="group"]')!;
+    expect(region.getAttribute("aria-label")).toMatch(/wbt_abcd1234/);
+
+    fireEvent.keyDown(confirmButton, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Revoke" })).toBeTruthy();
+    });
+    expect(screen.queryByRole("button", { name: "Confirm revoke" })).toBeNull();
+    // Escape returns focus to the same trigger a Cancel click would.
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Revoke" }));
   });
 
   it("opens the tokens panel without a second getChannel request (issue #51)", async () => {
@@ -670,6 +721,48 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
     expect(screen.queryByRole("button", { name: "Confirm delete" })).toBeNull();
     expect(deleteCalled).toBe(false);
     expect(screen.queryByText("New Channel")).toBeNull();
+
+    // Cancelling returns focus to the exact trigger that opened the region
+    // (issue #61), not wherever the browser defaults to once it unmounts.
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Delete Channel" }));
+  });
+
+  it("moves focus into the delete confirm region on open and closes it on Escape", async () => {
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Channel" }));
+
+    // The overlay focus contract (DESIGN.md #4): the button just clicked is
+    // gone, replaced by the confirm region, so focus is moved deliberately
+    // rather than left on <body>.
+    const confirmButton = await screen.findByRole("button", { name: "Confirm delete" });
+    expect(document.activeElement).toBe(confirmButton);
+
+    const region = confirmButton.closest('[role="group"]')!;
+    expect(region.getAttribute("aria-label")).toMatch(/orders/);
+
+    fireEvent.keyDown(confirmButton, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Delete Channel" })).toBeTruthy();
+    });
+    expect(screen.queryByRole("button", { name: "Confirm delete" })).toBeNull();
+    // Escape returns focus to the same trigger a Cancel click would.
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Delete Channel" }));
   });
 
   it("keeps the enabled toggle distinct from delete (issue #33)", async () => {

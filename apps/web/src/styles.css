@@ -1515,7 +1515,8 @@ button.row:active {
  * now) is a shape at rest rather than something found by clicking.
  */
 .delivery-meta,
-.activity-fanout {
+.activity-fanout,
+.row-chevron {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;

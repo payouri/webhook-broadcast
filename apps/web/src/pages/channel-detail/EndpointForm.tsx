@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Check, X } from "lucide-react";
 import type { Endpoint } from "@webhook-broadcast/contract";
 import { Switch } from "../../components/Switch.js";
@@ -16,21 +16,72 @@ export function EndpointForm({
   submitLabel,
   onSubmit,
   onCancel,
+  onDirtyChange,
 }: {
   initial?: Endpoint;
   submitLabel: string;
   onSubmit: (values: EndpointFormValues) => Promise<void>;
   onCancel?: () => void;
+  /**
+   * Fires whenever a field's value diverges from (or returns to) `initial`.
+   * The Endpoints tab uses this to guard against a row-to-row swap silently
+   * discarding an edit in progress (the 2026-08-14 critique).
+   */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [url, setUrl] = useState(initial?.url ?? "");
-  const [timeoutMs, setTimeoutMs] = useState(initial?.timeoutMs?.toString() ?? "");
-  const [headersText, setHeadersText] = useState(
-    initial ? JSON.stringify(initial.headers, null, 2) : "{}",
-  );
-  const [enabled, setEnabled] = useState(initial?.enabled ?? true);
+  const initialName = initial?.name ?? "";
+  const initialUrl = initial?.url ?? "";
+  const initialTimeoutMs = initial?.timeoutMs?.toString() ?? "";
+  const initialHeadersText = initial ? JSON.stringify(initial.headers, null, 2) : "{}";
+  const initialEnabled = initial?.enabled ?? true;
+
+  const [name, setName] = useState(initialName);
+  const [url, setUrl] = useState(initialUrl);
+  const [timeoutMs, setTimeoutMs] = useState(initialTimeoutMs);
+  const [headersText, setHeadersText] = useState(initialHeadersText);
+  const [enabled, setEnabled] = useState(initialEnabled);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const urlRef = useRef<HTMLInputElement>(null);
+
+  // Focus contract for the Endpoint edit swap (DESIGN.md #4): editing an
+  // existing Endpoint replaces the row's place in the tab order with this
+  // form, so the URL field (its first meaningful control) takes focus on
+  // mount rather than leaving it on <body>. The always-mounted "New
+  // Endpoint" form has nothing to steal focus from, so it opts out via
+  // `initial`.
+  useEffect(() => {
+    if (initial) {
+      urlRef.current?.focus();
+    }
+    // Deliberately mount-only: a fresh `<EndpointForm>` instance is created
+    // each time `editingId` changes (see EndpointsTab.tsx, keyed by Endpoint
+    // id), so this already refocuses on a row switch without watching
+    // `initial`, which would otherwise steal focus back to the URL field on
+    // every ~5s poll refresh while an operator is mid-edit.
+  }, []);
+
+  useEffect(() => {
+    const dirty =
+      name !== initialName ||
+      url !== initialUrl ||
+      timeoutMs !== initialTimeoutMs ||
+      headersText !== initialHeadersText ||
+      enabled !== initialEnabled;
+    onDirtyChange?.(dirty);
+  }, [
+    name,
+    url,
+    timeoutMs,
+    headersText,
+    enabled,
+    initialName,
+    initialUrl,
+    initialTimeoutMs,
+    initialHeadersText,
+    initialEnabled,
+    onDirtyChange,
+  ]);
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -77,6 +128,7 @@ export function EndpointForm({
       <div className="field">
         <label htmlFor={`endpoint-url-${initial?.id ?? "new"}`}>URL</label>
         <input
+          ref={urlRef}
           id={`endpoint-url-${initial?.id ?? "new"}`}
           className="data"
           value={url}

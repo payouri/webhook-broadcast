@@ -12,6 +12,7 @@ import {
 
 const CHANNEL_ID = "11111111-1111-1111-1111-111111111111";
 const ENDPOINT_ID = "22222222-2222-2222-2222-222222222222";
+const SECOND_ENDPOINT_ID = "44444444-4444-4444-4444-444444444444";
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -194,6 +195,169 @@ describe("Channel Detail — Endpoints tab", () => {
       ).toBe(true);
     });
     expect(await screen.findByText("Renamed")).toBeTruthy();
+  });
+
+  it("states an Endpoint row's disclosure at rest and moves focus into the edit form on open", async () => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    const row = (await screen.findByText("Primary")).closest("button")!;
+
+    // The chevron and `aria-expanded` are shapes at rest (DESIGN.md #5 Rows),
+    // not something discovered only once the row is clicked.
+    expect(row.getAttribute("aria-expanded")).toBe("false");
+    expect(row.querySelector("svg")).toBeTruthy();
+
+    fireEvent.click(row);
+
+    expect(row.getAttribute("aria-expanded")).toBe("true");
+
+    // The overlay focus contract (DESIGN.md #4): the swap moves focus onto
+    // the region's first meaningful control, the URL field, rather than
+    // leaving it on <body>.
+    const urlInput = await screen.findByLabelText("URL", {
+      selector: `#endpoint-url-${ENDPOINT_ID}`,
+    });
+    expect(document.activeElement).toBe(urlInput);
+
+    // The row itself, its lamp and its name, stay visible while its form is
+    // open below it (BroadcastDetailPanel's row-plus-well shape), rather than
+    // the row being replaced outright.
+    expect(screen.getByText("Primary")).toBeTruthy();
+  });
+
+  it("closes the Endpoint edit form on Escape, the same as Cancel, and returns focus to the row", async () => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByText("Primary"));
+
+    const urlInput = await screen.findByLabelText("URL", {
+      selector: `#endpoint-url-${ENDPOINT_ID}`,
+    });
+    fireEvent.keyDown(urlInput, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByLabelText("URL", { selector: `#endpoint-url-${ENDPOINT_ID}` }),
+      ).toBeNull();
+    });
+    const row = screen.getByText("Primary").closest("button")!;
+    expect(row.getAttribute("aria-expanded")).toBe("false");
+    // Cancelling (Escape included) returns focus to the row that opened the
+    // edit (issue #61), not to <body>.
+    expect(document.activeElement).toBe(row);
+  });
+
+  it("returns focus to the Endpoint row when Cancel is pressed in the edit form", async () => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByText("Primary"));
+
+    await screen.findByLabelText("URL", { selector: `#endpoint-url-${ENDPOINT_ID}` });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByLabelText("URL", { selector: `#endpoint-url-${ENDPOINT_ID}` }),
+      ).toBeNull();
+    });
+    const row = screen.getByText("Primary").closest("button")!;
+    expect(document.activeElement).toBe(row);
+  });
+
+  it("opens the Endpoint editor by clicking the disclosure chevron itself", async () => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    const row = (await screen.findByText("Primary")).closest("button")!;
+    const chevron = row.querySelector(".row-chevron svg")!;
+    expect(chevron).toBeTruthy();
+
+    // The chevron sits inside the row's own `<button>` (the whole row is the
+    // control, per DESIGN.md #5 Rows), so a click landing on the glyph itself
+    // reaches the same affordance as a click anywhere else on the row.
+    fireEvent.click(chevron);
+
+    expect(row.getAttribute("aria-expanded")).toBe("true");
+    expect(
+      await screen.findByLabelText("URL", { selector: `#endpoint-url-${ENDPOINT_ID}` }),
+    ).toBeTruthy();
+  });
+
+  it("does not open the editor when re-enabling an auto-disabled Endpoint", async () => {
+    endpoints = [
+      endpointBody({
+        enabled: false,
+        autoDisabledAt: "2026-08-10T12:00:00.000Z",
+      }),
+    ];
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    await screen.findByText("Auto-disabled");
+
+    // The Re-enable control sits outside the row's own clickable region (a
+    // sibling in the `<li>`, not nested inside the row `<button>`), so
+    // pressing it must not also trigger the row's edit-open behavior.
+    fireEvent.click(screen.getByRole("button", { name: "Re-enable" }));
+
+    const row = screen.getByText("Primary").closest("button")!;
+    expect(row.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByLabelText("URL", { selector: `#endpoint-url-${ENDPOINT_ID}` })).toBeNull();
+  });
+
+  it("guards a row-to-row switch against silently discarding unsaved changes", async () => {
+    endpoints = [
+      endpointBody(),
+      endpointBody({ id: SECOND_ENDPOINT_ID, name: "Secondary", url: "https://example.com/two" }),
+    ];
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByText("Primary"));
+
+    const nameInput = await screen.findByLabelText("Name", {
+      selector: `#endpoint-name-${ENDPOINT_ID}`,
+    });
+    fireEvent.change(nameInput, { target: { value: "Renamed" } });
+
+    // Clicking a different Endpoint row while the open one is dirty must not
+    // silently discard the edit in progress.
+    fireEvent.click(screen.getByText("Secondary"));
+
+    expect(
+      await screen.findByText(
+        (_, element) =>
+          element?.tagName.toLowerCase() === "p" &&
+          /Unsaved changes to Primary\. Discard them and edit Secondary/.test(
+            element.textContent ?? "",
+          ),
+      ),
+    ).toBeTruthy();
+    // The Primary form is still there, still holding the unsaved rename: the
+    // confirm names what would be lost rather than unmounting the form (and
+    // its local state) to make room for itself.
+    expect((nameInput as HTMLInputElement).value).toBe("Renamed");
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+
+    const nameInputAgain = await screen.findByLabelText("Name", {
+      selector: `#endpoint-name-${ENDPOINT_ID}`,
+    });
+    expect((nameInputAgain as HTMLInputElement).value).toBe("Renamed");
+
+    // Now actually discard and switch.
+    fireEvent.click(screen.getByText("Secondary"));
+    fireEvent.click(await screen.findByRole("button", { name: "Discard and switch" }));
+
+    expect(
+      await screen.findByLabelText("URL", { selector: `#endpoint-url-${SECOND_ENDPOINT_ID}` }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByLabelText("Name", { selector: `#endpoint-name-${ENDPOINT_ID}` }),
+    ).toBeNull();
   });
 
   it("polls Endpoints every ~5s", async () => {

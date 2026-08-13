@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Inbox, KeyRound, Plus, ShieldOff, X } from "lucide-react";
-import type { ChannelTokenCreated } from "@webhook-broadcast/contract";
+import type { Channel, ChannelTokenCreated } from "@webhook-broadcast/contract";
 import { CopyButton } from "../../components/CopyButton.js";
 import { EmptyState } from "../../components/EmptyState.js";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
@@ -10,6 +10,70 @@ import { SkeletonRows } from "../../components/SkeletonRows.js";
 import { api } from "../../lib/api.js";
 import { channelQueryKey, useChannelQuery } from "../../lib/channelQuery.js";
 import { queryErrorMessage } from "../../lib/freshness.js";
+
+type ChannelToken = Channel["tokens"][number];
+
+/**
+ * The revoke confirm region replaces the token row in place, which is this
+ * product's answer to a modal (DESIGN.md #4 Elevation, "Overlays still do not
+ * exist"). But the Named overlay focus contract still applies to the swap
+ * itself: focus moves onto the region's first control on open, `Escape` does
+ * what Cancel does, and `role="group"` plus an `aria-label` naming the token
+ * stand in for the trigger a screen reader user just lost.
+ */
+function TokenRevokeConfirm({
+  token,
+  revoking,
+  onConfirm,
+  onCancel,
+}: {
+  token: ChannelToken;
+  revoking: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const confirmRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    confirmRef.current?.focus();
+  }, []);
+
+  return (
+    <div
+      className="confirm-region"
+      role="group"
+      aria-label={`Confirm revoke token ${token.prefix}…`}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          onCancel();
+        }
+      }}
+    >
+      <p>Any producer using {token.prefix}… stops being accepted. This cannot be undone.</p>
+      <div className="inline-form">
+        {/* A destructive commit reads differently from a routine one
+            at the moment it fires: outlined, not filled. Still the
+            operator's own action, never a lamp color (The Quarantine
+            Rule), and this keeps the plate down to one filled
+            control even while the confirm region is open. */}
+        <button
+          ref={confirmRef}
+          type="button"
+          className="control control-commit"
+          onClick={onConfirm}
+          disabled={revoking}
+        >
+          <ShieldOff size={13} strokeWidth={1.75} aria-hidden="true" />
+          {revoking ? "Revoking…" : "Confirm revoke"}
+        </button>
+        <button type="button" className="control" onClick={onCancel} disabled={revoking}>
+          <X size={13} strokeWidth={2} aria-hidden="true" />
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Settings tab token management (ADR 0004/0005): mint once, list id/prefix/createdAt, revoke.
@@ -31,10 +95,30 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
   const [confirmingRevokeId, setConfirmingRevokeId] = useState<string | null>(null);
   const [revoking, setRevoking] = useState(false);
 
+  // Each resting row's Revoke button registers itself here so a Cancel can
+  // return focus to the exact trigger that opened its confirm region
+  // (DESIGN.md #4 overlay focus contract, issue #61), rather than leaving
+  // focus stranded on the confirm region that just unmounted.
+  const revokeButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const restoreFocusTokenId = useRef<string | null>(null);
+
   useEffect(() => {
     setConfirmingRevokeId(null);
     setMintedToken(null);
   }, [channelId]);
+
+  useEffect(() => {
+    if (confirmingRevokeId === null && restoreFocusTokenId.current) {
+      const id = restoreFocusTokenId.current;
+      restoreFocusTokenId.current = null;
+      revokeButtonRefs.current.get(id)?.focus();
+    }
+  }, [confirmingRevokeId]);
+
+  function cancelRevoke(tokenId: string): void {
+    restoreFocusTokenId.current = tokenId;
+    setConfirmingRevokeId(null);
+  }
 
   const tokens = channelQuery.data?.tokens ?? null;
   const loadError = channelQuery.isError
@@ -105,41 +189,24 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
           {tokens.map((token) => (
             <li key={token.id}>
               {confirmingRevokeId === token.id ? (
-                <div className="confirm-region">
-                  <p>
-                    Any producer using {token.prefix}… stops being accepted. This cannot be undone.
-                  </p>
-                  <div className="inline-form">
-                    {/* A destructive commit reads differently from a routine one
-                        at the moment it fires: outlined, not filled. Still the
-                        operator's own action, never a lamp color (The Quarantine
-                        Rule), and this keeps the plate down to one filled
-                        control even while the confirm region is open. */}
-                    <button
-                      type="button"
-                      className="control control-commit"
-                      onClick={() => void handleRevoke(token.id)}
-                      disabled={revoking}
-                    >
-                      <ShieldOff size={13} strokeWidth={1.75} aria-hidden="true" />
-                      {revoking ? "Revoking…" : "Confirm revoke"}
-                    </button>
-                    <button
-                      type="button"
-                      className="control"
-                      onClick={() => setConfirmingRevokeId(null)}
-                      disabled={revoking}
-                    >
-                      <X size={13} strokeWidth={2} aria-hidden="true" />
-                      Cancel
-                    </button>
-                  </div>
-                </div>
+                <TokenRevokeConfirm
+                  token={token}
+                  revoking={revoking}
+                  onConfirm={() => void handleRevoke(token.id)}
+                  onCancel={() => cancelRevoke(token.id)}
+                />
               ) : (
                 <div className="row row-token">
                   <span className="token-prefix">{token.prefix}…</span>
                   <span className="row-meta">{new Date(token.createdAt).toLocaleString()}</span>
                   <button
+                    ref={(el) => {
+                      if (el) {
+                        revokeButtonRefs.current.set(token.id, el);
+                      } else {
+                        revokeButtonRefs.current.delete(token.id);
+                      }
+                    }}
                     type="button"
                     className="control"
                     onClick={() => setConfirmingRevokeId(token.id)}
