@@ -279,7 +279,7 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
     expect(response.status).toBe(202);
   });
 
-  it("fans out exactly one Delivery + one queued job per enabled Endpoint, skipping disabled ones", async () => {
+  it("fans out exactly one Delivery + one queued work item per enabled Endpoint, skipping disabled ones", async () => {
     const channel = await createChannel({ slug: "orders" });
     const token = await mintToken(channel.id);
     const first = await createEndpoint(channel.id, { url: "https://example.com/one" });
@@ -308,10 +308,10 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
     expect(detail.deliveries.map((delivery) => delivery.endpointId).sort()).toEqual(
       [first.id, second.id].sort(),
     );
-    expect(deliveryQueue.enqueued.map((job) => job.deliveryId).sort()).toEqual(
+    expect(deliveryQueue.enqueued.map((workItem) => workItem.deliveryId).sort()).toEqual(
       detail.deliveries.map((delivery) => delivery.id).sort(),
     );
-    const requestIds = new Set(deliveryQueue.enqueued.map((job) => job.requestId));
+    const requestIds = new Set(deliveryQueue.enqueued.map((workItem) => workItem.requestId));
     expect(requestIds.size).toBe(1);
   });
 
@@ -356,7 +356,7 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
     }
   });
 
-  it("creates no Deliveries and enqueues no jobs when the Channel has no enabled Endpoints", async () => {
+  it("creates no Deliveries and enqueues no work items when the Channel has no enabled Endpoints", async () => {
     const channel = await createChannel({ slug: "orders" });
     const token = await mintToken(channel.id);
 

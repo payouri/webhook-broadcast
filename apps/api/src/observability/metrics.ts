@@ -1,5 +1,5 @@
 import type { Queue } from "bullmq";
-import type { DeliveryJobData } from "../deliveryQueue.js";
+import type { DeliveryWorkItem } from "../deliveryQueue.js";
 
 export const METRIC_NAMES = {
   ingestAccepted: "wb_ingest_accepted_total",
@@ -191,7 +191,7 @@ export class MetricsCollector {
   }
 
   /** BullMQ export plus app series; queue depth refreshed on each scrape. */
-  async render(queue?: Queue<DeliveryJobData>): Promise<string> {
+  async render(queue?: Queue<DeliveryWorkItem>): Promise<string> {
     if (queue) {
       const counts = await queue.getJobCounts("waiting", "active", "failed");
       this.queueDepth.set({ state: "waiting" }, counts.waiting ?? 0);

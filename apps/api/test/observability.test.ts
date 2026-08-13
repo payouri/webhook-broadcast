@@ -10,11 +10,11 @@ import { createApp } from "../src/app.js";
 import {
   BullMqDeliveryQueue,
   DELIVERY_QUEUE_NAME,
-  type DeliveryJobData,
+  type DeliveryWorkItem,
 } from "../src/deliveryQueue.js";
 import { createHealthServer } from "../src/healthServer.js";
 import { MetricsCollector } from "../src/observability/metrics.js";
-import { processDeliveryJob } from "../src/worker/processDeliveryJob.js";
+import { processDelivery } from "../src/worker/processDelivery.js";
 import { FakeDeliveryQueue } from "./fakeDeliveryQueue.js";
 import { startTestDb, type TestDb } from "./testDb.js";
 
@@ -92,11 +92,11 @@ describe("observability (metrics and structured logs)", () => {
     let server: Server;
     let baseUrl: string;
     let redis: StartedRedisContainer;
-    let queue: Queue<DeliveryJobData>;
+    let queue: Queue<DeliveryWorkItem>;
 
     beforeAll(async () => {
       redis = await new RedisContainer("redis:7-alpine").start();
-      queue = new Queue<DeliveryJobData>(DELIVERY_QUEUE_NAME, {
+      queue = new Queue<DeliveryWorkItem>(DELIVERY_QUEUE_NAME, {
         connection: { url: redis.getConnectionUrl() },
       });
       const metrics = new MetricsCollector();
@@ -139,7 +139,7 @@ describe("observability (metrics and structured logs)", () => {
     let apiBaseUrl: string;
     let stubBaseUrl: string;
     let deliveryQueue: BullMqDeliveryQueue;
-    let worker: Worker<DeliveryJobData>;
+    let worker: Worker<DeliveryWorkItem>;
     let logLines: string[];
 
     beforeAll(async () => {
@@ -166,10 +166,10 @@ describe("observability (metrics and structured logs)", () => {
       await new Promise<void>((resolve) => apiServer.listen(0, resolve));
       apiBaseUrl = `http://127.0.0.1:${(apiServer.address() as AddressInfo).port}`;
 
-      worker = new Worker<DeliveryJobData>(
+      worker = new Worker<DeliveryWorkItem>(
         DELIVERY_QUEUE_NAME,
         async (job) => {
-          await processDeliveryJob(
+          await processDelivery(
             {
               db: testDb.db,
               defaultTimeoutMs: 2_000,
@@ -288,7 +288,7 @@ describe("observability (metrics and structured logs)", () => {
   });
 
   describe("FakeDeliveryQueue enqueue shape", () => {
-    it("stores full DeliveryJobData including requestId", async () => {
+    it("stores full DeliveryWorkItem including requestId", async () => {
       const queue = new FakeDeliveryQueue();
       await queue.enqueue({
         deliveryId: "d1",

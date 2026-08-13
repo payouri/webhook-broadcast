@@ -227,7 +227,9 @@ describe("Delivery detail + Retry Delivery — /deliveries/:id (admin HTTP seam)
       expect(response.status).toBe(200);
       const body = (await response.json()) as DeliveryDetail;
       expect(body).toMatchObject({ id: seeded.deliveryId, status: "pending" });
-      expect(deliveryQueue.enqueued.map((job) => job.deliveryId)).toEqual([seeded.deliveryId]);
+      expect(deliveryQueue.enqueued.map((workItem) => workItem.deliveryId)).toEqual([
+        seeded.deliveryId,
+      ]);
 
       // A second retry click, before the worker has picked it back up, is a no-op 409 —
       // exactly like clicking the retry action for a Delivery that's no longer dead-lettered.

@@ -1,11 +1,11 @@
 import { Queue, Worker, type Job } from "bullmq";
 import { createDb } from "@webhook-broadcast/db";
 import { bootEnv } from "./config.js";
-import { DELIVERY_QUEUE_NAME, type DeliveryJobData } from "./deliveryQueue.js";
+import { DELIVERY_QUEUE_NAME, type DeliveryWorkItem } from "./deliveryQueue.js";
 import { createHealthServer } from "./healthServer.js";
 import { MetricsCollector } from "./observability/metrics.js";
 import { RetryableDeliveryError } from "./worker/errors.js";
-import { processDeliveryJob } from "./worker/processDeliveryJob.js";
+import { processDelivery } from "./worker/processDelivery.js";
 import { startRetentionSweeper } from "./worker/retentionSweeper.js";
 
 const env = bootEnv();
@@ -13,14 +13,14 @@ const { db, pool } = createDb(env.DATABASE_URL);
 const metrics = new MetricsCollector();
 metrics.workerConcurrency.set(env.WORKER_CONCURRENCY);
 
-const metricsQueue = new Queue<DeliveryJobData>(DELIVERY_QUEUE_NAME, {
+const metricsQueue = new Queue<DeliveryWorkItem>(DELIVERY_QUEUE_NAME, {
   connection: { url: env.REDIS_URL },
 });
 
-const worker = new Worker<DeliveryJobData>(
+const worker = new Worker<DeliveryWorkItem>(
   DELIVERY_QUEUE_NAME,
-  async (job: Job<DeliveryJobData>) => {
-    await processDeliveryJob(
+  async (job: Job<DeliveryWorkItem>) => {
+    await processDelivery(
       {
         db,
         defaultTimeoutMs: env.DELIVERY_TIMEOUT_MS,
@@ -38,7 +38,7 @@ const worker = new Worker<DeliveryJobData>(
     connection: { url: env.REDIS_URL },
     concurrency: env.WORKER_CONCURRENCY,
     settings: {
-      // ADR 0003's backoff math all lives in retryPolicy.ts/processDeliveryJob.ts;
+      // ADR 0003's backoff math all lives in retryPolicy.ts/processDelivery.ts;
       // this just relays the delay a RetryableDeliveryError already computed.
       backoffStrategy: (_attemptsMade, _type, err) =>
         err instanceof RetryableDeliveryError ? err.delayMs : -1,

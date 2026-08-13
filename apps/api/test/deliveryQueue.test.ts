@@ -5,10 +5,10 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   BullMqDeliveryQueue,
   DELIVERY_QUEUE_NAME,
-  type DeliveryJobData,
+  type DeliveryWorkItem,
 } from "../src/deliveryQueue.js";
 
-function sampleJob(deliveryId = randomUUID()): DeliveryJobData {
+function sampleWorkItem(deliveryId = randomUUID()): DeliveryWorkItem {
   return {
     deliveryId,
     requestId: randomUUID(),
@@ -43,7 +43,7 @@ async function waitForJobState(
 describe("BullMqDeliveryQueue", () => {
   let redis: StartedRedisContainer;
   let queue: BullMqDeliveryQueue;
-  let worker: Worker<DeliveryJobData> | undefined;
+  let worker: Worker<DeliveryWorkItem> | undefined;
 
   beforeAll(async () => {
     redis = await new RedisContainer("redis:7-alpine").start();
@@ -62,28 +62,28 @@ describe("BullMqDeliveryQueue", () => {
   }, 30_000);
 
   it("re-enqueues a Delivery after the prior BullMQ job completed", async () => {
-    worker = new Worker<DeliveryJobData>(DELIVERY_QUEUE_NAME, async () => undefined, {
+    worker = new Worker<DeliveryWorkItem>(DELIVERY_QUEUE_NAME, async () => undefined, {
       connection: { url: redis.getConnectionUrl() },
     });
     await worker.waitUntilReady();
 
-    const job = sampleJob();
-    await queue.enqueue(job);
-    await waitForJobState(queue, job.deliveryId, "completed");
+    const workItem = sampleWorkItem();
+    await queue.enqueue(workItem);
+    await waitForJobState(queue, workItem.deliveryId, "completed");
 
     // Stop the worker so the re-enqueued job stays in `waiting` for us to observe.
     await worker.close();
     worker = undefined;
 
-    await queue.enqueue(job);
+    await queue.enqueue(workItem);
 
-    const requeued = await queue.bullQueue.getJob(job.deliveryId);
+    const requeued = await queue.bullQueue.getJob(workItem.deliveryId);
     expect(requeued).toBeDefined();
     expect(await requeued!.getState()).toBe("waiting");
   });
 
   it("re-enqueues a Delivery after the prior BullMQ job failed", async () => {
-    worker = new Worker<DeliveryJobData>(
+    worker = new Worker<DeliveryWorkItem>(
       DELIVERY_QUEUE_NAME,
       async () => {
         throw new Error("always fails");
@@ -95,26 +95,26 @@ describe("BullMqDeliveryQueue", () => {
     );
     await worker.waitUntilReady();
 
-    const job = sampleJob();
-    await queue.enqueue(job);
-    await waitForJobState(queue, job.deliveryId, "failed");
+    const workItem = sampleWorkItem();
+    await queue.enqueue(workItem);
+    await waitForJobState(queue, workItem.deliveryId, "failed");
 
     await worker.close();
     worker = undefined;
 
-    await queue.enqueue(job);
+    await queue.enqueue(workItem);
 
-    const requeued = await queue.bullQueue.getJob(job.deliveryId);
+    const requeued = await queue.bullQueue.getJob(workItem.deliveryId);
     expect(requeued).toBeDefined();
     expect(await requeued!.getState()).toBe("waiting");
   });
 
-  it("enqueueBulk adds every Delivery job", async () => {
-    const jobs = [sampleJob(), sampleJob(), sampleJob()];
-    await queue.enqueueBulk(jobs);
+  it("enqueueBulk adds every Delivery", async () => {
+    const workItems = [sampleWorkItem(), sampleWorkItem(), sampleWorkItem()];
+    await queue.enqueueBulk(workItems);
 
-    for (const job of jobs) {
-      const queued = await queue.bullQueue.getJob(job.deliveryId);
+    for (const workItem of workItems) {
+      const queued = await queue.bullQueue.getJob(workItem.deliveryId);
       expect(queued).toBeDefined();
       expect(await queued!.getState()).toBe("waiting");
     }

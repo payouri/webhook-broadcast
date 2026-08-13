@@ -6,25 +6,25 @@ import {
   type Database,
 } from "@webhook-broadcast/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import type { DeliveryJobData, DeliveryQueue } from "../src/deliveryQueue.js";
+import type { DeliveryQueue, DeliveryWorkItem } from "../src/deliveryQueue.js";
 import { fanOutBroadcast } from "../src/fanOutBroadcast.js";
 import { FakeDeliveryQueue } from "./fakeDeliveryQueue.js";
 import { startTestDb, type TestDb } from "./testDb.js";
 
 class FailingDeliveryQueue implements DeliveryQueue {
-  readonly enqueuedBeforeFailure: DeliveryJobData[] = [];
+  readonly enqueuedBeforeFailure: DeliveryWorkItem[] = [];
 
   constructor(private readonly failOnBulk: boolean) {}
 
-  async enqueue(job: DeliveryJobData): Promise<void> {
-    this.enqueuedBeforeFailure.push(job);
+  async enqueue(workItem: DeliveryWorkItem): Promise<void> {
+    this.enqueuedBeforeFailure.push(workItem);
   }
 
-  async enqueueBulk(jobs: DeliveryJobData[]): Promise<void> {
+  async enqueueBulk(workItems: DeliveryWorkItem[]): Promise<void> {
     if (this.failOnBulk) {
       throw new Error("enqueueBulk failed");
     }
-    this.enqueuedBeforeFailure.push(...jobs);
+    this.enqueuedBeforeFailure.push(...workItems);
   }
 
   async ping(): Promise<void> {
@@ -42,15 +42,15 @@ class ObservingDeliveryQueue extends FakeDeliveryQueue {
     super();
   }
 
-  override async enqueueBulk(jobs: DeliveryJobData[]): Promise<void> {
-    for (const job of jobs) {
-      const broadcast = await getBroadcastById(this.db, this.channelId, job.broadcastId);
+  override async enqueueBulk(workItems: DeliveryWorkItem[]): Promise<void> {
+    for (const workItem of workItems) {
+      const broadcast = await getBroadcastById(this.db, this.channelId, workItem.broadcastId);
       if (!broadcast) {
         throw new Error("enqueue ran before Broadcast was persisted");
       }
-      this.broadcastIdsAtEnqueue.push(job.broadcastId);
+      this.broadcastIdsAtEnqueue.push(workItem.broadcastId);
     }
-    await super.enqueueBulk(jobs);
+    await super.enqueueBulk(workItems);
   }
 }
 
@@ -121,11 +121,13 @@ describe("fanOutBroadcast", () => {
     expect(result.deliveryCount).toBe(2);
     expect(deliveryQueue.enqueued).toHaveLength(2);
     expect(deliveryQueue.broadcastIdsAtEnqueue).toEqual([broadcastId, broadcastId]);
-    expect(deliveryQueue.enqueued.every((job) => job.requestId === requestId)).toBe(true);
-    expect(deliveryQueue.enqueued.every((job) => job.broadcastId === broadcastId)).toBe(true);
+    expect(deliveryQueue.enqueued.every((workItem) => workItem.requestId === requestId)).toBe(true);
+    expect(deliveryQueue.enqueued.every((workItem) => workItem.broadcastId === broadcastId)).toBe(
+      true,
+    );
   });
 
-  it("uses one shared requestId for every enqueued Delivery job", async () => {
+  it("uses one shared requestId for every enqueued Delivery", async () => {
     const { channel } = await seedChannelWithEndpoints(3);
     const deliveryQueue = new FakeDeliveryQueue();
 
@@ -142,7 +144,7 @@ describe("fanOutBroadcast", () => {
       },
     });
 
-    const requestIds = new Set(deliveryQueue.enqueued.map((job) => job.requestId));
+    const requestIds = new Set(deliveryQueue.enqueued.map((workItem) => workItem.requestId));
     expect(requestIds.size).toBe(1);
   });
 

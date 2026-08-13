@@ -1,16 +1,16 @@
-import type { DeliveryJobData, DeliveryQueue } from "../src/deliveryQueue.js";
+import type { DeliveryQueue, DeliveryWorkItem } from "../src/deliveryQueue.js";
 
 /** In-process stand-in for `BullMqDeliveryQueue` — HTTP-seam tests exercise
  * fan-out without needing a live Redis. */
 export class FakeDeliveryQueue implements DeliveryQueue {
-  readonly enqueued: DeliveryJobData[] = [];
+  readonly enqueued: DeliveryWorkItem[] = [];
 
-  async enqueue(job: DeliveryJobData): Promise<void> {
-    this.enqueued.push(job);
+  async enqueue(workItem: DeliveryWorkItem): Promise<void> {
+    this.enqueued.push(workItem);
   }
 
-  async enqueueBulk(jobs: DeliveryJobData[]): Promise<void> {
-    this.enqueued.push(...jobs);
+  async enqueueBulk(workItems: DeliveryWorkItem[]): Promise<void> {
+    this.enqueued.push(...workItems);
   }
 
   async ping(): Promise<void> {

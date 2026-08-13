@@ -5,7 +5,7 @@ import { DEFAULT_DELIVERY_MAX_ATTEMPTS } from "@webhook-broadcast/contract/env";
 
 export const DELIVERY_QUEUE_NAME = "delivery";
 
-export interface DeliveryJobData {
+export interface DeliveryWorkItem {
   deliveryId: string;
   requestId: string;
   channelId: string;
@@ -23,8 +23,8 @@ export function newRequestId(): string {
  * `BullMqDeliveryQueue` below is what `server.ts` wires in production.
  */
 export interface DeliveryQueue {
-  enqueue(job: DeliveryJobData): Promise<void>;
-  enqueueBulk(jobs: DeliveryJobData[]): Promise<void>;
+  enqueue(workItem: DeliveryWorkItem): Promise<void>;
+  enqueueBulk(workItems: DeliveryWorkItem[]): Promise<void>;
   ping(): Promise<void>;
 }
 
@@ -32,7 +32,7 @@ export interface DeliveryQueue {
 const DEFAULT_MAX_ATTEMPTS = DEFAULT_DELIVERY_MAX_ATTEMPTS;
 
 export class BullMqDeliveryQueue implements DeliveryQueue {
-  private readonly queue: Queue<DeliveryJobData>;
+  private readonly queue: Queue<DeliveryWorkItem>;
   private readonly redisUrl: string;
 
   constructor(
@@ -40,12 +40,12 @@ export class BullMqDeliveryQueue implements DeliveryQueue {
     private readonly maxAttempts: number = DEFAULT_MAX_ATTEMPTS,
   ) {
     this.redisUrl = redisUrl;
-    this.queue = new Queue<DeliveryJobData>(DELIVERY_QUEUE_NAME, {
+    this.queue = new Queue<DeliveryWorkItem>(DELIVERY_QUEUE_NAME, {
       connection: { url: redisUrl },
     });
   }
 
-  get bullQueue(): Queue<DeliveryJobData> {
+  get bullQueue(): Queue<DeliveryWorkItem> {
     return this.queue;
   }
 
@@ -68,24 +68,24 @@ export class BullMqDeliveryQueue implements DeliveryQueue {
     };
   }
 
-  async enqueue(job: DeliveryJobData): Promise<void> {
+  async enqueue(workItem: DeliveryWorkItem): Promise<void> {
     // `jobId: deliveryId` dedupes concurrent jobs, but BullMQ silently no-ops
     // `add` when that id already exists in a terminal state — remove it first
     // so operator retry of a dead_lettered Delivery actually re-enqueues.
-    await this.removeFinishedJob(job.deliveryId);
-    await this.queue.add("deliver", job, this.jobAddOptions(job.deliveryId));
+    await this.removeFinishedJob(workItem.deliveryId);
+    await this.queue.add("deliver", workItem, this.jobAddOptions(workItem.deliveryId));
   }
 
-  async enqueueBulk(jobs: DeliveryJobData[]): Promise<void> {
-    if (jobs.length === 0) {
+  async enqueueBulk(workItems: DeliveryWorkItem[]): Promise<void> {
+    if (workItems.length === 0) {
       return;
     }
-    await Promise.all(jobs.map((job) => this.removeFinishedJob(job.deliveryId)));
+    await Promise.all(workItems.map((workItem) => this.removeFinishedJob(workItem.deliveryId)));
     await this.queue.addBulk(
-      jobs.map((job) => ({
+      workItems.map((workItem) => ({
         name: "deliver",
-        data: job,
-        opts: this.jobAddOptions(job.deliveryId),
+        data: workItem,
+        opts: this.jobAddOptions(workItem.deliveryId),
       })),
     );
   }

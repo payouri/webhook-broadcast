@@ -15,7 +15,7 @@ import {
 import { RetryableDeliveryError } from "./errors.js";
 import { selectForwardableHeaders } from "./forwardHeaders.js";
 import { computeBackoffDelayMs, isRetryableOutcome, parseRetryAfterMs } from "./retryPolicy.js";
-import type { DeliveryJobData } from "../deliveryQueue.js";
+import type { DeliveryWorkItem } from "../deliveryQueue.js";
 import type { MetricsCollector, AttemptResultClass } from "../observability/metrics.js";
 import { logStructured } from "../observability/logger.js";
 
@@ -46,10 +46,10 @@ export interface ProcessDeliveryDeps {
  * BullMQ `backoffStrategy` needs to actually delay that next call in
  * production.
  */
-export async function processDeliveryJob(
+export async function processDelivery(
   deps: ProcessDeliveryDeps,
   deliveryId: string,
-  observability?: Pick<DeliveryJobData, "requestId" | "channelId" | "broadcastId" | "endpointId">,
+  observability?: Pick<DeliveryWorkItem, "requestId" | "channelId" | "broadcastId" | "endpointId">,
 ): Promise<void> {
   const maxAttempts = deps.maxAttempts ?? DEFAULT_DELIVERY_MAX_ATTEMPTS;
   const backoffBaseMs = deps.backoffBaseMs ?? DEFAULT_DELIVERY_BACKOFF_MS;

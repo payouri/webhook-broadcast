@@ -1,7 +1,7 @@
 /**
  * ADR 0003's retry policy as pure, unit-testable functions: what counts as
  * retryable, how long to wait before the next Attempt, and how to read a
- * server's `Retry-After`. Kept free of I/O so `processDeliveryJob.ts` can
+ * server's `Retry-After`. Kept free of I/O so `processDelivery.ts` can
  * exercise every branch without a clock or a network call.
  */
 

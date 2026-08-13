@@ -10,10 +10,10 @@ import { createApp } from "../src/app.js";
 import {
   BullMqDeliveryQueue,
   DELIVERY_QUEUE_NAME,
-  type DeliveryJobData,
+  type DeliveryWorkItem,
 } from "../src/deliveryQueue.js";
 import { RetryableDeliveryError } from "../src/worker/errors.js";
-import { processDeliveryJob } from "../src/worker/processDeliveryJob.js";
+import { processDelivery } from "../src/worker/processDelivery.js";
 import { startTestDb, type TestDb } from "./testDb.js";
 
 const OPERATOR_API_KEY = "test-operator-key";
@@ -39,7 +39,7 @@ describe("ingest → queue → worker → Attempt (process-boundary integration)
   let stubServer: Server;
   let stubBaseUrl: string;
   let deliveryQueue: BullMqDeliveryQueue;
-  let worker: Worker<DeliveryJobData>;
+  let worker: Worker<DeliveryWorkItem>;
 
   beforeAll(async () => {
     testDb = await startTestDb();
@@ -70,10 +70,10 @@ describe("ingest → queue → worker → Attempt (process-boundary integration)
     const apiPort = (apiServer.address() as AddressInfo).port;
     apiBaseUrl = `http://127.0.0.1:${apiPort}`;
 
-    worker = new Worker<DeliveryJobData>(
+    worker = new Worker<DeliveryWorkItem>(
       DELIVERY_QUEUE_NAME,
       async (job) => {
-        await processDeliveryJob(
+        await processDelivery(
           {
             db: testDb.db,
             defaultTimeoutMs: 2_000,

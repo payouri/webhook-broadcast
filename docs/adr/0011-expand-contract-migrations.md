@@ -15,7 +15,7 @@ Each phase ships as its own deploy. A migration file that mixes an add a caller 
 
 ## Worked example: `attempt.n` → `attempt.attempt_number`
 
-`attempt.n` (the DB column) has been a single, cryptic letter since the initial schema (ADR 0007) even though application code already calls the same value `attemptNumber` (see `apps/api/src/worker/processDeliveryJob.ts`). Migration `0006_curious_thena.sql` is the **expand** step of renaming it:
+`attempt.n` (the DB column) has been a single, cryptic letter since the initial schema (ADR 0007) even though application code already calls the same value `attemptNumber` (see `apps/api/src/worker/processDelivery.ts`). Migration `0006_curious_thena.sql` is the **expand** step of renaming it:
 
 ```sql
 ALTER TABLE "attempt" ADD COLUMN "attempt_number" integer;

@@ -20,7 +20,7 @@ export interface FanOutBroadcastInput {
     body: Buffer;
     headers: Record<string, string | string[]>;
   };
-  /** One id per accept/replay fan-out — shared by every Delivery job enqueued. */
+  /** One id per accept/replay fan-out — shared by every Delivery enqueued. */
   requestId?: string;
 }
 
@@ -35,7 +35,7 @@ export interface FanOutBroadcastResult {
  * transaction, then enqueue every Delivery via `enqueueBulk`. Queue work
  * never precedes the DB commit; a failed enqueue rolls back the Broadcast
  * (Deliveries cascade) so ingest/replay never returns success with missing
- * jobs or orphaned queue entries without rows.
+ * queue work items or orphaned queue entries without rows.
  */
 export async function fanOutBroadcast(input: FanOutBroadcastInput): Promise<FanOutBroadcastResult> {
   const requestId = input.requestId ?? newRequestId();

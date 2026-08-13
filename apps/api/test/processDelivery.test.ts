@@ -14,7 +14,7 @@ import {
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { RetryableDeliveryError } from "../src/worker/errors.js";
-import { processDeliveryJob, type ProcessDeliveryDeps } from "../src/worker/processDeliveryJob.js";
+import { processDelivery, type ProcessDeliveryDeps } from "../src/worker/processDelivery.js";
 import { startTestDb, type TestDb } from "./testDb.js";
 
 type StubHandler = (req: IncomingMessage, res: ServerResponse) => void;
@@ -24,13 +24,13 @@ type StubHandler = (req: IncomingMessage, res: ServerResponse) => void;
  * behavior is swapped per test — the process boundary under test is
  * "worker dials an Endpoint URL", not any particular downstream service.
  *
- * ADR 0003's retry policy is driven entirely by `processDeliveryJob`'s
+ * ADR 0003's retry policy is driven entirely by `processDelivery`'s
  * return value — resolving after resetting the Delivery to `pending` and
  * throwing `RetryableDeliveryError`, or exhausting attempts and resolving
  * with `dead_lettered` — so these tests simulate BullMQ's backoff by
  * calling it again directly, with no real waiting involved.
  */
-describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
+describe("processDelivery (worker HTTP seam, stub target)", () => {
   let testDb: TestDb;
   let stub: Server;
   let stubUrl: string;
@@ -154,7 +154,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     };
     const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl });
 
-    await processDeliveryJob(baseDeps(), deliveryId);
+    await processDelivery(baseDeps(), deliveryId);
 
     const record = await getDeliveryForProcessing(testDb.db, deliveryId);
     expect(record?.status).toBe("succeeded");
@@ -173,7 +173,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     };
     const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl });
 
-    await processDeliveryJob(baseDeps(), deliveryId);
+    await processDelivery(baseDeps(), deliveryId);
 
     const record = await getDeliveryForProcessing(testDb.db, deliveryId);
     expect(record?.status).toBe("failed");
@@ -192,18 +192,18 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl });
     const deps = baseDeps({ maxAttempts: 3, backoffBaseMs: 1, backoffMaxMs: 10 });
 
-    await expect(processDeliveryJob(deps, deliveryId)).rejects.toThrow(RetryableDeliveryError);
+    await expect(processDelivery(deps, deliveryId)).rejects.toThrow(RetryableDeliveryError);
     let record = await getDeliveryForProcessing(testDb.db, deliveryId);
     expect(record?.status).toBe("pending");
     expect(record?.attemptCount).toBe(1);
 
-    await expect(processDeliveryJob(deps, deliveryId)).rejects.toThrow(RetryableDeliveryError);
+    await expect(processDelivery(deps, deliveryId)).rejects.toThrow(RetryableDeliveryError);
     record = await getDeliveryForProcessing(testDb.db, deliveryId);
     expect(record?.status).toBe("pending");
     expect(record?.attemptCount).toBe(2);
 
     // Third and final attempt exhausts DELIVERY_MAX_ATTEMPTS — no more throw.
-    await processDeliveryJob(deps, deliveryId);
+    await processDelivery(deps, deliveryId);
     record = await getDeliveryForProcessing(testDb.db, deliveryId);
     expect(record?.status).toBe("dead_lettered");
     expect(record?.attemptCount).toBe(3);
@@ -221,13 +221,13 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl });
     const deps = baseDeps({ maxAttempts: 5, backoffBaseMs: 1, backoffMaxMs: 10 });
 
-    await expect(processDeliveryJob(deps, deliveryId)).rejects.toThrow(RetryableDeliveryError);
+    await expect(processDelivery(deps, deliveryId)).rejects.toThrow(RetryableDeliveryError);
 
     handler = (_req, res) => {
       res.writeHead(200);
       res.end("ok");
     };
-    await processDeliveryJob(deps, deliveryId);
+    await processDelivery(deps, deliveryId);
 
     const record = await getDeliveryForProcessing(testDb.db, deliveryId);
     expect(record?.status).toBe("succeeded");
@@ -247,7 +247,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     const deps = baseDeps({ maxAttempts: 1, backoffBaseMs: 1, backoffMaxMs: 10 });
 
     // maxAttempts: 1 means the very first Attempt is already the last one.
-    await processDeliveryJob(deps, deliveryId);
+    await processDelivery(deps, deliveryId);
 
     const record = await getDeliveryForProcessing(testDb.db, deliveryId);
     expect(record?.status).toBe("dead_lettered");
@@ -261,11 +261,11 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     const { deliveryId } = await seedDelivery({ endpointUrl: "http://127.0.0.1:1" });
     const deps = baseDeps({ maxAttempts: 2, backoffBaseMs: 1, backoffMaxMs: 10 });
 
-    await expect(processDeliveryJob(deps, deliveryId)).rejects.toThrow(RetryableDeliveryError);
+    await expect(processDelivery(deps, deliveryId)).rejects.toThrow(RetryableDeliveryError);
     const record = await getDeliveryForProcessing(testDb.db, deliveryId);
     expect(record?.status).toBe("pending");
 
-    await processDeliveryJob(deps, deliveryId);
+    await processDelivery(deps, deliveryId);
     const finalRecord = await getDeliveryForProcessing(testDb.db, deliveryId);
     expect(finalRecord?.status).toBe("dead_lettered");
 
@@ -284,7 +284,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
 
     let caught: unknown;
     try {
-      await processDeliveryJob(deps, deliveryId);
+      await processDelivery(deps, deliveryId);
     } catch (err) {
       caught = err;
     }
@@ -302,7 +302,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
 
     let caught: unknown;
     try {
-      await processDeliveryJob(deps, deliveryId);
+      await processDelivery(deps, deliveryId);
     } catch (err) {
       caught = err;
     }
@@ -316,7 +316,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       res.end();
     };
     const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl });
-    await processDeliveryJob(baseDeps(), deliveryId);
+    await processDelivery(baseDeps(), deliveryId);
 
     let calls = 0;
     handler = (_req, res) => {
@@ -324,7 +324,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       res.writeHead(200);
       res.end();
     };
-    await processDeliveryJob(baseDeps(), deliveryId);
+    await processDelivery(baseDeps(), deliveryId);
 
     expect(calls).toBe(0);
     const record = await getDeliveryForProcessing(testDb.db, deliveryId);
@@ -342,7 +342,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       .set({ status: "in_progress" })
       .where(eq(schema.deliveries.id, deliveryId));
 
-    await processDeliveryJob(baseDeps(), deliveryId);
+    await processDelivery(baseDeps(), deliveryId);
 
     const record = await getDeliveryForProcessing(testDb.db, deliveryId);
     expect(record?.status).toBe("succeeded");
@@ -361,7 +361,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       headers: { "content-type": "text/plain" },
     });
 
-    await processDeliveryJob(baseDeps(), deliveryId);
+    await processDelivery(baseDeps(), deliveryId);
 
     expect(seenContentType).toBe("application/json");
     const record = await getDeliveryForProcessing(testDb.db, deliveryId);
@@ -381,7 +381,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       broadcastHeaders: { "x-signature": "abc123", "x-other": "should-not-forward" },
     });
 
-    await processDeliveryJob(baseDeps(), deliveryId);
+    await processDelivery(baseDeps(), deliveryId);
 
     expect(seenHeaders["x-signature"]).toBe("abc123");
     expect(seenHeaders["x-other"]).toBeUndefined();
@@ -399,7 +399,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       broadcastHeaders: { "x-signature": "abc123" },
     });
 
-    await processDeliveryJob(baseDeps(), deliveryId);
+    await processDelivery(baseDeps(), deliveryId);
 
     expect(seenHeaders["x-signature"]).toBeUndefined();
   });
@@ -418,7 +418,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       broadcastHeaders: { "x-signature": "attacker-influenced" },
     });
 
-    await processDeliveryJob(baseDeps(), deliveryId);
+    await processDelivery(baseDeps(), deliveryId);
 
     expect(seenHeaders["x-signature"]).toBe("operator-configured");
   });
@@ -438,7 +438,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       broadcastHeaders: { authorization: "Bearer channel-ingest-token" },
     });
 
-    await processDeliveryJob(baseDeps(), deliveryId);
+    await processDelivery(baseDeps(), deliveryId);
 
     expect(seenHeaders.authorization).toBeUndefined();
   });
@@ -451,7 +451,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     };
     const { deliveryId } = await seedDelivery({ endpointUrl: "http://127.0.0.1:9" });
 
-    await processDeliveryJob(baseDeps({ fetchImpl }), deliveryId);
+    await processDelivery(baseDeps({ fetchImpl }), deliveryId);
 
     expect(seenRedirect).toBe("manual");
   });
@@ -466,15 +466,13 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       .spyOn(dbModule, "completeDelivery")
       .mockRejectedValueOnce(new Error("simulated db outage"));
 
-    await expect(processDeliveryJob(baseDeps(), deliveryId)).rejects.toThrow(
-      RetryableDeliveryError,
-    );
+    await expect(processDelivery(baseDeps(), deliveryId)).rejects.toThrow(RetryableDeliveryError);
 
     let record = await getDeliveryForProcessing(testDb.db, deliveryId);
     expect(record?.status).toBe("pending");
 
     completeSpy.mockRestore();
-    await processDeliveryJob(baseDeps(), deliveryId);
+    await processDelivery(baseDeps(), deliveryId);
     record = await getDeliveryForProcessing(testDb.db, deliveryId);
     expect(record?.status).toBe("succeeded");
   });
@@ -496,7 +494,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     } = await seedDelivery({
       endpointUrl: stubUrl,
     });
-    await processDeliveryJob(baseDeps({ endpointAutoDisableAfterMs: 1_000, now }), firstDeliveryId);
+    await processDelivery(baseDeps({ endpointAutoDisableAfterMs: 1_000, now }), firstDeliveryId);
 
     currentMs = t0 + 2_000;
     const secondDeliveryId = await seedAnotherDelivery({
@@ -504,10 +502,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       endpointId,
       now: new Date(currentMs),
     });
-    await processDeliveryJob(
-      baseDeps({ endpointAutoDisableAfterMs: 1_000, now }),
-      secondDeliveryId,
-    );
+    await processDelivery(baseDeps({ endpointAutoDisableAfterMs: 1_000, now }), secondDeliveryId);
 
     const endpoint = await getEndpointById(testDb.db, channelId, endpointId);
     expect(endpoint).toMatchObject({
@@ -540,7 +535,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
     } = await seedDelivery({
       endpointUrl: stubUrl,
     });
-    await processDeliveryJob(baseDeps({ endpointAutoDisableAfterMs: 1_000, now }), firstDeliveryId);
+    await processDelivery(baseDeps({ endpointAutoDisableAfterMs: 1_000, now }), firstDeliveryId);
 
     currentMs = t0 + 2_000;
     const secondDeliveryId = await seedAnotherDelivery({
@@ -548,10 +543,7 @@ describe("processDeliveryJob (worker HTTP seam, stub target)", () => {
       endpointId,
       now: new Date(currentMs),
     });
-    await processDeliveryJob(
-      baseDeps({ endpointAutoDisableAfterMs: 1_000, now }),
-      secondDeliveryId,
-    );
+    await processDelivery(baseDeps({ endpointAutoDisableAfterMs: 1_000, now }), secondDeliveryId);
 
     const endpoint = await getEndpointById(testDb.db, channelId, endpointId);
     expect(endpoint).toMatchObject({ enabled: true, autoDisabledAt: null });

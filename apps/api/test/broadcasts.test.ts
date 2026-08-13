@@ -389,7 +389,7 @@ describe("Broadcast replay — POST .../broadcasts/:broadcastId/replay (admin HT
     const originalDetail = await getDetail(channel.id, originalId);
     expect(originalDetail.deliveries).toHaveLength(1);
 
-    expect(deliveryQueue.enqueued.map((job) => job.deliveryId)).toContain(
+    expect(deliveryQueue.enqueued.map((workItem) => workItem.deliveryId)).toContain(
       replayDetail.deliveries[0]?.id,
     );
   });
