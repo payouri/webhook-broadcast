@@ -356,3 +356,166 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
     expect(detailCalls).toBe(2);
   });
 });
+
+describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    stubFetchMock(fetchMock);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it("soft-deletes a Channel with confirmation, then returns to directory (issue #33)", async () => {
+    let deleteCalled = false;
+    const onBack = vi.fn();
+
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      if (path === `/channels/${CHANNEL_ID}` && method === "DELETE") {
+        deleteCalled = true;
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    render(<ChannelDetailPage channelId={CHANNEL_ID} onBack={onBack} />);
+
+    // Navigate to Settings tab
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+
+    // Delete Channel button should be visible
+    const deleteButton = await screen.findByRole("button", { name: "Delete Channel" });
+    expect(deleteButton).toBeTruthy();
+
+    // Click Delete Channel, which shows confirmation
+    fireEvent.click(deleteButton);
+
+    // The first click only asks for confirmation — it must not delete anything yet.
+    const confirmButton = await screen.findByRole("button", { name: "Confirm delete" });
+    expect(await screen.findByRole("button", { name: "Cancel" })).toBeTruthy();
+    expect(deleteCalled).toBe(false);
+
+    fireEvent.click(confirmButton);
+
+    // Wait for the delete API call and navigation
+    await waitFor(() => {
+      expect(deleteCalled).toBe(true);
+      expect(onBack).toHaveBeenCalled();
+    });
+  });
+
+  it("keeps the operator on the Channel and surfaces the error when delete fails (issue #33)", async () => {
+    const onBack = vi.fn();
+
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      if (path === `/channels/${CHANNEL_ID}` && method === "DELETE") {
+        return Promise.resolve(
+          jsonResponse(500, { error: { code: "internal", message: "delete exploded" } }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    render(<ChannelDetailPage channelId={CHANNEL_ID} onBack={onBack} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Channel" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm delete" }));
+
+    // The failure is reported next to the control that failed, and no navigation happens.
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("delete exploded");
+    expect(onBack).not.toHaveBeenCalled();
+
+    // The operator can retry: the confirm control is live again, not stuck on "Deleting…".
+    expect(screen.getByRole("button", { name: "Confirm delete" })).toBeTruthy();
+  });
+
+  it("allows canceling the delete confirmation (issue #33)", async () => {
+    let deleteCalled = false;
+    const onBack = vi.fn();
+
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      if (path === `/channels/${CHANNEL_ID}` && method === "DELETE") {
+        deleteCalled = true;
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    render(<ChannelDetailPage channelId={CHANNEL_ID} onBack={onBack} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+
+    // Open delete confirmation
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Channel" }));
+
+    // Cancel the delete
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+
+    // Back to the resting state, with nothing deleted and no navigation.
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Delete Channel" })).toBeTruthy();
+    });
+    expect(screen.queryByRole("button", { name: "Confirm delete" })).toBeNull();
+    expect(deleteCalled).toBe(false);
+    expect(onBack).not.toHaveBeenCalled();
+  });
+
+  it("keeps the enabled toggle distinct from delete (issue #33)", async () => {
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    render(<ChannelDetailPage channelId={CHANNEL_ID} onBack={() => undefined} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+
+    // Toggling `enabled` is a separate, reversible control and never arms the delete confirmation.
+    const enabledToggle = await screen.findByLabelText("Enabled");
+    fireEvent.click(enabledToggle);
+
+    expect(screen.queryByRole("button", { name: "Confirm delete" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Delete Channel" })).toBeTruthy();
+  });
+});

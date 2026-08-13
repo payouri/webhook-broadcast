@@ -505,3 +505,15 @@ button:disabled {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-weight: 600;
 }
+
+/* Inward Depth Rule: nested detail is recessed and inset, never lifted or tinted with Signal Cut. */
+.confirm-region {
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.confirm-region p {
+  margin: 0;
+}
