@@ -24,6 +24,7 @@
     "dev:worker": "pnpm --filter @webhook-broadcast/api run dev:worker",
     "dev:web": "pnpm --filter @webhook-broadcast/web run dev",
     "migrate": "tsx --env-file-if-exists=.env apps/api/src/migrate.ts",
+    "seed": "tsx --env-file-if-exists=.env apps/api/src/seed.ts",
     "db:generate": "pnpm --filter @webhook-broadcast/db run db:generate"
   },
   "devDependencies": {

@@ -32,6 +32,19 @@ pnpm run dev            # api (:8080) + worker (:9091) + web (:5173)
 # pnpm run dev:web
 ```
 
+### Placeholder data
+
+```bash
+pnpm run seed             # reset the fixture rows, then reseed
+pnpm run seed -- --clean  # remove the fixture rows only
+```
+
+Fills the database with Channels covering every dashboard state — a busy Channel with enough
+Broadcasts to paginate, retries and dead letters, an auto-disabled Endpoint, an in-flight backlog,
+a disabled Channel, an open-ingest Channel, a soft-deleted Channel, and an empty one. Fixture ids
+are deterministic, so reseeding keeps the same URLs and only ever touches its own rows. Freshly
+minted ingest and operator tokens are printed once per run (only hashes are stored).
+
 Required env vars (`DATABASE_URL`, `REDIS_URL`, `OPERATOR_API_KEY`) are Zod-validated at process
 boot in all three commands — a missing or invalid value fails fast with a printed diagnostic
 instead of failing later at first use.
