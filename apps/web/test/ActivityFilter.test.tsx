@@ -130,15 +130,17 @@ describe("Activity filter by failure (issue #51)", () => {
     // issue #49), alongside the pre-existing trailing fan-out detail text —
     // which for the all-succeeded row reads identically, so `getAllByText`
     // disambiguates by checking a badge with that text exists among the
-    // matches. Signal Live for the all-succeeded row, Signal Live still for
-    // the merely-failed row (retries remain — only dead-lettered is Signal
-    // Cut), and Signal Cut naming the dead-lettered count for the third.
+    // matches. Signal Live for the all-succeeded row. Both failure rows are
+    // Signal Cut, because `failed` and `dead_lettered` are both terminal (ADR
+    // 0003): a non-retryable outcome is never retried, and a retryable one that
+    // still has budget is `pending` instead. Each names its own count, so the
+    // failures-only filter and these lamps agree about what a failure is.
     const hasBadge = (text: string, tone: string) =>
       screen
         .getAllByText(text)
         .some((node) => node.className.includes("lamp") && node.className.includes(tone));
     expect(hasBadge("1/1 succeeded", "lamp-live")).toBe(true);
-    expect(hasBadge("0/1 succeeded", "lamp-live")).toBe(true);
+    expect(hasBadge("1 failed, 0/1 succeeded", "lamp-cut")).toBe(true);
     expect(hasBadge("1 dead-lettered", "lamp-cut")).toBe(true);
 
     expect(screen.getByRole("button", { name: "All" }).getAttribute("aria-pressed")).toBe("true");

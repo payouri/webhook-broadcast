@@ -463,6 +463,31 @@ a hollow clock, `IN PROGRESS` turns inside a lit ring.
 
 A lamp is **read-only**. It is never a button and never a filter.
 
+**The fan-out lamp.** A Broadcast row's lamp reports a whole fan-out rather than one Delivery, so it
+reduces several Delivery states to one. The order below is the rule, and it exists because the first
+version of it collapsed everything that was not dead-lettered into Lamp Live: filtering a Channel to
+failures then produced a screen of green check lamps, each sitting directly above a red `FAILED`
+Delivery.
+
+| Fan-out              | Tone    | Form   | Glyph        | Legend                     |
+| -------------------- | ------- | ------ | ------------ | -------------------------- |
+| no enabled Endpoints | neutral | hollow | minus        | `No Endpoints`             |
+| any `dead_lettered`  | Cut     | lit    | slash        | `N dead-lettered`          |
+| any `failed`         | Cut     | lit    | cross        | `N failed, X/Y succeeded`  |
+| any `pending`        | neutral | lit    | turning ring | `N pending, X/Y succeeded` |
+| all `succeeded`      | Live    | lit    | check        | `X/Y succeeded`            |
+
+`failed` and `dead_lettered` are **both terminal** (ADR 0003), which is why both are Cut. They differ
+in cause, not in finality: a non-retryable outcome finishes as `failed` and is never retried, while a
+retryable one that spends its budget finishes as `dead_lettered` and is the only one offered a Retry.
+The cross and the slash keep them apart without color. A Delivery still owed a retry is `pending`,
+never `failed`, so the turning ring is the only branch that may claim work outstanding.
+
+**The Agreement Rule.** Any predicate that decides a Broadcast is a failure and any lamp that paints
+one must read the same fact. If `fanoutHasFailure` admits a row to the failures-only filter, the lamp
+on that row may not report it as healthy. A parent that disagrees with its own children is the one
+defect this surface cannot afford, because the whole product is a claim to be telling the truth.
+
 ### Rows
 
 The unit the dashboard exists to display, and the thing an operator scans twenty of at a time.

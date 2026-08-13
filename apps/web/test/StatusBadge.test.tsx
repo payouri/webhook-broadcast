@@ -127,14 +127,57 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
       expect(badge.className).toContain("lamp-lit");
     });
 
-    it("stays Signal Live for a merely failed (not yet dead-lettered) Delivery — retries remain", () => {
+    it("reads Cut for a failed Delivery, which is terminal and never retried", () => {
+      // A non-retryable outcome finishes the Delivery as `failed` without ever
+      // retrying it (ADR 0003), so this is not work in progress: it is a
+      // terminal failure, and DESIGN.md's Lamps table already assigns `failed`
+      // to Cut. It must match the red `FAILED` lamp on the Delivery row
+      // underneath it rather than contradicting it. The label names the failed
+      // count, so an operator on the failures-only filter never has to subtract
+      // to find the row they came for.
       render(
         <BroadcastFanoutBadge
           fanout={{ total: 2, succeeded: 1, failed: 1, deadLettered: 0, pending: 0 }}
         />,
       );
-      const badge = screen.getByText("1/2 succeeded");
-      expect(badge.className).toContain("lamp-live");
+      const badge = screen.getByText("1 failed, 1/2 succeeded");
+      expect(badge.className).toContain("lamp-cut");
+      expect(badge.className).toContain("lamp-lit");
+      expect(badge.className).not.toContain("lamp-live");
+    });
+
+    it("keeps the cross and the slash apart so Cut is still readable without color", () => {
+      // Both are terminal and both are Cut, so the glyph is what separates a
+      // non-retryable failure from a spent retry budget.
+      const { container: failedBox } = render(
+        <BroadcastFanoutBadge
+          fanout={{ total: 2, succeeded: 1, failed: 1, deadLettered: 0, pending: 0 }}
+        />,
+      );
+      const { container: deadBox } = render(
+        <BroadcastFanoutBadge
+          fanout={{ total: 2, succeeded: 1, failed: 0, deadLettered: 1, pending: 0 }}
+        />,
+      );
+      const glyphOf = (box: HTMLElement) => box.querySelector(".lamp-glass svg")?.outerHTML;
+      expect(glyphOf(failedBox)).toBeTruthy();
+      expect(glyphOf(deadBox)).toBeTruthy();
+      expect(glyphOf(failedBox)).not.toEqual(glyphOf(deadBox));
+    });
+
+    it("reads neutral and lit while Deliveries are still pending", () => {
+      // The one branch that genuinely has work outstanding. Calling an
+      // unfinished fan-out "succeeded" would be the same lie the green
+      // fallthrough told, in a quieter key.
+      render(
+        <BroadcastFanoutBadge
+          fanout={{ total: 3, succeeded: 1, failed: 0, deadLettered: 0, pending: 2 }}
+        />,
+      );
+      const badge = screen.getByText("2 pending, 1/3 succeeded");
+      expect(badge.className).toContain("lamp-neutral");
+      expect(badge.className).toContain("lamp-lit");
+      expect(badge.className).not.toContain("lamp-live");
     });
   });
 

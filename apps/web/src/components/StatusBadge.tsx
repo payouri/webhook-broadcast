@@ -105,9 +105,11 @@ const DELIVERY_STATUS_PRESENTATION: Record<
   pending: { tone: "neutral", form: "hollow", glyph: "waiting" },
   in_progress: { tone: "neutral", form: "lit", glyph: "working" },
   succeeded: { tone: "live", form: "lit", glyph: "ok" },
-  // A `failed` Delivery still has retries left; a `dead_lettered` one has spent
-  // its budget (ADR 0003). The glyph separates them: a cross is a failure, a
-  // slash is a stop.
+  // Both are terminal (ADR 0003), and they differ in why. A `failed` Delivery
+  // hit a non-retryable outcome and was never retried at all; a `dead_lettered`
+  // one was retryable and spent its whole budget. A Delivery that still has
+  // retries coming is `pending`, not `failed`. The glyph separates them: a
+  // cross is a failure, a slash is a stop.
   failed: { tone: "cut", form: "lit", glyph: "failed" },
   dead_lettered: { tone: "cut", form: "lit", glyph: "stopped" },
 };
@@ -123,13 +125,37 @@ export function DeliveryStatusBadge({ status }: { status: DeliveryStatus }) {
  * trailing muted metadata, so a dead-lettered Broadcast would look like a
  * healthy one until the text was actually read.
  *
- * Three tones only. `total === 0` (the Channel had no enabled Endpoints when
- * this Broadcast landed) is neutral: nothing to report yet, not a failure. A
- * dead-lettered Delivery anywhere in the fan-out is Lamp Cut, checked first
- * because it is the one terminal, operator-actionable failure (a merely
- * `failed` Delivery still has retries left and does not by itself light this
- * lamp red). Everything else is Lamp Live. The count lives in the label in
- * every branch: never color alone.
+ * This badge used to collapse everything that was not dead-lettered into Lamp
+ * Live, on the stated reasoning that "a merely `failed` Delivery still has
+ * retries left". That reasoning was wrong about this system. Per ADR 0003 and
+ * `processDelivery`, a non-retryable outcome finishes the Delivery as `failed`
+ * without ever retrying it, and a retryable one that still has budget is left
+ * `pending`. So `failed` is terminal, `dead_lettered` is terminal, and the
+ * only Deliveries with work still coming are `pending`. The visible symptom
+ * was that filtering a Channel to failures produced a screen of green check
+ * lamps reading "3/4 succeeded", each one sitting above a red `FAILED`
+ * Delivery: parent and child disagreeing about the same fact.
+ *
+ * The branches now follow DESIGN.md's Lamps table, which already assigned
+ * `failed` to Cut and reserved Live/lit for `succeeded`:
+ *
+ *  - `total === 0`: the Channel had no enabled Endpoints when this Broadcast
+ *    landed. Neutral and hollow, because nothing was asked of anything.
+ *  - `deadLettered > 0`: Cut, checked first because it is the failure with a
+ *    remedy attached (Retry is offered only for dead-lettered Deliveries).
+ *  - `failed > 0`: Cut as well, since it is equally terminal, but it keeps the
+ *    cross rather than the slash so the two remain distinguishable without
+ *    color, and its label names the count that failed.
+ *  - `pending > 0`: neutral and lit with the turning ring, the one branch that
+ *    genuinely has work outstanding. It is not Live: the fan-out has not
+ *    finished, so calling it succeeded would be the same lie in a quieter key.
+ *  - otherwise every Delivery succeeded, which is what Lamp Live means.
+ *
+ * This is the badge counterpart of `fanoutHasFailure` in `activityFilter.ts`,
+ * which the failures-only filter uses to decide row membership. The two must
+ * keep agreeing on what counts as a failure, or the filtered view can show
+ * rows this badge paints as healthy. The count lives in the label in every
+ * branch: never color alone.
  */
 export function BroadcastFanoutBadge({ fanout }: { fanout: FanoutSummary }) {
   if (fanout.total === 0) {
@@ -142,6 +168,26 @@ export function BroadcastFanoutBadge({ fanout }: { fanout: FanoutSummary }) {
         tone="cut"
         form="lit"
         glyph="stopped"
+      />
+    );
+  }
+  if (fanout.failed > 0) {
+    return (
+      <StatusLamp
+        label={`${fanout.failed} failed, ${fanout.succeeded}/${fanout.total} succeeded`}
+        tone="cut"
+        form="lit"
+        glyph="failed"
+      />
+    );
+  }
+  if (fanout.pending > 0) {
+    return (
+      <StatusLamp
+        label={`${fanout.pending} pending, ${fanout.succeeded}/${fanout.total} succeeded`}
+        tone="neutral"
+        form="lit"
+        glyph="working"
       />
     );
   }

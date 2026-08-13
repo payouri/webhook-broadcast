@@ -24,7 +24,20 @@ export function activityFilterSearch(filter: ActivityFilter): string {
   return filter === "failed" ? `?${ACTIVITY_FILTER_PARAM}=${FAILED_FILTER_VALUE}` : "";
 }
 
-/** True when a Broadcast's fan-out produced at least one failed or dead-lettered Delivery. */
+/**
+ * True when a Broadcast's fan-out produced at least one failed or
+ * dead-lettered Delivery. Both are terminal states (ADR 0003): a non-retryable
+ * outcome finishes as `failed` without a retry, a retryable one that spends its
+ * budget finishes as `dead_lettered`, and anything still owed a retry is
+ * `pending`. So this predicate means "something here is finished and broken".
+ *
+ * `BroadcastFanoutBadge` in `StatusBadge.tsx` is the rendering counterpart of
+ * the same fact and paints both as Lamp Cut, keeping the cross and the slash
+ * apart so the two remain distinguishable without color. The invariant to hold
+ * on to: a Broadcast this predicate calls a failure must never be one that
+ * badge paints as healthy. They drifted apart once, and the filtered view
+ * filled with green check lamps sitting above red Deliveries.
+ */
 export function fanoutHasFailure(fanout: FanoutSummary): boolean {
   return fanout.failed > 0 || fanout.deadLettered > 0;
 }
