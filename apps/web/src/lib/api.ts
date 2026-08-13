@@ -35,7 +35,10 @@ export function formatApiErrorMessage(
   if (details && details.length > 0) {
     return details
       .map((detail) => {
-        if (detail.path.length === 0 || detail.message.toLowerCase().startsWith(detail.path.toLowerCase())) {
+        if (
+          detail.path.length === 0 ||
+          detail.message.toLowerCase().startsWith(detail.path.toLowerCase())
+        ) {
           return detail.message;
         }
         return `${detail.path}: ${detail.message}`;
@@ -45,7 +48,11 @@ export function formatApiErrorMessage(
   return message && message.length > 0 ? message : fallback;
 }
 
-function throwApiError(status: number, body: ErrorResponseBody | undefined, fallback: string): never {
+function throwApiError(
+  status: number,
+  body: ErrorResponseBody | undefined,
+  fallback: string,
+): never {
   throw new ApiRequestError(
     status,
     body?.error?.code ?? "unknown",
