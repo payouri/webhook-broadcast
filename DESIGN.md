@@ -341,8 +341,8 @@ Surface Sunk region with a hairline, not a second panel.
 - **Focus:** border goes Patch Plum and a 2px Patch Plum ring appears at 1px inset. Border color
   only; the field must not resize or shift.
 - **Error:** border goes Signal Cut, with the message beneath in Signal Cut at Label size, carrying
-  `role="alert"`. The message names the constraint, in the system's own voice: *"Headers must be
-  valid JSON (e.g. {"x-api-key": "secret"})"*, never *"Invalid input"*.
+  `role="alert"`. The message names the constraint, in the system's own voice: _"Headers must be
+  valid JSON (e.g. {"x-api-key": "secret"})"_, never _"Invalid input"_.
 - **Disabled:** Surface Sunk ground, Ink Muted text, Hairline border.
 - **Textarea:** identical treatment, `resize: vertical` only.
 
@@ -378,8 +378,8 @@ The unit the whole dashboard exists to display, and the thing an operator scans 
 ### Empty States
 
 Dashed 1px Hairline Strong, 8px radius, 24px padding, centered, Body in Ink Muted. Each one teaches
-the next action in the domain's own words: *"No Broadcasts yet. Send a request to
-`POST /ingest/<slug>` with a Channel token."* Never *"Nothing here."* No illustration, ever.
+the next action in the domain's own words: _"No Broadcasts yet. Send a request to
+`POST /ingest/<slug>` with a Channel token."_ Never _"Nothing here."_ No illustration, ever.
 
 ## 6. Do's and Don'ts
 
@@ -390,7 +390,7 @@ the next action in the domain's own words: *"No Broadcasts yet. Send a request t
 - **Do** keep Patch Plum (`oklch(46% 0.14 325)`) under 10% of any screen, and only on operator
   actions, the active tab, focus rings, and selection.
 - **Do** pair every status color with a text label or a distinct form. PRODUCT.md makes this a hard
-  requirement: *"Status is never encoded in color alone."* Outlined versus filled separates
+  requirement: _"Status is never encoded in color alone."_ Outlined versus filled separates
   `PENDING` from `IN PROGRESS` with color removed.
 - **Do** use monospace only for machine-exact strings: URLs, payload bodies, headers JSON, token
   prefixes, ingest paths.
