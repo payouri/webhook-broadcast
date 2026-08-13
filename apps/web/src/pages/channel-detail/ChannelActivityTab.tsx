@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import type { BroadcastListItem } from "@webhook-broadcast/contract";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
+import { BroadcastFanoutBadge } from "../../components/StatusBadge.js";
 import {
   ACTIVITY_FILTER_PARAM,
   activityFilterFromParams,
@@ -163,8 +164,12 @@ export function ChannelActivityTab({
   }
 
   return (
-    <section className="card">
-      <h2>Activity</h2>
+    // A list-only region (issue #49): the filter toggle and "Load more"
+    // button are controls over the list, not prose or a form, so this stays
+    // unwrapped like Channels/Endpoints — and at full tabular width, since
+    // this is the busiest list in the product.
+    <section className="list-section">
+      <h2 className="section-title">Activity</h2>
       <ActivityFilterToggle filter={filter} onChange={setFilter} />
       {error && <InlineLoadError message={error} onRetry={retry} />}
       {items === null && !error && <p className="muted">Loading…</p>}
@@ -191,6 +196,12 @@ export function ChannelActivityTab({
                     aria-expanded={expandedBroadcastId === item.id}
                     onClick={() => onToggleBroadcast(item.id)}
                   >
+                    {/* The one row family that had no status element at all
+                        (2026-08-13 critique): a dead-lettered fan-out used to
+                        render as the same muted grey as the timestamp beside
+                        it. This stamp lands in the same fixed leading column
+                        as every other row's (`--status-stamp-column`). */}
+                    <BroadcastFanoutBadge fanout={item.fanout} />
                     <span className="activity-time">
                       {new Date(item.receivedAt).toLocaleString()}
                     </span>

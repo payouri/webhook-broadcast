@@ -20,7 +20,7 @@ export function IngestUrlPanel({ channel }: { channel: Channel }) {
 
   return (
     <section className="card stack">
-      <h2>Ingest URL</h2>
+      <h2 className="section-title">Ingest URL</h2>
       <div className="copy-row">
         <code>{url}</code>
         <CopyButton value={url} />

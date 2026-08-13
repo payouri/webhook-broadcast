@@ -3,6 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DeliveryStatus } from "@webhook-broadcast/contract";
 import {
+  BroadcastFanoutBadge,
   ChannelHealthBadge,
   DeliveryStatusBadge,
   EnabledStatusBadge,
@@ -91,6 +92,51 @@ describe("StatusBadge — one status vocabulary, never color alone", () => {
         tones[0],
       );
     }
+  });
+
+  describe("BroadcastFanoutBadge — the Broadcast row's status stamp (2026-08-13 critique, issue #49)", () => {
+    it("reads neutral, naming 'No Endpoints', when the Channel had none enabled", () => {
+      render(
+        <BroadcastFanoutBadge
+          fanout={{ total: 0, succeeded: 0, failed: 0, deadLettered: 0, pending: 0 }}
+        />,
+      );
+      const badge = screen.getByText("No Endpoints");
+      expect(badge.className).toContain("status-badge-neutral");
+      expect(badge.className).toContain("status-badge-outlined");
+    });
+
+    it("reads Signal Cut, naming the dead-lettered count, when any Delivery dead-lettered", () => {
+      render(
+        <BroadcastFanoutBadge
+          fanout={{ total: 3, succeeded: 1, failed: 1, deadLettered: 1, pending: 0 }}
+        />,
+      );
+      const badge = screen.getByText("1 dead-lettered");
+      expect(badge.className).toContain("status-badge-danger");
+      expect(badge.className).toContain("status-badge-filled");
+    });
+
+    it("reads Signal Live, naming the succeeded count, once fan-out has Endpoints and nothing dead-lettered", () => {
+      render(
+        <BroadcastFanoutBadge
+          fanout={{ total: 2, succeeded: 2, failed: 0, deadLettered: 0, pending: 0 }}
+        />,
+      );
+      const badge = screen.getByText("2/2 succeeded");
+      expect(badge.className).toContain("status-badge-success");
+      expect(badge.className).toContain("status-badge-filled");
+    });
+
+    it("stays Signal Live for a merely failed (not yet dead-lettered) Delivery — retries remain", () => {
+      render(
+        <BroadcastFanoutBadge
+          fanout={{ total: 2, succeeded: 1, failed: 1, deadLettered: 0, pending: 0 }}
+        />,
+      );
+      const badge = screen.getByText("1/2 succeeded");
+      expect(badge.className).toContain("status-badge-success");
+    });
   });
 
   describe("ChannelHealthBadge — issues #44 and #45 directory health signal", () => {

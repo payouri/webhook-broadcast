@@ -62,8 +62,12 @@ export function ChannelDirectoryPage() {
           one is visually hidden because the panel headings below it already
           give the directory its on-screen structure. */}
       <h1 className="visually-hidden">Channel directory</h1>
-      <section className="card">
-        <h2>New Channel</h2>
+      {/* `stack` carries the heading-to-content gap that `.card h2`'s
+          margin used to supply before the Title role moved onto
+          `.section-title` (issue #49); every other `.card` panel in the app
+          already pairs the two classes. */}
+      <section className="card stack">
+        <h2 className="section-title">New Channel</h2>
         <form className="inline-form" onSubmit={(event) => void handleCreate(event)}>
           <input
             aria-label="Slug"
@@ -90,8 +94,11 @@ export function ChannelDirectoryPage() {
         )}
       </section>
 
-      <section className="card">
-        <h2>Channels</h2>
+      {/* A list-only region (issue #49): no form, no prose, nothing a `.card`
+          panel's border and 70ch prose cap would earn it — just a heading
+          and the row list, at the full tabular width `.app-main` allows. */}
+      <section className="list-section">
+        <h2 className="section-title">Channels</h2>
         {error && <InlineLoadError message={error} onRetry={() => void channelsQuery.refetch()} />}
         {channels === null && !error && <p className="muted">Loading…</p>}
         {channels !== null && channels.length === 0 && (

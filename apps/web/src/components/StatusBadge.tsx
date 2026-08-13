@@ -1,4 +1,4 @@
-import type { DeliveryStatus } from "@webhook-broadcast/contract";
+import type { DeliveryStatus, FanoutSummary } from "@webhook-broadcast/contract";
 
 /**
  * Single status vocabulary (issue #43): every place the dashboard shows state —
@@ -118,6 +118,41 @@ export function DeliveryStatusBadge({ status }: { status: DeliveryStatus }) {
  * short-circuiting on `hasBroadcasts` first would label that very row "No
  * activity" and hide the one fact issue #45 exists to surface.
  */
+/**
+ * The Broadcast row's status stamp (2026-08-13 design critique, issue #49):
+ * every other row family (Channel/Endpoint, Delivery) already carries one in
+ * its fixed leading column; the Broadcast row rendered its fan-out result as
+ * trailing muted metadata instead, so a dead-lettered Broadcast read the same
+ * as a healthy one until the text was actually read.
+ *
+ * Three tones only, exactly as specced: `total === 0` (the Channel had no
+ * enabled Endpoints when this Broadcast landed) is neutral — nothing to
+ * report yet, not a failure. A dead-lettered Delivery anywhere in the
+ * fan-out is Signal Cut, checked first because it is the one terminal,
+ * operator-actionable failure (ADR 0003's retry budget is exhausted; a
+ * merely `failed` Delivery still has retries left and does not by itself
+ * turn this stamp red). Everything else is Signal Live. The count lives in
+ * the label in every branch, consistent with `ChannelHealthBadge` above —
+ * never color alone (PRODUCT.md).
+ */
+export function BroadcastFanoutBadge({ fanout }: { fanout: FanoutSummary }) {
+  if (fanout.total === 0) {
+    return <StatusBadge label="No Endpoints" tone="neutral" form="outlined" />;
+  }
+  if (fanout.deadLettered > 0) {
+    return (
+      <StatusBadge label={`${fanout.deadLettered} dead-lettered`} tone="danger" form="filled" />
+    );
+  }
+  return (
+    <StatusBadge
+      label={`${fanout.succeeded}/${fanout.total} succeeded`}
+      tone="success"
+      form="filled"
+    />
+  );
+}
+
 export function ChannelHealthBadge({
   enabled,
   hasBroadcasts,

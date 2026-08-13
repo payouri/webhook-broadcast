@@ -125,6 +125,22 @@ describe("Activity filter by failure (issue #51)", () => {
     expect(await screen.findByText("all-succeeded")).toBeTruthy();
     expect(screen.getByText("one-failed")).toBeTruthy();
     expect(screen.getByText("one-dead-lettered")).toBeTruthy();
+
+    // Every Broadcast row carries a fan-out status stamp (2026-08-13 critique,
+    // issue #49), alongside the pre-existing trailing fan-out detail text —
+    // which for the all-succeeded row reads identically, so `getAllByText`
+    // disambiguates by checking a badge with that text exists among the
+    // matches. Signal Live for the all-succeeded row, Signal Live still for
+    // the merely-failed row (retries remain — only dead-lettered is Signal
+    // Cut), and Signal Cut naming the dead-lettered count for the third.
+    const hasBadge = (text: string, tone: string) =>
+      screen
+        .getAllByText(text)
+        .some((node) => node.className.includes("status-badge") && node.className.includes(tone));
+    expect(hasBadge("1/1 succeeded", "status-badge-success")).toBe(true);
+    expect(hasBadge("0/1 succeeded", "status-badge-success")).toBe(true);
+    expect(hasBadge("1 dead-lettered", "status-badge-danger")).toBe(true);
+
     expect(screen.getByRole("button", { name: "All" }).getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByRole("button", { name: "Failures only" }).getAttribute("aria-pressed")).toBe(
       "false",

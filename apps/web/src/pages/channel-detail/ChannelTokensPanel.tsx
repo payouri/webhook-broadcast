@@ -70,7 +70,7 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
 
   return (
     <section className="card stack">
-      <h2>Ingest tokens</h2>
+      <h2 className="section-title">Ingest tokens</h2>
       {loadError && (
         <InlineLoadError message={loadError} onRetry={() => void channelQuery.refetch()} />
       )}

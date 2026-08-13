@@ -26,8 +26,44 @@
   --signal-cut: oklch(50% 0.17 27);
   --signal-cut-wash: oklch(94% 0.045 27);
 
-  /* Constant width of the leading status-stamp column in a row list. */
+  /*
+   * DESIGN.md §3 Typography Hierarchy, as tokens (issue #49). Every
+   * `font-size` in this file references one of these six — there is no
+   * seventh, ad-hoc size anywhere below. Weight/line-height/letter-spacing
+   * are included for the two roles (Headline, Stamp) that carry more than
+   * a size: sentence case, sans body/label roles borrow the body/label
+   * default weight already set at the element level (h2, label, button),
+   * so only what differs from that default is tokenized here.
+   */
+  --text-headline-size: 1.25rem;
+  --text-headline-weight: 600;
+  --text-headline-line: 1.25;
+  --text-headline-tracking: -0.01em;
+  --text-title-size: 1rem;
+  --text-title-weight: 600;
+  --text-title-line: 1.3;
+  --text-body-size: 0.9375rem;
+  --text-label-size: 0.8125rem;
+  --text-data-size: 0.8125rem;
+  --text-stamp-size: 0.6875rem;
+
+  /* Constant width of the leading status-stamp column in a row list. Shared
+     by every row family (Channel/Endpoint, Broadcast, Delivery) so a stamp
+     lands at the same x whichever list it scrolls past in (DESIGN.md §5 The
+     Delivery Row: "the same fixed leading column as every other row"). */
   --status-stamp-column: 116px;
+
+  /* DESIGN.md §5 Cards/Containers: "Internal Padding: 20px on panels, 10px
+     by 12px on rows, 6px by 8px on Attempt rows. Padding tightens as
+     nesting deepens; this is the rhythm that signals depth." Named here so
+     every panel/row/nested-detail rule below reads its depth from one
+     place instead of repeating a bare pixel value that looks arbitrary. */
+  --pad-panel: 20px;
+  --pad-row: 10px 12px;
+  --pad-row-tight: 8px 10px;
+  --pad-detail: 12px;
+  --pad-attempt-row: 6px 8px;
+
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -73,6 +109,8 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
   padding: 16px 24px;
   background: var(--surface);
   border-bottom: 1px solid var(--hairline);
@@ -98,25 +136,21 @@ h2 {
 /*
  * Brand text, not a heading (issue #51): the header's product name is
  * persistent chrome present on every route, so it stays out of the heading
- * outline and each view supplies its own single h1 instead. Sized to match
- * what this text rendered at as a bare `<h1>` before the retag, so the swap
- * changes semantics only, not layout.
+ * outline and each view supplies its own single h1 instead.
+ *
+ * Both this and `.channel-header h1` take DESIGN.md's Headline role (issue
+ * #49): 1.25rem/600/1.25/-0.01em, the exact pair the type hierarchy names
+ * ("the Channel slug on Channel detail, and the product name in the app
+ * header"). Neither used to carry a token — the brand fell through to a
+ * bare `2rem` and the slug to a relative `1.5em` off the browser default —
+ * so this rule states the shared role once instead of two more ad-hoc sizes.
  */
-.app-brand {
-  font-size: 2rem;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-/*
- * This view's one h1 is the Channel slug (issue #51): sized to match what it
- * rendered at as an `<h2>` before the retag (the browser default for `h2`,
- * since nothing in `.channel-header` sets a font-size), so promoting it to
- * `h1` — so it no longer shares a heading level with the panel headings
- * beneath it — changes semantics only, not layout.
- */
+.app-brand,
 .channel-header h1 {
-  font-size: 1.5em;
+  font-size: var(--text-headline-size);
+  font-weight: var(--text-headline-weight);
+  line-height: var(--text-headline-line);
+  letter-spacing: var(--text-headline-tracking);
 }
 
 /* Screen-reader-only heading (issue #51): gives a route a real, single h1
@@ -135,10 +169,10 @@ h2 {
 }
 
 .notfound-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
+  font-size: var(--text-headline-size);
+  font-weight: var(--text-headline-weight);
+  line-height: var(--text-headline-line);
+  letter-spacing: var(--text-headline-tracking);
 }
 
 /*
@@ -158,14 +192,24 @@ button:focus-visible,
   outline-offset: 2px;
 }
 
+/*
+ * The content column (issue #49): wide enough that the tabular regions this
+ * dashboard mostly consists of (Channel/Endpoint rows, Broadcast rows,
+ * Delivery/Attempt rows) get real room to scan, but still bounded so it does
+ * not run edge-to-edge on an ultrawide monitor. Prose-shaped content (forms,
+ * panel copy) caps narrower still, on `.card` itself — see the `.card` rule
+ * below — since DESIGN.md exempts "rows and tabular data" from the 70ch cap
+ * but not everything else.
+ */
 .app-main {
   flex: 1;
   min-height: 0;
-  max-width: 720px;
+  max-width: 1180px;
   width: 100%;
   margin: 0 auto;
   padding: 24px;
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-gutter: stable;
 }
 
@@ -175,31 +219,68 @@ button:focus-visible,
   gap: 16px;
 }
 
+/*
+ * Panels, not cards (DESIGN.md §5): every remaining use of this class is a
+ * form or a small panel of prose (New Channel, New Endpoint, Settings,
+ * Ingest tokens, Delete Channel, Ingest URL, the login form) — never a list.
+ * Regions that are simply a list of rows are no longer wrapped in this class
+ * at all (issue #49); see `.list-section` below. Because only prose-shaped
+ * content reaches for `.card` now, it is the one class that safely carries
+ * DESIGN.md's 70ch prose cap without also starving a Channel/Broadcast/
+ * Delivery list of the width it needs to scan (`.list-section` and the row
+ * classes stay uncapped, at the full `.app-main` width).
+ */
 .card {
+  max-width: 70ch;
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: 12px;
-  padding: 20px;
+  padding: var(--pad-panel);
 }
 
-.card h2 {
-  margin-bottom: 12px;
-  font-size: 1rem;
+/*
+ * A list-only region (issue #49): "Channels", "Endpoints", and "Activity"
+ * hold nothing but a heading, a row list, and (for Activity) a filter and a
+ * "Load more" button — no form, no prose paragraph a reader's eye needs
+ * capped. Wrapping that in the same bordered, padded `.card` as a form added
+ * a second layer of chrome around content that is already delimited row by
+ * row, and capped it at 70ch when it is exactly the tabular content
+ * DESIGN.md's Navigation section exempts from that cap. This class carries
+ * only the spacing rhythm a panel would have given it, not its border or
+ * background, so the section still reads as a distinct region without a box
+ * around it, and it runs the full `.app-main` width.
+ */
+.list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* DESIGN.md §3 Title role (600, 1rem, 1.3): every panel/list-section
+   heading, whether or not it sits inside a `.card`. */
+.section-title {
+  margin: 0;
+  font-size: var(--text-title-size);
+  font-weight: var(--text-title-weight);
+  line-height: var(--text-title-line);
 }
 
 .login-card {
-  width: 360px;
+  width: min(360px, 100%);
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
 .login-card h1 {
-  font-size: 1.25rem;
+  font-size: var(--text-headline-size);
+  font-weight: var(--text-headline-weight);
+  line-height: var(--text-headline-line);
+  letter-spacing: var(--text-headline-tracking);
 }
 
 label {
-  font-size: 0.85rem;
+  font-size: var(--text-label-size);
   font-weight: 500;
   color: var(--ink-muted);
 }
@@ -211,7 +292,7 @@ textarea {
   /* Resting border is Hairline Strong so form controls are visible without hover. */
   border: 1px solid var(--hairline-strong);
   border-radius: 8px;
-  font-size: 0.95rem;
+  font-size: var(--text-body-size);
   font-family: inherit;
   background: var(--surface);
   color: var(--ink);
@@ -225,12 +306,21 @@ textarea:focus {
   outline-offset: -1px;
 }
 
+/* Ink Muted, not the browser's untinted grey (issue #49; The Warm Grey Rule
+   applies to placeholder text too). `opacity: 1` overrides Firefox's default
+   further dimming, which would otherwise shift this off the exact token. */
+input::placeholder,
+textarea::placeholder {
+  color: var(--ink-muted);
+  opacity: 1;
+}
+
 button {
   cursor: pointer;
   border: none;
   border-radius: 8px;
   padding: 9px 16px;
-  font-size: 0.9rem;
+  font-size: var(--text-label-size);
   font-weight: 500;
   background: var(--patch-plum);
   color: var(--surface);
@@ -300,7 +390,7 @@ button:disabled {
 /* Signal Cut: a form validation error or an Attempt/Delivery failure message. */
 .error-text {
   color: var(--signal-cut);
-  font-size: 0.85rem;
+  font-size: var(--text-label-size);
   margin: 0;
 }
 
@@ -313,7 +403,7 @@ button:disabled {
  */
 .success-text {
   color: var(--patch-plum);
-  font-size: 0.85rem;
+  font-size: var(--text-label-size);
   margin: 0;
 }
 
@@ -331,7 +421,7 @@ button:disabled {
   border: 1px solid var(--hairline);
   border-radius: 8px;
   color: var(--ink);
-  font-size: 0.85rem;
+  font-size: var(--text-label-size);
 }
 
 .empty-state {
@@ -366,12 +456,13 @@ button:disabled {
   grid-template-columns: minmax(var(--status-stamp-column), auto) auto 1fr auto auto;
   align-items: center;
   gap: 12px;
-  padding: 12px;
+  padding: var(--pad-row);
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--hairline);
   border-radius: 8px;
   text-align: left;
+  font-size: var(--text-body-size);
   font-weight: 400;
   transition:
     background-color 150ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -393,7 +484,7 @@ button:disabled {
 }
 
 .channel-meta {
-  font-size: 0.8rem;
+  font-size: var(--text-label-size);
   color: var(--ink-muted);
 }
 
@@ -415,7 +506,7 @@ button:disabled {
 .status-badge {
   display: inline-flex;
   align-items: center;
-  font-size: 0.6875rem;
+  font-size: var(--text-stamp-size);
   font-weight: 600;
   line-height: 1;
   text-transform: uppercase;
@@ -466,6 +557,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .tabs {
@@ -481,6 +573,7 @@ button:disabled {
   border-radius: 0;
   border-bottom: 2px solid transparent;
   padding: 8px 4px;
+  font-size: var(--text-label-size);
   transition: color 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -517,6 +610,7 @@ button:disabled {
   display: flex;
   gap: 8px;
   margin-bottom: 4px;
+  flex-wrap: wrap;
 }
 
 .filter-toggle {
@@ -525,7 +619,7 @@ button:disabled {
   border: 1px solid var(--hairline-strong);
   border-radius: 8px;
   padding: 9px 16px;
-  font-size: 0.8125rem;
+  font-size: var(--text-label-size);
   font-weight: 500;
 }
 
@@ -557,18 +651,27 @@ button:disabled {
   gap: 8px;
 }
 
+/*
+ * The Broadcast row (issue #49): carries a status stamp in the same fixed
+ * leading column as every other row family (`--status-stamp-column`), which
+ * this row never had before — its fan-out result used to render as trailing
+ * muted metadata at the same weight as the timestamp, so a dead-lettered
+ * Broadcast was indistinguishable from a healthy one without reading it.
+ * `BroadcastFanoutBadge` (StatusBadge.tsx) supplies the stamp; this grid just
+ * gives it the same fixed-width home `.channel-row`/`.delivery-row` do.
+ */
 .activity-row {
   width: 100%;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: minmax(var(--status-stamp-column), auto) auto 1fr auto;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
+  padding: var(--pad-row);
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--hairline);
   border-radius: 8px;
-  font-size: 0.9rem;
+  font-size: var(--text-body-size);
   font-weight: 400;
   text-align: left;
   transition:
@@ -588,17 +691,18 @@ button:disabled {
 }
 
 /* The Inward Depth Rule: expanded detail is recessed onto Surface Sunk, inset
-   from its row, never lifted or tinted with a signal color. */
+   from its row, never lifted or tinted with a signal color. Padding is
+   `--pad-detail`, one step tighter than the panel it never is (issue #49). */
 .broadcast-detail {
   margin-top: 4px;
-  padding: 12px;
+  padding: var(--pad-detail);
   border: 1px solid var(--hairline);
   border-radius: 8px;
   background: var(--surface-sunk);
 }
 
 .broadcast-detail-content-type {
-  font-size: 0.8rem;
+  font-size: var(--text-label-size);
   margin: 0 0 8px;
 }
 
@@ -606,6 +710,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   margin: 0 0 12px;
 }
 
@@ -614,7 +719,8 @@ button:disabled {
  * already-sunk `.broadcast-detail`, so it takes the same ground rather than
  * going lighter than its container (The Inward Depth Rule), and its border is
  * Hairline Strong — the token for "borders that must survive against Surface
- * Sunk".
+ * Sunk". Its typography is DESIGN.md's Data role: a payload body is a
+ * machine-exact string, same as a URL or a headers blob.
  */
 .broadcast-body {
   margin: 0 0 12px;
@@ -623,7 +729,7 @@ button:disabled {
   border: 1px solid var(--hairline-strong);
   border-radius: 8px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.85rem;
+  font-size: var(--text-data-size);
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 200px;
@@ -639,18 +745,25 @@ button:disabled {
   gap: 6px;
 }
 
+/*
+ * The Delivery Row (DESIGN.md §5, "signature component"): the same fixed
+ * leading status column as `.channel-row`/`.activity-row` (issue #49) — this
+ * used to be a flex row with an `auto`-width badge, so a `dead lettered` label
+ * pushed the endpoint column further right than a `succeeded` one on the row
+ * above it, defeating "stamps align vertically down the list".
+ */
 .delivery-row {
   width: 100%;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(var(--status-stamp-column), auto) 1fr auto;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: var(--pad-row-tight);
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--hairline);
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: var(--text-body-size);
   font-weight: 400;
   text-align: left;
   transition:
@@ -677,7 +790,7 @@ button:disabled {
  */
 .delivery-detail {
   margin: 6px 0 0 10px;
-  padding: 10px 12px;
+  padding: var(--pad-detail);
   border: 1px solid var(--hairline);
   border-radius: 8px;
   background: var(--surface-sunk);
@@ -688,8 +801,13 @@ button:disabled {
 
 .delivery-endpoint-url {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.8rem;
+  font-size: var(--text-data-size);
   margin: 0;
+  /* The one unbounded machine string in this region: an Endpoint URL long
+     enough to exceed a narrow viewport would otherwise be clipped by
+     `.app-main`'s `overflow-x: hidden` rather than wrapping (issue #49:
+     metadata wraps rather than truncating, at any width). */
+  overflow-wrap: anywhere;
 }
 
 .attempt-list {
@@ -701,16 +819,19 @@ button:disabled {
   gap: 4px;
 }
 
+/* The deepest nesting level (Broadcast → Delivery → Attempt), so the
+   tightest padding in the rhythm (DESIGN.md §5: "6px by 8px on Attempt
+   rows"). */
 .attempt-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  padding: 6px 8px;
+  padding: var(--pad-attempt-row);
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: 6px;
-  font-size: 0.8rem;
+  font-size: var(--text-label-size);
 }
 
 .attempt-n {
@@ -733,7 +854,7 @@ button:disabled {
 }
 
 .activity-time {
-  font-size: 0.8rem;
+  font-size: var(--text-label-size);
   color: var(--ink-muted);
   white-space: nowrap;
 }
@@ -746,7 +867,7 @@ button:disabled {
 }
 
 .activity-fanout {
-  font-size: 0.8rem;
+  font-size: var(--text-label-size);
   white-space: nowrap;
 }
 
@@ -770,11 +891,11 @@ button:disabled {
   grid-template-columns: 1fr auto auto;
   align-items: center;
   gap: 12px;
-  padding: 8px 12px;
+  padding: var(--pad-row-tight);
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: 8px;
-  font-size: 0.9rem;
+  font-size: var(--text-body-size);
 }
 
 .token-prefix {
@@ -784,7 +905,7 @@ button:disabled {
 
 /* Inward Depth Rule: nested detail is recessed and inset, never lifted or tinted with Signal Cut. */
 .confirm-region {
-  padding: 12px;
+  padding: var(--pad-detail);
   background: var(--surface-sunk);
   border: 1px solid var(--hairline);
   border-radius: 8px;
@@ -792,4 +913,50 @@ button:disabled {
 
 .confirm-region p {
   margin: 0;
+}
+
+/*
+ * An Endpoint's own edit form, opened in place of its row (issue #49): the
+ * Endpoints list itself is no longer wrapped in a panel, so this can no
+ * longer read as "a card nested inside another card" the way it used to —
+ * but it still needs to look editable-in-place rather than like one more row.
+ * The Inward Depth Rule answers that the same way `.broadcast-detail` and
+ * `.delivery-detail` do: recessed onto Surface Sunk with a hairline, not a
+ * second panel.
+ */
+.endpoint-editing {
+  padding: var(--pad-detail);
+  background: var(--surface-sunk);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+}
+
+/*
+ * DESIGN.md §5 Navigation: "Below 640px, row grids collapse to stacked lines
+ * and metadata wraps rather than truncating" (issue #49). Every row grid
+ * above becomes a single stacked column, and the strings that truncate with
+ * an ellipsis at full width wrap instead — together with `.app-main`'s
+ * `overflow-x: hidden`, this is what keeps the page body from ever scrolling
+ * horizontally.
+ */
+@media (max-width: 640px) {
+  .channel-row,
+  .activity-row,
+  .delivery-row,
+  .token-row {
+    grid-template-columns: 1fr;
+  }
+
+  .channel-description,
+  .activity-preview,
+  .delivery-endpoint {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .delivery-meta {
+    white-space: normal;
+  }
 }

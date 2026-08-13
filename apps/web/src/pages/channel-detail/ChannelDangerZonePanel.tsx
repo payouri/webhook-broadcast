@@ -36,7 +36,7 @@ export function ChannelDangerZonePanel({
 
   return (
     <section className="card stack">
-      <h2>Delete Channel</h2>
+      <h2 className="section-title">Delete Channel</h2>
       <p className="muted">
         Deleting removes this Channel from the directory and from normal use. Its Broadcasts and
         Deliveries are retained until pruned. Disabling a Channel is a separate, reversible setting.

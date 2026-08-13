@@ -64,6 +64,11 @@ export function ChannelSettingsForm({
 
   return (
     <form className="card stack" onSubmit={(event) => void handleSubmit(event)}>
+      {/* The Settings tab's first panel had no heading at all (issue #49),
+          unlike its siblings below (Ingest tokens, Delete Channel) — this
+          gives the tab a consistent, ranked set of Title-role headings
+          instead of one unlabeled form followed by two labeled panels. */}
+      <h2 className="section-title">Settings</h2>
       <label htmlFor="settings-slug">Slug</label>
       <input
         id="settings-slug"

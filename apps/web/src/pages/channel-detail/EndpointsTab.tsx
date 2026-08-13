@@ -33,8 +33,11 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
 
   return (
     <div className="stack">
-      <section className="card">
-        <h2>New Endpoint</h2>
+      {/* `stack` carries the heading-to-content gap that `.card h2`'s margin
+          used to supply before the Title role moved onto `.section-title`
+          (issue #49); every other `.card` panel already pairs the two. */}
+      <section className="card stack">
+        <h2 className="section-title">New Endpoint</h2>
         <EndpointForm
           onSubmit={async (input) => {
             await api.createEndpoint(channelId, {
@@ -50,8 +53,10 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
         />
       </section>
 
-      <section className="card">
-        <h2>Endpoints</h2>
+      {/* A list-only region (issue #49): see ChannelDirectoryPage's Channels
+          section for the same reasoning. */}
+      <section className="list-section">
+        <h2 className="section-title">Endpoints</h2>
         {error && <InlineLoadError message={error} onRetry={() => void endpointsQuery.refetch()} />}
         {endpoints === null && !error && <p className="muted">Loading…</p>}
         {endpoints !== null && endpoints.length === 0 && (
@@ -61,7 +66,11 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
           <ul className="channel-list">
             {endpoints.map((endpoint) =>
               editingId === endpoint.id ? (
-                <li key={endpoint.id} className="card">
+                // Never a second card nested in the (now unwrapped) list
+                // above: an inset Surface Sunk region, same idiom as
+                // `.broadcast-detail`/`.delivery-detail` (The Inward Depth
+                // Rule, issue #49).
+                <li key={endpoint.id} className="endpoint-editing">
                   <EndpointForm
                     initial={endpoint}
                     submitLabel="Save changes"
