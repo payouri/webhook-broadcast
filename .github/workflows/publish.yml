@@ -1,0 +1,139 @@
+# Publishes both images to public Docker Hub repos under the `yourikane` namespace.
+#
+# Requires two repository secrets:
+#   DOCKER_HUB_USERNAME — Docker Hub account name
+#   DOCKER_HUB_TOKEN    — access token with push rights on both repos
+#
+# Tags are immutable by contract: the consumer reads these images through an ECR
+# pull-through cache, which cannot enforce immutability on a mirrored repository
+# (docs/adr/0008-process-topology-deploy.md). This pipeline is therefore the only
+# thing standing between a re-pushed tag and a silently changed deployment, so
+# the existence check below fails closed — anything other than a definitive
+# "absent" from Docker Hub aborts the push.
+#
+# No `latest`: a moving tag is served stale by the pull-through cache for up to
+# 24h with no way to force a refresh.
+name: Publish
+
+on:
+  push:
+    branches: [trunk]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+# Serialize runs that target the same commit, so a branch push and a tag push on
+# that commit cannot both decide the sha- tag is absent and race to publish it.
+concurrency:
+  group: publish-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: docker.io
+  NAMESPACE: yourikane
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      # A failure on one image must not cancel a push already in flight on the other.
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            repo: webhook-broadcast-api
+            dockerfile: apps/api/Dockerfile
+          - name: web
+            repo: webhook-broadcast-web
+            dockerfile: apps/web/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Plan tags
+        id: plan
+        env:
+          REPO: ${{ env.NAMESPACE }}/${{ matrix.repo }}
+        run: |
+          set -euo pipefail
+
+          # Definitive answers only: 404 means absent, 200 means present, and
+          # anything else (429 rate limit, 5xx, proxy error) is not an answer.
+          tag_status() {
+            curl -sS --max-time 30 --retry 3 --retry-delay 2 \
+              -o /dev/null -w '%{http_code}' \
+              "https://hub.docker.com/v2/repositories/${REPO}/tags/$1/"
+          }
+
+          TAGS=()
+
+          SHA_TAG="sha-${GITHUB_SHA}"
+          STATUS="$(tag_status "${SHA_TAG}")"
+          case "${STATUS}" in
+            404)
+              TAGS+=("${REGISTRY}/${REPO}:${SHA_TAG}")
+              ;;
+            200)
+              # Same commit, already published — re-running a workflow is not a
+              # reason to re-push. Skipping keeps the tag immutable.
+              echo "::notice::${REPO}:${SHA_TAG} already published; not re-pushing."
+              ;;
+            *)
+              echo "::error::Docker Hub returned ${STATUS} for ${REPO}:${SHA_TAG}. Refusing to push without a definitive answer on whether the tag exists."
+              exit 1
+              ;;
+          esac
+
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            SEMVER_TAG="${GITHUB_REF_NAME}"
+            STATUS="$(tag_status "${SEMVER_TAG}")"
+            case "${STATUS}" in
+              404)
+                TAGS+=("${REGISTRY}/${REPO}:${SEMVER_TAG}")
+                ;;
+              200)
+                echo "::error::${REPO}:${SEMVER_TAG} is already published. A release tag must never be re-pushed — the consumer's ECR mirror cannot enforce immutability and rollback would stop being reliable."
+                exit 1
+                ;;
+              *)
+                echo "::error::Docker Hub returned ${STATUS} for ${REPO}:${SEMVER_TAG}. Refusing to push without a definitive answer on whether the tag exists."
+                exit 1
+                ;;
+            esac
+          fi
+
+          {
+            echo "tags<<TAGS_EOF"
+            if [ "${#TAGS[@]}" -gt 0 ]; then
+              printf '%s\n' "${TAGS[@]}"
+            fi
+            echo "TAGS_EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+          if [ "${#TAGS[@]}" -gt 0 ]; then
+            echo "has_tags=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "has_tags=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.plan.outputs.has_tags == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: steps.plan.outputs.has_tags == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      # Build context is the repo root for both images.
+      - name: Build and push ${{ matrix.name }} image
+        if: steps.plan.outputs.has_tags == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.plan.outputs.tags }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
