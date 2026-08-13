@@ -183,10 +183,26 @@ export const attempts = pgTable(
       .notNull()
       .references(() => deliveries.id, { onDelete: "cascade" }),
     n: integer("n").notNull(),
+    /**
+     * Issue #34 — expand step of a rename campaign for the cryptic `n`
+     * column (app code already calls this `attemptNumber`, see
+     * `apps/api/src/worker/processDeliveryJob.ts`). Nullable and unbacked by
+     * app code for now: migration `0004_…` only adds the column and backfills
+     * the rows that existed when it ran, so every row written since is NULL
+     * here. Do not read this column as a source of truth — `n` stays
+     * authoritative until a later, independent deploy starts dual-writing it,
+     * a sweep fills the rows written in between, and only then a *separate*
+     * contract migration drops `n` and makes this `NOT NULL`. See the
+     * expand/contract checklist in `docs/adr/0011-expand-contract-migrations.md`.
+     */
+    attemptNumber: integer("attempt_number"),
     statusCode: integer("status_code"),
     durationMs: integer("duration_ms"),
     error: text("error"),
     at: timestamp("at", { withTimezone: true }).notNull(),
   },
-  (t) => [uniqueIndex("attempt_delivery_id_n_key").on(t.deliveryId, t.n)],
+  (t) => [
+    uniqueIndex("attempt_delivery_id_n_key").on(t.deliveryId, t.n),
+    uniqueIndex("attempt_delivery_id_attempt_number_key").on(t.deliveryId, t.attemptNumber),
+  ],
 );

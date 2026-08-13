@@ -97,3 +97,7 @@ CREATE TABLE attempt (
   UNIQUE (delivery_id, n)
 );
 ```
+
+## Since the initial schema
+
+`attempt` now also carries a nullable `attempt_number` column and a second unique index `(delivery_id, attempt_number)`, added by migration `0006_curious_thena.sql`. This is the **expand** step of renaming the cryptic `n` to the name application code already uses; `n` and `attempt_delivery_id_n_key` stay authoritative until the dual-write, sweep, and contract phases land as their own deploys. See ADR 0011.

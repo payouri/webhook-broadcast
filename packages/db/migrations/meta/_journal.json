@@ -43,6 +43,13 @@
       "when": 1786633318421,
       "tag": "0005_exotic_lady_ursula",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786634143589,
+      "tag": "0006_curious_thena",
+      "breakpoints": true
     }
   ]
 }
