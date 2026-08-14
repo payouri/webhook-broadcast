@@ -150,6 +150,65 @@ describe("Channel Detail — Endpoints tab", () => {
     expect(screen.getByText(/p95 120ms/)).toBeTruthy();
   });
 
+  // Issue #88: the leading lamp used to report `enabled`, not health, so a
+  // 100%-failing, still-enabled Endpoint wore the same green lamp as a
+  // healthy one.
+  it("reports health, not enabled-ness, on the leading lamp of a 100%-failing enabled Endpoint", async () => {
+    endpoints = [endpointBody({ enabled: true, successRate24h: 0 })];
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
+
+    const row = (await screen.findByText("Primary")).closest("li")!;
+    const badge = within(row).getByText("0% ok (24h)");
+    expect(badge.className).toContain("lamp-cut");
+    expect(badge.className).not.toContain("lamp-live");
+    // And said once, by the lamp alone. The trailing statistics cell used to
+    // print the same reading, so the row set the same machine string twice —
+    // once in the column the eye runs without reading, once in the column that
+    // truncates.
+    expect(row.textContent?.match(/0% ok \(24h\)/g)).toHaveLength(1);
+    // Enabled-ness is not gone, it moved: the row's own switch plate, still
+    // checked, is what an operator reads and sets it from now.
+    const enabledSwitch = within(row).getByRole("checkbox") as HTMLInputElement;
+    expect(enabledSwitch.checked).toBe(true);
+  });
+
+  // The switch plate is the operator setting DESIGN.md's Switch plates
+  // section already reserves for a boolean the operator *sets*, and it is
+  // reachable — and operable — without opening the row's edit well.
+  it("toggles Endpoint enabled-ness directly from the row's own switch plate", async () => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
+    const row = (await screen.findByText("Primary")).closest("li")!;
+    const enabledSwitch = within(row).getByRole("checkbox") as HTMLInputElement;
+    expect(enabledSwitch.checked).toBe(true);
+
+    fireEvent.click(enabledSwitch);
+
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(([input, init]) => {
+          if (
+            requestPath(input) !== `/channels/${CHANNEL_ID}/endpoints/${ENDPOINT_ID}` ||
+            requestMethod(input, init) !== "PATCH"
+          ) {
+            return false;
+          }
+          return true;
+        }),
+      ).toBe(true);
+    });
+    // The click never also opened the edit well: the switch is a sibling of
+    // the row's button, not nested inside it.
+    expect(screen.queryByLabelText("URL", { selector: `#endpoint-url-${ENDPOINT_ID}` })).toBeNull();
+
+    await waitFor(() => {
+      expect((within(row).getByRole("checkbox") as HTMLInputElement).checked).toBe(false);
+    });
+  });
+
   it("spends the content column on the New Endpoint form instead of the prose measure", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
@@ -486,11 +545,17 @@ describe("Channel Detail — Endpoints tab", () => {
       ).toBe(true);
     });
 
-    // The row returns to the Enabled presentation without a manual refresh.
+    // The row returns to a healthy presentation without a manual refresh. The
+    // lamp now reports health rather than `enabled` (issue #88): with no
+    // Deliveries recorded yet (`successRate24h` stays `null` in this fixture),
+    // that reads "No activity (24h)", not "Enabled" — the row's own switch
+    // plate is what shows enabled-ness now.
     await waitFor(() => {
       expect(screen.queryByText("Auto-disabled")).toBeNull();
     });
-    expect(within(screen.getByText("Primary").closest("li")!).getByText("Enabled")).toBeTruthy();
+    const row = within(screen.getByText("Primary").closest("li")!);
+    expect(row.getByText("No activity (24h)")).toBeTruthy();
+    expect((row.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
     expect(screen.queryByRole("button", { name: "Re-enable" })).toBeNull();
   });
 

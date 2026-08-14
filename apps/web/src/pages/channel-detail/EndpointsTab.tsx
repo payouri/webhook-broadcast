@@ -19,7 +19,12 @@ import { PollStatusLine } from "../../components/PollStatusLine.js";
 import { SectionTitle } from "../../components/SectionTitle.js";
 import { ShortcutsHelp } from "../../components/ShortcutsHelp.js";
 import { SkeletonRows } from "../../components/SkeletonRows.js";
-import { EnabledStatusLamp } from "../../components/StatusLamp.js";
+import {
+  EndpointHealthLamp,
+  endpointHealthLampStatesSuccessRate,
+  formatSuccessRate24h,
+} from "../../components/StatusLamp.js";
+import { Switch } from "../../components/Switch.js";
 import { api, describeApiError } from "../../lib/api.js";
 import { useDelayedPending } from "../../lib/delayedPending.js";
 import { useNow } from "../../lib/elapsedClock.js";
@@ -187,8 +192,14 @@ function endpointMetaParts(
     parts.push({ key: "state", text: timeout, node: timeout });
   }
 
-  if (endpoint.successRate24h != null) {
-    const rate = `${Math.round(endpoint.successRate24h * 100)}% ok (24h)`;
+  // Only when the leading lamp is not already saying it (issue #88). The lamp
+  // took over this reading for an Endpoint that is on, so printing it here too
+  // set the same machine string twice in one row — once in the column the eye
+  // runs without reading and once in the column that truncates. It still has to
+  // be printed for an off or auto-disabled Endpoint, whose lamp spends its
+  // legend naming that state instead.
+  if (endpoint.successRate24h != null && !endpointHealthLampStatesSuccessRate(endpoint)) {
+    const rate = formatSuccessRate24h(endpoint.successRate24h);
     parts.push({ key: "successRate", text: rate, node: rate });
   }
 
@@ -274,6 +285,7 @@ function EndpointRow({
   onKeepEditing,
   channelId,
   onReenabled,
+  onToggleEnabled,
 }: {
   endpoint: Endpoint;
   editing: boolean;
@@ -286,11 +298,26 @@ function EndpointRow({
   onKeepEditing: () => void;
   channelId: string;
   onReenabled: () => Promise<void>;
+  onToggleEnabled: (next: boolean) => Promise<void>;
 }) {
   const rowRef = useRef<HTMLButtonElement>(null);
   const now = useNow();
   const label = endpointRowLabel(endpoint);
   const metaParts = endpointMetaParts(endpoint, now);
+  const [togglingEnabled, setTogglingEnabled] = useState(false);
+  const [toggleError, setToggleError] = useState<string | null>(null);
+
+  async function handleToggleEnabled(next: boolean): Promise<void> {
+    setTogglingEnabled(true);
+    setToggleError(null);
+    try {
+      await onToggleEnabled(next);
+    } catch (err) {
+      setToggleError(describeApiError(err, "Failed to update Endpoint"));
+    } finally {
+      setTogglingEnabled(false);
+    }
+  }
 
   // Cancelling the edit returns focus to the row that opened it (DESIGN.md
   // #4 overlay focus contract, issue #61), rather than to <body>. This works
@@ -334,7 +361,11 @@ function EndpointRow({
         aria-expanded={editing}
         onClick={() => onRowClick(endpoint.id)}
       >
-        <EnabledStatusLamp enabled={endpoint.enabled} autoDisabledAt={endpoint.autoDisabledAt} />
+        <EndpointHealthLamp
+          enabled={endpoint.enabled}
+          autoDisabledAt={endpoint.autoDisabledAt}
+          successRate24h={endpoint.successRate24h}
+        />
         {/* The cell stays in the markup when there is no name so the grid
             lines still agree down the list. It truncates (and so carries its
             own `title`) because a long name is the other way this track could
@@ -377,6 +408,40 @@ function EndpointRow({
           )}
         </span>
       </button>
+      {/*
+       * The row's own operator-set boolean (issue #88). It is a sibling of
+       * the row `<button>`, not a descendant of it: a `<label>`/`<input>`
+       * pair is interactive content, which a `<button>` may not contain, and
+       * nesting them would also mean every click here re-fires the row's own
+       * "open the editor" handler through event bubbling. As a sibling in
+       * this `<li>`, a click lands on the switch alone — the same reasoning
+       * `EndpointAutoDisabledNotice`'s Re-enable control below already
+       * relies on. Wide, the shared `row-list-endpoint` grid seats it in its
+       * own trailing column, in the same visual row as the lamp and the URL,
+       * without the row `<button>` spanning it (see `.row-endpoint` in
+       * styles.css); narrower than 720px the list falls back to block flow
+       * and it simply stacks beneath the row.
+       */}
+      <span className="row-endpoint-switch">
+        <Switch
+          label={`${endpointLabel(endpoint)} enabled`}
+          hideLabel
+          checked={endpoint.enabled}
+          disabled={togglingEnabled}
+          onChange={(next) => void handleToggleEnabled(next)}
+        />
+      </span>
+      {/* Below the row, spanning the whole list, rather than inside the switch's
+          own cell: that cell is an `auto` track, so a failure sentence sitting
+          in it would size the track to the sentence and take the width out of
+          the URL's `1fr` beside it — "identity never yields to metadata"
+          (DESIGN.md §Rows, issue #74), and it would go wrong on exactly the rows
+          already going wrong. */}
+      {toggleError && (
+        <p className="error-text row-endpoint-toggle-error" role="alert">
+          {toggleError}
+        </p>
+      )}
       {endpoint.autoDisabledAt && (
         <EndpointAutoDisabledNotice
           channelId={channelId}
@@ -530,6 +595,10 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
                 onKeepEditing={() => setPendingSwitchId(null)}
                 channelId={channelId}
                 onReenabled={refresh}
+                onToggleEnabled={async (next) => {
+                  await api.updateEndpoint(channelId, endpoint.id, { enabled: next });
+                  await refresh();
+                }}
               />
             ))}
           </ul>

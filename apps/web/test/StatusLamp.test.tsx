@@ -7,6 +7,7 @@ import {
   ChannelHealthLamp,
   DeliveryStatusLamp,
   EnabledStatusLamp,
+  EndpointHealthLamp,
   StatusLamp,
 } from "../src/components/StatusLamp.js";
 
@@ -297,6 +298,72 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
       const badge = screen.getByText("1 auto-disabled");
       expect(badge.className).toContain("lamp-cut");
       expect(screen.queryByText("No activity")).toBeNull();
+    });
+  });
+
+  describe("EndpointHealthLamp — the Endpoint row's leading lamp reports health, not `enabled` (issue #88)", () => {
+    it("no longer shows Live for a 100%-failing, still-enabled Endpoint", () => {
+      // The exact regression named in the issue: `successRate24h` of 0 used to
+      // sit, unread, beside a green `Enabled` lamp.
+      render(<EndpointHealthLamp enabled={true} successRate24h={0} />);
+      const badge = screen.getByText("0% ok (24h)");
+      expect(badge.className).toContain("lamp-cut");
+      expect(badge.className).toContain("lamp-lit");
+      expect(badge.className).not.toContain("lamp-live");
+      expect(screen.queryByText("Enabled")).toBeNull();
+    });
+
+    it("reads Cut for any share of failures inside the window, not only a total one", () => {
+      render(<EndpointHealthLamp enabled={true} successRate24h={0.5} />);
+      const badge = screen.getByText("50% ok (24h)");
+      expect(badge.className).toContain("lamp-cut");
+      expect(badge.className).toContain("lamp-lit");
+    });
+
+    it("rounds the percentage down, so a failing window can never claim the Live legend", () => {
+      // `Math.round` prints "100% ok (24h)" from 0.995 up. That would have put
+      // the Live branch's exact legend on a Cut lamp — the same "healthy on the
+      // broken row" reading this lamp exists to stop, and two of the five
+      // states collapsed onto one legend where four independent signals are
+      // required.
+      render(<EndpointHealthLamp enabled={true} successRate24h={0.996} />);
+      const badge = screen.getByText("99% ok (24h)");
+      expect(badge.className).toContain("lamp-cut");
+      expect(screen.queryByText("100% ok (24h)")).toBeNull();
+    });
+
+    it("reads Live only once every Delivery in the window actually succeeded", () => {
+      render(<EndpointHealthLamp enabled={true} successRate24h={1} />);
+      const badge = screen.getByText("100% ok (24h)");
+      expect(badge.className).toContain("lamp-live");
+      expect(badge.className).toContain("lamp-lit");
+    });
+
+    it("reads as 'no activity' rather than healthy when the 24h window has no Deliveries", () => {
+      render(<EndpointHealthLamp enabled={true} successRate24h={null} />);
+      const badge = screen.getByText("No activity (24h)");
+      expect(badge.className).toContain("lamp-neutral");
+      expect(badge.className).toContain("lamp-hollow");
+    });
+
+    it("keeps auto-disabled Cut/hollow/slash, distinct from an operator's own disable", () => {
+      render(
+        <EndpointHealthLamp
+          enabled={false}
+          autoDisabledAt="2026-08-10T12:00:00.000Z"
+          successRate24h={0}
+        />,
+      );
+      const badge = screen.getByText("Auto-disabled");
+      expect(badge.className).toContain("lamp-cut");
+      expect(badge.className).toContain("lamp-hollow");
+      cleanup();
+
+      render(<EndpointHealthLamp enabled={false} successRate24h={0} />);
+      const disabled = screen.getByText("Disabled");
+      expect(disabled.className).toContain("lamp-neutral");
+      expect(disabled.className).toContain("lamp-hollow");
+      expect(disabled.className).not.toContain("lamp-cut");
     });
   });
 });

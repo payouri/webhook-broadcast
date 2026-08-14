@@ -90,6 +90,114 @@ export function EnabledStatusLamp({
   return <StatusLamp label="Disabled" tone="neutral" form="hollow" glyph="off" />;
 }
 
+/**
+ * The Endpoint row's leading lamp (issue #88). It used to render this same
+ * position through `EnabledStatusLamp`, which reports `enabled` — a choice
+ * the operator made, not a fact the system found — and that is exactly what
+ * let a 100%-failing, still-enabled Endpoint wear a green `Enabled` lamp
+ * indistinguishable from a healthy one, with the contradicting `0% ok (24h)`
+ * sitting in a column that truncates. DESIGN.md's whole argument for a
+ * constant leading lamp column ("the eye can run the column without
+ * reading") and PRODUCT.md's first principle ("Health before detail") both
+ * require this position to answer "is this Endpoint working", not "is it
+ * switched on".
+ *
+ * Enabled-ness itself does not disappear from the row; it moves to the
+ * switch plate beside it (`EndpointsTab.tsx`), which is the form DESIGN.md's
+ * Switch plates section already reserves for "a boolean the operator sets"
+ * — the One Voice Rule's distinction between what the operator chose and
+ * what the system found, applied to this row for the first time.
+ *
+ * `autoDisabledAt` and a plain `!enabled` both still render here, because an
+ * off Endpoint (whichever put it there) is a fact about health, not only
+ * about the switch: no Deliveries are being attempted at all. The two stay
+ * visually distinct exactly as DESIGN.md's lamp table already required
+ * before this issue — auto-disabled is Cut (a fault, ADR 0003's failure
+ * streak), an operator's own disable is neutral (a choice, not a fault).
+ *
+ * The threshold for the remaining, genuinely "on" case mirrors
+ * `ChannelHealthLamp`: any failure inside the 24h window (`successRate24h <
+ * 1`, which also catches the 100%-failing case this issue names) is Cut, not
+ * only a total failure — a Channel with `recentFailedDeliveryCount > 0` is
+ * Cut the same way, on the same reasoning, that a scanning eye should not
+ * have to read a percentage to notice trouble. `successRate24h == null`
+ * means ADR 0004's success-rate window has no Deliveries to report over
+ * (a brand-new Endpoint, or one enabled less than 24h ago), which is "no
+ * activity" rather than either health outcome — the same distinction
+ * `ChannelHealthLamp` draws for a Channel with no Broadcasts.
+ */
+export function EndpointHealthLamp({
+  enabled,
+  autoDisabledAt = null,
+  successRate24h = null,
+}: {
+  enabled: boolean;
+  autoDisabledAt?: string | null | undefined;
+  successRate24h?: number | null | undefined;
+}) {
+  if (autoDisabledAt != null) {
+    return <StatusLamp label="Auto-disabled" tone="cut" form="hollow" glyph="stopped" />;
+  }
+  if (!enabled) {
+    return <StatusLamp label="Disabled" tone="neutral" form="hollow" glyph="off" />;
+  }
+  if (successRate24h == null) {
+    return <StatusLamp label="No activity (24h)" tone="neutral" form="hollow" glyph="none" />;
+  }
+  if (successRate24h < 1) {
+    return (
+      <StatusLamp
+        label={formatSuccessRate24h(successRate24h)}
+        tone="cut"
+        form="lit"
+        glyph="failed"
+      />
+    );
+  }
+  return <StatusLamp label={formatSuccessRate24h(1)} tone="live" form="lit" glyph="ok" />;
+}
+
+/**
+ * The one place the 24h success rate becomes words, so the lamp and any other
+ * reader of `successRate24h` cannot drift apart on the same row.
+ *
+ * It rounds *down*, never to nearest. `Math.round` prints `100% ok (24h)` for
+ * anything from 0.995 up, so a Cut lamp would have carried the exact legend of
+ * the Live one and claimed a clean window on a row that has failures in it —
+ * the same "the lamp says healthy on the broken row" inversion this column was
+ * rebuilt to stop, just at a smaller scale, and it would collapse two of the
+ * five states onto one legend where PRODUCT.md requires four independent
+ * signals. Flooring can only ever understate, which is the safe direction for a
+ * health reading: 99% is the honest ceiling for anything short of a whole
+ * window of successes.
+ */
+export function formatSuccessRate24h(rate: number): string {
+  return `${Math.floor(rate * 100)}% ok (24h)`;
+}
+
+/**
+ * Whether `EndpointHealthLamp` above already speaks the success rate for this
+ * Endpoint — true exactly when it reaches its rate-carrying branches, i.e. the
+ * Endpoint is on and not auto-disabled.
+ *
+ * The row's trailing statistics cell asks this before printing the rate itself.
+ * Both once did, and the row then set the same machine string twice, ten
+ * centimetres apart — the Machine Voice Rule violation issue #74 named when the
+ * URL was printed in both the name cell and the URL cell. The rule lives here,
+ * next to the branches that decide it, rather than being restated as a
+ * condition in the row that would silently stop matching the day a branch
+ * moves.
+ */
+export function endpointHealthLampStatesSuccessRate({
+  enabled,
+  autoDisabledAt,
+}: {
+  enabled: boolean;
+  autoDisabledAt?: string | null | undefined;
+}): boolean {
+  return autoDisabledAt == null && enabled;
+}
+
 function deliveryStatusLabel(status: DeliveryStatus): string {
   return status.replaceAll("_", " ");
 }

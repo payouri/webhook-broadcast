@@ -1241,11 +1241,18 @@ textarea.field-control {
  * max-content width whenever the row is wide enough to grant it — but
  * `endpointRowLabel` in EndpointsTab.tsx no longer putting the URL in the
  * name cell at all (issue #74).
+ *
+ * A sixth track, added for the switch plate (issue #88): the leading lamp
+ * moved from reporting `enabled` to reporting health, and enabled-ness moved
+ * out to this track instead of disappearing, so identity (the URL's `1fr`)
+ * still ranks first and every other track keeps the same rank it already
+ * had — the switch is appended after the disclosure chevron, not inserted
+ * ahead of anything #74 already ordered.
  */
 .row-list-endpoint {
   grid-template-columns:
     minmax(var(--status-lamp-column), auto) minmax(0, auto) minmax(var(--endpoint-url-column), 1fr)
-    minmax(0, auto) auto;
+    minmax(0, auto) auto auto;
 }
 
 /* Statistics yield before identity does: this cell truncates when the row
@@ -1283,8 +1290,25 @@ textarea.field-control {
    and need the same full-width span the `<li>` would have carried. */
 .row-list-endpoint > li > .well-notice,
 .row-list-endpoint > li > .well-endpoint-edit,
+.row-list-endpoint > li > .row-endpoint-toggle-error,
 .row-list-activity > li > .well {
   grid-column: 1 / -1;
+}
+
+/*
+ * The Enabled switch plate (issue #88) is the one promoted child that does
+ * *not* take the full-width span above: it belongs beside the row, in the
+ * sixth track `.row-list-endpoint` reserves for it, not below it. That is
+ * also why `.row-endpoint` itself is capped to the first five tracks just
+ * below, rather than the `1 / -1` every other row family's button still
+ * takes — a `1/-1` row claims the whole grid row, and auto-placement would
+ * push this sibling to the next line instead of beside it.
+ */
+.row-list-endpoint > li > .row-endpoint-switch {
+  grid-column: 6;
+  align-self: center;
+  display: flex;
+  align-items: center;
 }
 
 /*
@@ -1380,6 +1404,18 @@ a.row:active {
 .row-list-endpoint .row-endpoint {
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
+}
+
+/*
+ * The Endpoint row button is the one exception to the `1 / -1` span above:
+ * it takes only the first five of the list's six tracks, leaving the sixth
+ * (the switch plate's) for `.row-endpoint-switch` to claim as a sibling in
+ * the same grid row. A `1 / -1` button here would occupy the whole row and
+ * push the switch to the next line down, same as the auto-disabled notice
+ * and the edit well already do deliberately.
+ */
+.row-list-endpoint .row-endpoint {
+  grid-column: 1 / span 5;
 }
 
 /*
@@ -2186,6 +2222,15 @@ a.row:active {
    */
   .row-endpoint .row-name:empty {
     display: none;
+  }
+
+  /* Stacked, the switch is no longer a sibling grid cell beside the row
+     (the list itself is `display: block` here) — it falls back to normal
+     flow, directly beneath the row's own block, and earns the same gap
+     every other stacked sibling in this list gets. */
+  .row-endpoint-switch,
+  .row-endpoint-toggle-error {
+    margin-top: var(--space-xs);
   }
 
   /* The statistics column truncates only where width is scarce. Once the row

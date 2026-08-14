@@ -17,11 +17,21 @@ export function Switch({
   checked,
   onChange,
   disabled = false,
+  hideLabel = false,
 }: {
   label: string;
   checked: boolean;
   onChange: (next: boolean) => void;
   disabled?: boolean;
+  /**
+   * The label still names what the input toggles — it is what the `<label>`
+   * points at and what a screen reader announces — but a row that already
+   * states the Endpoint's identity beside the plate does not need the word
+   * repeated on screen for every sighted operator scanning the column
+   * (issue #88). Visually hidden, never `aria-hidden`: the accessible name
+   * stays exactly as present as the visible one.
+   */
+  hideLabel?: boolean;
 }) {
   return (
     <label className="switch">
@@ -35,7 +45,7 @@ export function Switch({
       <span className="switch-plate" aria-hidden="true">
         <span className="switch-plunger" />
       </span>
-      {label}
+      {hideLabel ? <span className="visually-hidden">{label}</span> : label}
     </label>
   );
 }

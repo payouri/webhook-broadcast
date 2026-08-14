@@ -649,16 +649,16 @@ Remove color entirely and every state stays unambiguous, which is what PRODUCT.m
 constraint. It is also what separates the two most confusable Delivery states: `PENDING` waits behind
 a hollow clock, `IN PROGRESS` turns inside a lit ring.
 
-| State                             | Tone    | Form   | Glyph        |
-| --------------------------------- | ------- | ------ | ------------ |
-| `succeeded`, enabled, no failures | Live    | lit    | check        |
-| `failed`, failing Channel         | Cut     | lit    | cross        |
-| `dead_lettered`                   | Cut     | lit    | slash        |
-| auto-disabled Endpoint            | Cut     | hollow | slash        |
-| `in_progress`                     | neutral | lit    | turning ring |
-| `pending`                         | neutral | hollow | clock        |
-| disabled (a choice, not a fault)  | neutral | hollow | power        |
-| no activity, no Endpoints         | neutral | hollow | minus        |
+| State                                                                                | Tone    | Form   | Glyph        |
+| ------------------------------------------------------------------------------------ | ------- | ------ | ------------ |
+| `succeeded`, Endpoint 100% ok (24h), Channel no failures                             | Live    | lit    | check        |
+| `failed`, failing Channel, Endpoint failing any share (24h)                          | Cut     | lit    | cross        |
+| `dead_lettered`                                                                      | Cut     | lit    | slash        |
+| auto-disabled Endpoint                                                               | Cut     | hollow | slash        |
+| `in_progress`                                                                        | neutral | lit    | turning ring |
+| `pending`                                                                            | neutral | hollow | clock        |
+| disabled (a choice, not a fault)                                                     | neutral | hollow | power        |
+| no activity: no Endpoints, no Broadcasts, no Deliveries in the Endpoint's 24h window | neutral | hollow | minus        |
 
 A lamp is **read-only**. It is never a button and never a filter.
 
@@ -686,6 +686,51 @@ never `failed`, so the turning ring is the only branch that may claim work outst
 one must read the same fact. If `fanoutHasFailure` admits a row to the failures-only filter, the lamp
 on that row may not report it as healthy. A parent that disagrees with its own children is the one
 defect this surface cannot afford, because the whole product is a claim to be telling the truth.
+
+**The Endpoint health lamp (issue #88).** The Endpoints tab's leading lamp used to render
+`enabled` — whichever the operator last chose — so a 100%-failing, still-enabled Endpoint wore the
+same green, lit check as a genuinely healthy one, with the `0% ok (24h)` figure that contradicted it
+sitting in a column that truncates. This column's whole argument, per "Rows" below, is that the eye
+runs it without reading; a lamp that says healthy on the broken row inverts that, and it inverts
+PRODUCT.md's first principle ("Health before detail") on exactly the row an operator is scanning to
+find.
+
+The column now reports health, read from ADR 0004's `successRate24h`, `autoDisabledAt`, and
+`enabled`, in this order:
+
+1. `autoDisabledAt` set: Cut, hollow, slash, `Auto-disabled`. A fault (ADR 0003's failure streak),
+   not a choice, even though the same flip that disables it also clears `enabled`.
+2. `enabled` false (and not auto-disabled): neutral, hollow, power, `Disabled`. Off is still a fact
+   worth a lamp — no Deliveries are being attempted — but it is a choice, not a fault, so it stays
+   the tone auto-disabled must remain distinct from.
+3. `successRate24h` is `null`: neutral, hollow, minus, `No activity (24h)`. The 24h window has no
+   Deliveries to report over — a brand-new Endpoint, or one enabled too recently — which is neither
+   health outcome, the same distinction `ChannelHealthLamp` draws for a Channel with no Broadcasts.
+4. `successRate24h < 1`: Cut, lit, cross, `N% ok (24h)`. Any failure inside the window is Cut, not
+   only a total one — `ChannelHealthLamp` already draws its own failing/healthy line the same way,
+   at "any failure at all," rather than waiting for a majority.
+5. otherwise (`successRate24h === 1`): Live, lit, check, `100% ok (24h)`.
+
+The percentage rounds **down**, never to nearest, and the lamp is the row's **only** voice for it.
+Rounding to nearest prints `100% ok (24h)` from 0.995 up, which would put the Live branch's exact
+legend on a Cut lamp — two of the five states collapsed onto one reading, on the one column that is
+supposed to carry the fact four independent ways. And the trailing statistics cell prints the rate
+only when the lamp is spending its legend on a state name instead (off, or auto-disabled); otherwise
+the row set the same machine string twice, once in the column the eye runs without reading and once
+in the column that truncates — the Machine Voice Rule failure issue #74 named for the URL.
+
+Enabled-ness does not disappear from the row for this — it moves to a switch plate in the row's own
+trailing track (`EndpointsTab.tsx`'s `.row-endpoint-switch`), the form the Switch plates section
+below already reserves for "a boolean the operator sets." That is the One Voice Rule's own
+distinction, applied to this row for the first time: the lamp may only ever report what the system
+found, and the operator's own choice needed a control that is not a lamp at all. The switch is a
+sibling of the row's own `<button>`, not nested inside it — a `<label>`/`<input>` pair is interactive
+content a `<button>` element may not contain, and nesting them would also mean a click on the switch
+bubbles into the row's own "open the editor" handler. It renders directly in the row (not only inside
+the edit well), so enabled-ness stays visible and operable at a glance, the same as the lamp beside
+it, rather than requiring the row to be opened to find or flip it. Anything the switch reports back —
+a failed PATCH — goes below the row at full width, never into its own track: that track is `auto`,
+and a sentence in it would take its width out of the URL's `1fr` beside it.
 
 ### Rows
 
