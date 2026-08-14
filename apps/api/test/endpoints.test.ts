@@ -267,6 +267,46 @@ describe("Endpoint CRUD (HTTP admin seam)", () => {
     });
   });
 
+  it("rejects a timeoutMs above the contract maximum", async () => {
+    const response = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com/hook", timeoutMs: 3_600_001 }),
+      }),
+    );
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "validation_failed" },
+    });
+  });
+
+  it("rejects patching an endpoint's timeoutMs above the contract maximum", async () => {
+    const createResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com/timeout-patch" }),
+      }),
+    );
+    const created = (await createResponse.json()) as Endpoint;
+
+    const patchResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/endpoints/${created.id}`,
+      authed({
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ timeoutMs: 3_600_001 }),
+      }),
+    );
+    expect(patchResponse.status).toBe(400);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      error: { code: "validation_failed" },
+    });
+  });
+
   it("rejects private and metadata endpoint URLs", async () => {
     for (const url of [
       "http://example.com/hook",

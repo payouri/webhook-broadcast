@@ -26,13 +26,59 @@ export const endpointUrlSchema = z.url(
   "URL must be a full URL including the scheme (e.g. https://example.com/webhook)",
 );
 
+/**
+ * Ceiling on `timeoutMs`, justified against ADR 0003's delivery semantics
+ * rather than picked arbitrarily. Retries back off from a 5s base up to a 1h
+ * cap (`DEFAULT_DELIVERY_BACKOFF_MS` / `DEFAULT_DELIVERY_BACKOFF_MAX_MS` in
+ * `packages/contract/src/env.ts`), and the worker's HTTP timeout defaults to
+ * 10s but is overridable per Endpoint. A per-Endpoint timeout anywhere near
+ * that 1h backoff cap would let a single slow request occupy a worker slot
+ * for as long as the retry schedule ever waits between attempts — no longer
+ * "one request's" problem but the fan-out's, since every other Delivery
+ * queued behind it stalls too. The cap below is set at that same 1h value
+ * (kept as its own literal, not an import, because `env.ts` is deliberately
+ * excluded from this browser-shared entry point — see index.ts's comment).
+ */
+export const MAX_ENDPOINT_TIMEOUT_MS = 3_600_000;
+
+/**
+ * Every rule below carries its own message, for the reason stated on
+ * {@link endpointHeadersSchema}: an operator reads these in the Endpoint form,
+ * so none of them may fall through to Zod's own voice. `0` and `1.5` are both
+ * reachable from a `type="number"` field, and unmessaged they would surface as
+ * "Too small: expected number to be >=1" and "Invalid input: expected int,
+ * received number" — the exact phrasing DESIGN.md §5 Fields — Error forbids.
+ *
+ * The ceiling itself is justified against ADR 0003's delivery semantics rather
+ * than picked arbitrarily. Retries back off from a 5s base up to a 1h cap
+ * (`DEFAULT_DELIVERY_BACKOFF_MS` / `DEFAULT_DELIVERY_BACKOFF_MAX_MS` in
+ * `packages/contract/src/env.ts`), and the HTTP timeout defaults to 10s but is
+ * overridable per Endpoint. A per-Endpoint timeout anywhere near that 1h
+ * backoff cap would let one slow Attempt hold a delivery slot for as long as
+ * the retry schedule ever waits between attempts — no longer one Attempt's
+ * problem but the whole fan-out's, since every Delivery queued behind it
+ * stalls too. The cap is that same 1h value, kept as its own literal rather
+ * than imported because `env.ts` is deliberately excluded from this
+ * browser-shared entry point (see index.ts's comment). ADR 0015 records the
+ * decision and the migration behaviour for Endpoints already above it.
+ */
+const timeoutNotWholeMessage = "Timeout must be a whole number of milliseconds";
+const timeoutTooSmallMessage = "Timeout must be at least 1ms";
+const timeoutTooLargeMessage = `Timeout must be at most ${MAX_ENDPOINT_TIMEOUT_MS}ms (1h) — past that, one slow Attempt stalls the rest of the Channel's fan-out`;
+
+export const endpointTimeoutMsSchema = z
+  .number(timeoutNotWholeMessage)
+  .int(timeoutNotWholeMessage)
+  .min(1, timeoutTooSmallMessage)
+  .max(MAX_ENDPOINT_TIMEOUT_MS, timeoutTooLargeMessage);
+
 export const endpointSchema = z
   .object({
     id: idSchema,
     channelId: idSchema,
     name: z.string().nullable(),
     url: endpointUrlSchema,
-    timeoutMs: z.number().int().min(1).nullable(),
+    timeoutMs: endpointTimeoutMsSchema.nullable(),
     headers: endpointHeadersSchema,
     enabled: z.boolean(),
     autoDisabledAt: dateTimeSchema.nullable().optional(),
@@ -50,7 +96,7 @@ export const endpointCreateSchema = z
   .object({
     name: z.string().min(1).optional(),
     url: endpointUrlSchema,
-    timeoutMs: z.number().int().min(1).optional(),
+    timeoutMs: endpointTimeoutMsSchema.optional(),
     headers: endpointHeadersSchema.optional(),
     enabled: z.boolean().default(true),
   })
@@ -62,7 +108,7 @@ export const endpointUpdateSchema = z
   .object({
     name: z.string().min(1).nullable().optional(),
     url: endpointUrlSchema.optional(),
-    timeoutMs: z.number().int().min(1).nullable().optional(),
+    timeoutMs: endpointTimeoutMsSchema.nullable().optional(),
     headers: endpointHeadersSchema.optional(),
     enabled: z.boolean().optional(),
   })

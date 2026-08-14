@@ -529,6 +529,60 @@ describe("Channel Detail — Endpoints tab", () => {
     expect(urlInput.getAttribute("aria-invalid")).toBe("false");
   });
 
+  // Issue #87: the contract's max on `timeoutMs` (ADR 0015) is enforced here
+  // too, in the contract schema's own words.
+  it("is silent on an absurd Timeout until the field is left, then marks it in the schema's own words", async () => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
+    await screen.findByText("Primary");
+
+    const timeoutInput = screen.getByLabelText("Timeout (ms)", {
+      selector: "#endpoint-timeout-new",
+    });
+    fireEvent.change(timeoutInput, { target: { value: "3600001" } });
+    expect(document.getElementById("endpoint-timeout-new-error")).toBeNull();
+    expect(timeoutInput.getAttribute("aria-invalid")).toBe("false");
+
+    fireEvent.blur(timeoutInput);
+    const error = document.getElementById("endpoint-timeout-new-error");
+    expect(error?.textContent).toContain(
+      "Timeout must be at most 3600000ms (1h) — past that, one slow Attempt stalls the rest of the Channel's fan-out",
+    );
+    expect(timeoutInput.getAttribute("aria-invalid")).toBe("true");
+    expect(timeoutInput.getAttribute("aria-describedby")).toBe("endpoint-timeout-new-error");
+
+    fireEvent.change(timeoutInput, { target: { value: "5000" } });
+    expect(document.getElementById("endpoint-timeout-new-error")).toBeNull();
+    expect(timeoutInput.getAttribute("aria-invalid")).toBe("false");
+  });
+
+  // The max is not the only rule on `timeoutMs`, and `0` and `1.5` are both
+  // reachable from a `type="number"` field. Unmessaged they would reach the
+  // operator as Zod's "Too small: expected number to be >=1" and "Invalid
+  // input: expected int, received number" — the phrasing DESIGN.md §5
+  // Fields — Error rules out.
+  it.each([
+    ["0", "Timeout must be at least 1ms"],
+    ["1.5", "Timeout must be a whole number of milliseconds"],
+  ])("states the Timeout rule broken by %s in the system's own voice", async (value, message) => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
+    await screen.findByText("Primary");
+
+    const timeoutInput = screen.getByLabelText("Timeout (ms)", {
+      selector: "#endpoint-timeout-new",
+    });
+    fireEvent.change(timeoutInput, { target: { value } });
+    fireEvent.blur(timeoutInput);
+
+    const error = document.getElementById("endpoint-timeout-new-error");
+    expect(error?.textContent).toContain(message);
+    expect(error?.textContent).not.toContain("Invalid input");
+    expect(error?.textContent).not.toContain("Too small");
+  });
+
   it('refuses {"a": 1} as Headers in the browser, which the old hand-rolled check let through', async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 

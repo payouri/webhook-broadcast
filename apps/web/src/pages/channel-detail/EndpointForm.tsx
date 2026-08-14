@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Check, TriangleAlert, X } from "lucide-react";
 import {
+  MAX_ENDPOINT_TIMEOUT_MS,
   endpointHeadersSchema,
+  endpointTimeoutMsSchema,
   endpointUrlSchema,
   type Endpoint,
 } from "@webhook-broadcast/contract";
@@ -38,6 +40,25 @@ function validateUrl(value: string): string | null {
     result.error.issues[0]?.message ??
     "URL must be a full URL including the scheme (e.g. https://example.com/webhook)"
   );
+}
+
+/**
+ * Empty is valid — it means "fall back to the global default" (ADR 0003) — so
+ * only a non-empty value is checked against `endpointTimeoutMsSchema`, the
+ * same schema the admin API applies, per the Reward-Early-Punish-Late Rule
+ * this file follows for URL and Headers. Every rule on that schema carries its
+ * own message, so the `??` below is a belt-and-braces fallback, not the path
+ * an operator is expected to read.
+ */
+function validateTimeoutMs(value: string): string | null {
+  if (value.length === 0) {
+    return null;
+  }
+  const result = endpointTimeoutMsSchema.safeParse(Number(value));
+  if (result.success) {
+    return null;
+  }
+  return result.error.issues[0]?.message ?? "Timeout must be a whole number of milliseconds";
 }
 
 type HeadersParseResult =
@@ -119,6 +140,7 @@ export function EndpointForm({
   const savingLabel = useDelayedPending(saving);
   const [error, setError] = useState<string | null>(null);
   const urlField = useFieldError<string, HTMLInputElement>(url, validateUrl);
+  const timeoutField = useFieldError<string, HTMLInputElement>(timeoutMs, validateTimeoutMs);
   const headersField = useFieldError<string, HTMLTextAreaElement>(headersText, validateHeaders);
 
   // Focus contract for the Endpoint edit swap (DESIGN.md #4): editing an
@@ -167,12 +189,19 @@ export function EndpointForm({
     // the first of them, rather than sending input the admin API is certain
     // to reject (DESIGN.md §5's Reward-Early-Punish-Late Rule).
     urlField.markTouched();
+    timeoutField.markTouched();
     headersField.markTouched();
     const headersResult = parseHeaders(headersText);
     const urlInvalid = urlField.isInvalid();
+    const timeoutInvalid = timeoutField.isInvalid();
     const headersInvalid = !headersResult.success;
-    if (urlInvalid || headersInvalid) {
-      (urlInvalid ? urlField.ref : headersField.ref).current?.focus();
+    if (urlInvalid || timeoutInvalid || headersInvalid) {
+      (urlInvalid
+        ? urlField.ref
+        : timeoutInvalid
+          ? timeoutField.ref
+          : headersField.ref
+      ).current?.focus();
       return;
     }
     const headers = headersResult.data;
@@ -194,6 +223,7 @@ export function EndpointForm({
         setHeadersText("{}");
         setEnabled(true);
         urlField.reset();
+        timeoutField.reset();
         headersField.reset();
       }
     } catch (err) {
@@ -205,6 +235,8 @@ export function EndpointForm({
 
   const urlFieldId = `endpoint-url-${initial?.id ?? "new"}`;
   const urlErrorId = `${urlFieldId}-error`;
+  const timeoutFieldId = `endpoint-timeout-${initial?.id ?? "new"}`;
+  const timeoutErrorId = `${timeoutFieldId}-error`;
   const headersFieldId = `endpoint-headers-${initial?.id ?? "new"}`;
   const headersErrorId = `${headersFieldId}-error`;
 
@@ -250,16 +282,29 @@ export function EndpointForm({
         </div>
 
         <div className="field">
-          <label htmlFor={`endpoint-timeout-${initial?.id ?? "new"}`}>Timeout (ms)</label>
+          <label htmlFor={timeoutFieldId}>Timeout (ms)</label>
           <input
-            id={`endpoint-timeout-${initial?.id ?? "new"}`}
+            ref={timeoutField.ref}
+            id={timeoutFieldId}
             className="field-control"
             type="number"
             min={1}
+            // Both bounds come from the contract, so the number stepper stops
+            // where the schema does instead of restating either one here.
+            max={MAX_ENDPOINT_TIMEOUT_MS}
             value={timeoutMs}
             onChange={(event) => setTimeoutMs(event.target.value)}
+            onBlur={timeoutField.onBlur}
             placeholder="Global default"
+            aria-invalid={timeoutField.error ? "true" : "false"}
+            aria-describedby={timeoutField.error ? timeoutErrorId : undefined}
           />
+          {timeoutField.error && (
+            <p className="error-text" id={timeoutErrorId} role="alert">
+              <TriangleAlert size={13} strokeWidth={2} aria-hidden="true" />
+              {timeoutField.error}
+            </p>
+          )}
         </div>
       </div>
 

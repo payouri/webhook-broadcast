@@ -9,7 +9,7 @@ The named fan-out group. Identified by an opaque UUID (durable primary key) and 
 _Avoid_: topic, webhook, queue
 
 **Endpoint**:
-A subscribed target URL owned by exactly one Channel. Carries `url`, optional `name`, `timeoutMs` (falls back to a global default), extra outbound `headers`, and an `enabled` flag. Outbound method is always `POST`. `(channelId, url)` is unique.
+A subscribed target URL owned by exactly one Channel. Carries `url`, optional `name`, `timeoutMs` (falls back to a global default, capped at 1h — ADR 0015), extra outbound `headers`, and an `enabled` flag. Outbound method is always `POST`. `(channelId, url)` is unique.
 _Avoid_: subscriber, destination, webhook, target
 
 **Broadcast**:
