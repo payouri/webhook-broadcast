@@ -127,7 +127,13 @@ export function ChannelDirectoryPage() {
                 <Link to={channelActivityHref(channel)} className="row row-channel">
                   <EnabledStatusBadge enabled={channel.enabled} />
                   <span className="row-name">{channel.slug}</span>
-                  <span className="muted row-truncate">
+                  {/* A description has no length bound, so it can still outrun
+                      even the widened column on some rows. DESIGN.md's rule for
+                      that case — the one the Endpoint URL beside it already
+                      follows — is that the full string stays reachable from the
+                      row, so the desktop grid never withholds a fact the stacked
+                      layout below 720px would have shown. */}
+                  <span className="muted row-truncate" title={channel.description ?? undefined}>
                     {channel.description ?? "No description"}
                   </span>
                   <ChannelHealthBadge

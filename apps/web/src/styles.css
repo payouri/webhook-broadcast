@@ -181,10 +181,19 @@
   --status-lamp-column: 148px;
 
   /* Same idea, second lamp: the Channel health badge (issue "row grid tracks
-     must span the list, not the row") carries the longest label in the
-     system, "N failing (24h) · N auto-disabled", so it gets its own pinned
-     minimum rather than sharing the leading column's width. */
-  --health-lamp-column: 220px;
+     must span the list, not the row") carries the longest label in the system,
+     "N failing (24h) · N auto-disabled".
+
+     This is the column's constant width, not a floor under it. It used to be a
+     floor (`minmax(220px, auto)`), and a floor does not bound anything: an
+     `auto` maximum resolves at the widest cell's max-content across the whole
+     list, so one broken Channel sized the track at 241px and the description's
+     `1fr` only ever saw what was left (issue #81). That is the same failure the
+     Endpoint family was split off to fix, one column over. The track is capped
+     here instead, and the lamp wraps inside it, so the description takes the
+     remainder at every width. Sized to hold "No failures (24h)", the widest
+     legend that should not wrap, on one line. */
+  --health-lamp-column: 160px;
 
   /* The floor under an Endpoint's URL. An Endpoint's identity is where it
      sends, so that column may not be squeezed below a readable width by the
@@ -1028,10 +1037,19 @@ input[type="number"] {
   gap: var(--space-xs);
   font-size: var(--text-engraved-size);
   font-weight: 600;
-  line-height: 1;
+  /* Not 1: a legend that wraps (the Channel health lamp, in its capped column)
+     would otherwise set its two lines solid. Below the 17px glass, so a
+     single-line lamp is still sized by the glass and its height is unchanged. */
+  line-height: 1.3;
   letter-spacing: var(--text-engraved-tracking);
   text-transform: uppercase;
-  white-space: nowrap;
+  /* A lamp wraps inside its column rather than widening or overflowing it. Every
+     lamp but the Channel health one sits in an `auto` track that resolves at
+     max-content, so this only ever engages where a track is capped. The legend
+     is one anonymous flex item, so it is the legend's own text that wraps, and
+     the glass keeps its place beside it — `flex-wrap` on this container would
+     instead push the whole legend below the glass and cost a third line. */
+  max-width: 100%;
   /* Sized by its legend; never stretched to fill a grid track. */
   justify-self: start;
 }
@@ -1149,10 +1167,24 @@ input[type="number"] {
   column-gap: var(--space-md);
 }
 
+/*
+ * The health lamp takes a capped track, not a floored one. `minmax(min-content,
+ * var(--health-lamp-column))` reads "the constant column width, and never
+ * narrower than the lamp's longest unbreakable word": a `minmax()` whose
+ * maximum falls below its minimum resolves to the minimum, so a legend that
+ * cannot wrap into 160px still gets the room it needs rather than overflowing.
+ * The description keeps the flexible remainder, which is what makes desktop
+ * carry at least what 720px carries (issue #81).
+ *
+ * The trailing Endpoint count takes `minmax(0, auto)` for the reason the
+ * Endpoint family's statistics do: metadata sizes to its content while there is
+ * room and is the track allowed to fall below it once there is not, so a count
+ * never holds width the description is short of.
+ */
 .row-list-channel {
   grid-template-columns:
-    minmax(var(--status-lamp-column), auto) auto 1fr minmax(var(--health-lamp-column), auto)
-    auto;
+    minmax(var(--status-lamp-column), auto) auto 1fr minmax(min-content, var(--health-lamp-column))
+    minmax(0, auto);
 }
 
 .row-list-activity {
@@ -1188,7 +1220,8 @@ input[type="number"] {
    `min-width: 0` that a grid item does not take by default. (The name cell
    yields too, but takes it from the `row-truncate` utility it carries in the
    markup, whose `overflow: hidden` zeroes that automatic minimum already.) */
-.row-list-endpoint .row-meta {
+.row-list-endpoint .row-meta,
+.row-list-channel .row-meta {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1290,7 +1323,9 @@ a.row:active {
  * rules below only override them once the surrounding list actually opts in.
  */
 .row-channel {
-  grid-template-columns: minmax(var(--status-lamp-column), auto) auto 1fr auto auto;
+  grid-template-columns:
+    minmax(var(--status-lamp-column), auto) auto 1fr minmax(min-content, var(--health-lamp-column))
+    minmax(0, auto);
 }
 
 .row-activity {
@@ -2086,7 +2121,8 @@ a.row:active {
 
   /* The statistics column truncates only where width is scarce. Once the row
      is stacked it has a full line to itself, so it reads in full again. */
-  .row-list-endpoint .row-meta {
+  .row-list-endpoint .row-meta,
+  .row-list-channel .row-meta {
     min-width: auto;
     overflow: visible;
     text-overflow: clip;
