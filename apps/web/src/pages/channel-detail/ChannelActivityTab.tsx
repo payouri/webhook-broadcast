@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, Filter, Inbox } from "lucide-react";
 import type { BroadcastListItem } from "@webhook-broadcast/contract";
 import { EmptyState } from "../../components/EmptyState.js";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
+import { ShortcutsHelp } from "../../components/ShortcutsHelp.js";
 import { SkeletonRows } from "../../components/SkeletonRows.js";
 import { BroadcastFanoutBadge } from "../../components/StatusBadge.js";
 import {
@@ -19,7 +20,18 @@ import {
   queryErrorMessage,
   useRefetchOnVisible,
 } from "../../lib/freshness.js";
+import { handleRowListKeyDown } from "../../lib/rowListKeyboard.js";
 import { BroadcastDetailPanel } from "./BroadcastDetailPanel.js";
+
+const ACTIVITY_SHORTCUTS = [
+  { keys: "↑ ↓", description: "Move between Broadcast rows, or Delivery rows inside one" },
+  { keys: "Home / End", description: "Jump to the first or last row of the list you are in" },
+  { keys: "Enter / Space", description: "Expand or collapse the focused Broadcast or Delivery" },
+  {
+    keys: "Esc",
+    description: "Collapse the open Broadcast or Delivery, or back out of a confirmation",
+  },
+] as const;
 
 /**
  * States its current option at rest — the active choice carries the accent as
@@ -170,7 +182,10 @@ export function ChannelActivityTab({
           stays in the outline for assistive tech, where it is not a repeat but
           the only thing naming this region. */}
       <h2 className="visually-hidden">Activity</h2>
-      <ActivityFilterToggle filter={filter} onChange={setFilter} />
+      <div className="activity-controls">
+        <ActivityFilterToggle filter={filter} onChange={setFilter} />
+        <ShortcutsHelp items={ACTIVITY_SHORTCUTS} />
+      </div>
       {error && <InlineLoadError message={error} onRetry={retry} />}
       {items === null && !error && <SkeletonRows count={4} label="Loading Activity" />}
       {items !== null && items.length === 0 && (
@@ -187,14 +202,31 @@ export function ChannelActivityTab({
               {nextCursor ? " Load more to look further back." : ""}
             </EmptyState>
           ) : (
-            <ul className="row-list row-list-activity">
+            <ul className="row-list row-list-activity" onKeyDown={handleRowListKeyDown}>
               {visibleItems.map((item) => {
                 const expanded = expandedBroadcastId === item.id;
                 return (
-                  <li key={item.id}>
+                  <li
+                    key={item.id}
+                    onKeyDown={(event) => {
+                      // Escape collapses the open Broadcast wherever focus
+                      // landed inside its well — the Attempt list, a Retry
+                      // button — and hands focus back to the row that opened
+                      // it, rather than stranding it on an element that is
+                      // about to unmount.
+                      if (event.key === "Escape" && expanded) {
+                        event.stopPropagation();
+                        const rowButton =
+                          event.currentTarget.querySelector<HTMLButtonElement>(".row-activity");
+                        onToggleBroadcast(item.id);
+                        rowButton?.focus();
+                      }
+                    }}
+                  >
                     <button
                       type="button"
                       className="row row-activity"
+                      data-row-nav="true"
                       aria-expanded={expanded}
                       onClick={() => onToggleBroadcast(item.id)}
                     >
@@ -225,7 +257,7 @@ export function ChannelActivityTab({
                       <BroadcastDetailPanel
                         channelId={channelId}
                         broadcastId={item.id}
-                        onReplayed={() => void activityQuery.refetch()}
+                        onActivityChanged={() => void activityQuery.refetch()}
                       />
                     )}
                   </li>

@@ -75,8 +75,26 @@ export function DeliveryDetail({
   }
 
   return (
-    <li>
-      <button type="button" className="row row-delivery" aria-expanded={expanded} onClick={toggle}>
+    <li
+      onKeyDown={(event) => {
+        // Same contract as the Broadcast row: Escape collapses from anywhere
+        // in the well (the Attempt list, the Retry button) and returns focus
+        // to the row that opened it.
+        if (event.key === "Escape" && expanded) {
+          event.stopPropagation();
+          const rowButton = event.currentTarget.querySelector<HTMLButtonElement>(".row-delivery");
+          setExpanded(false);
+          rowButton?.focus();
+        }
+      }}
+    >
+      <button
+        type="button"
+        className="row row-delivery"
+        data-row-nav="true"
+        aria-expanded={expanded}
+        onClick={toggle}
+      >
         <DeliveryStatusBadge status={delivery.status} />
         <span className="delivery-endpoint">{delivery.endpointName ?? delivery.endpointUrl}</span>
         <span className="muted delivery-meta">
