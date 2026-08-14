@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { idSchema } from "@webhook-broadcast/contract";
+import { isChannelId } from "../src/lib/channelRef.js";
+import { FRESHNESS_POLL_MS } from "../src/lib/freshness.js";
 import { renderRoutes, requestMethod, requestPath, stubFetchMock } from "./fetchMock.js";
 
 const CHANNEL_ID = "11111111-1111-1111-1111-111111111111";
@@ -185,5 +188,104 @@ describe("Channel routes accept a slug (issue #56)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
     expect(await screen.findByRole("heading", { level: 1, name: SLUG })).toBeTruthy();
+  });
+});
+
+/**
+ * Issue #57: `isChannelId` (`lib/channelRef.ts`) is a loose 8-4-4-4-12 hex
+ * shape check, so a hand-typed or corrupted id can pass it and still fail the
+ * admin API's stricter `idSchema` (`z.uuid()`, which also checks the version
+ * and variant nibbles) — its 400 `channelId must be a UUID` is exactly the
+ * internal string this issue must keep off the screen.
+ *
+ * Deliberately a different value from `CHANNEL_ID` above: this segment must be
+ * one the route layer forwards as an id and the API then refuses, which the
+ * first test below asserts against the two real checks rather than trusting the
+ * mocked 400 to stand for it.
+ */
+describe("a route segment shaped like a UUID but rejected by the API (issue #57)", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  const MALFORMED_ID = "deadbeef-dead-dead-dead-deadbeefdead";
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    stubFetchMock(fetchMock);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  function rejectsTheId(): (
+    input: string | URL | Request,
+    init?: RequestInit,
+  ) => Promise<Response> {
+    return (input, init) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+      if (path === `/channels/${MALFORMED_ID}` && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(400, {
+            error: { code: "validation_failed", message: "channelId must be a UUID" },
+          }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    };
+  }
+
+  // The premise the rest of this block mocks: without this gap between the two
+  // checks there is no 400 to keep off the screen, and a tightened `isChannelId`
+  // would route this segment to the slug lookup instead.
+  it("is a segment the route layer reads as an id but the contract rejects", () => {
+    expect(isChannelId(MALFORMED_ID)).toBe(true);
+    expect(idSchema.safeParse(MALFORMED_ID).success).toBe(false);
+  });
+
+  it.each([
+    ["the bare Channel route", `/channels/${MALFORMED_ID}`],
+    ["a nested tab", `/channels/${MALFORMED_ID}/settings`],
+    [
+      "the expanded-Broadcast form",
+      `/channels/${MALFORMED_ID}/activity/${BROADCAST_ID}?filter=failed`,
+    ],
+  ])("renders NotFoundPanel, never the raw validation string, on %s", async (_label, route) => {
+    fetchMock.mockImplementation(rejectsTheId());
+
+    renderRoutes(route);
+
+    expect(await screen.findByRole("heading", { name: "Channel not found" })).toBeTruthy();
+    expect(screen.queryByText(/channelId must be a UUID/)).toBeNull();
+    expect(screen.getByRole("link", { name: /Back to Channels/i })).toBeTruthy();
+    // A broken address is a failure, not an empty list: the panel takes the
+    // Lamp Cut error treatment and must not borrow the dashed empty-state well
+    // that `EmptyState` still owns for a genuinely empty list (issue #57).
+    const alert = screen.getByRole("alert");
+    expect(alert.className).toContain("error-text");
+    expect(alert.className).not.toContain("empty-state");
+  });
+
+  it("stops polling once the API rejects the id, same as a 404", async () => {
+    let detailRequests = 0;
+    const rejects = rejectsTheId();
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      if (requestPath(input) === `/channels/${MALFORMED_ID}`) {
+        detailRequests += 1;
+      }
+      return rejects(input, init);
+    });
+
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderRoutes(`/channels/${MALFORMED_ID}`);
+      await screen.findByRole("heading", { name: "Channel not found" });
+
+      const afterFirstLoad = detailRequests;
+      await vi.advanceTimersByTimeAsync(FRESHNESS_POLL_MS * 4);
+      expect(detailRequests).toBe(afterFirstLoad);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

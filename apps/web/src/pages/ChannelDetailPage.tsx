@@ -7,7 +7,7 @@ import type { Channel } from "@webhook-broadcast/contract";
 import {
   channelQueryKey,
   channelSlugLookupKey,
-  isChannelNotFound,
+  isUnresolvableChannelRoute,
   useChannelQuery,
   useChannelRouteId,
 } from "../lib/channelQuery.js";
@@ -73,7 +73,7 @@ export function ChannelDetailPage() {
 
   const channel = channelQuery.data ?? null;
   const notFound =
-    isSlugNotFound || (channelQuery.isError && isChannelNotFound(channelQuery.error));
+    isSlugNotFound || (channelQuery.isError && isUnresolvableChannelRoute(channelQuery.error));
   // Two fetches can fail on the way to this view — resolving a slug segment to
   // an id, then loading the Channel — and whichever failed owns the Retry.
   const failure =
@@ -133,9 +133,14 @@ export function ChannelDetailPage() {
 
   if (notFound) {
     return (
+      // One message for all four ways this address fails to name a Channel: an
+      // unknown id, a soft-deleted one, a slug nobody holds any more, and an id
+      // the API rejects outright (issue #57). "It may have been deleted" alone
+      // read as a fact about a Channel that, for a mistyped address, never
+      // existed — so the copy names both possibilities and asserts neither.
       <NotFoundPanel
         title="Channel not found"
-        message="Channel not found. It may have been deleted."
+        message="Channel not found. It may have been deleted, or the link may be wrong."
       />
     );
   }

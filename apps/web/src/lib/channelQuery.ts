@@ -18,16 +18,40 @@ export function channelSlugLookupKey(slug: string) {
   return ["channel-slug-lookup", slug] as const;
 }
 
-/** True for the admin API's 404 on an unknown or soft-deleted Channel id. */
-export function isChannelNotFound(error: unknown): boolean {
-  return error instanceof ApiRequestError && error.status === 404;
+/**
+ * True when a `getChannel` failure means the Channel id in the route can never
+ * resolve, whichever of the admin API's two ways of saying so it used:
+ *
+ * - **404** — no such id, or one that was soft-deleted.
+ * - **400 `validation_failed`** — the segment passed `isChannelId` (a loose
+ *   8-4-4-4-12 hex shape check, issue #56) but not the API's stricter
+ *   `z.uuid()` (version and variant nibbles, `requireUuidParam`): a hand-typed
+ *   or corrupted id that merely *looks* like a UUID.
+ *
+ * Both are one fact to the operator — this address has no view — and it is
+ * issue #57's job that neither degrades into the API's internal validation
+ * string reaching the screen.
+ *
+ * Named for the route, not for "not found", because the 400 branch is only
+ * sound on an error from `GET /channels/:channelId`, whose sole validated
+ * input *is* that path param. The same code on a mutation (`PATCH` rejecting a
+ * slug edit) reports a bad *body*, and reading that as an unresolvable route
+ * would replace a form the operator can fix with a dead end. Pass this only
+ * `useChannelQuery`'s error.
+ */
+export function isUnresolvableChannelRoute(error: unknown): boolean {
+  if (!(error instanceof ApiRequestError)) {
+    return false;
+  }
+  return error.status === 404 || (error.status === 400 && error.code === "validation_failed");
 }
 
 /**
  * The single Channel query (issue #51): stated once so the surfaces that read
  * one Channel — the detail page header and the Ingest tokens panel — share its
- * key, its ~5s freshness interval (ADR 0004), and its terminal-404 rule instead
- * of each declaring its own copy that can drift.
+ * key, its ~5s freshness interval (ADR 0004), and its terminal-not-found rule
+ * (`isUnresolvableChannelRoute`) instead of each declaring its own copy that
+ * can drift.
  *
  * `staleTime` is the poll interval on purpose: a second observer mounting (the
  * tokens panel opening under Settings) reads the Channel already in the cache
@@ -41,12 +65,15 @@ export function useChannelQuery(channelId: string, options: { enabled?: boolean 
     queryKey: channelQueryKey(channelId),
     queryFn: () => api.getChannel(channelId),
     enabled,
-    // ADR 0004 polls this surface ~every 5s, but a 404 is terminal: the Channel
-    // was deleted (or never existed) and the view it renders offers no Retry,
-    // so keep polling only while the id could still resolve (and only while
-    // the tab is visible; see freshnessRefetchInterval).
+    // ADR 0004 polls this surface ~every 5s, but a not-found (issue #57: 404,
+    // or 400 for an id shaped enough to pass `isChannelId` but not the API's
+    // stricter check) is terminal: the view it renders offers no Retry, so
+    // keep polling only while the id could still resolve (and only while the
+    // tab is visible; see freshnessRefetchInterval).
     refetchInterval: (state) =>
-      enabled && !isChannelNotFound(state.state.error) ? freshnessRefetchInterval() : false,
+      enabled && !isUnresolvableChannelRoute(state.state.error)
+        ? freshnessRefetchInterval()
+        : false,
     staleTime: FRESHNESS_POLL_MS,
   });
   useRefetchOnVisible(() => {
