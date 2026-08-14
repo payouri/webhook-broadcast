@@ -44,3 +44,35 @@ export function formatElapsed(iso: string, now: number): string {
 export function formatAbsolute(iso: string): string {
   return new Date(iso).toLocaleString();
 }
+
+/**
+ * Issue #75: the gap between two Attempts — ADR 0003's exponential backoff
+ * with jitter, read back from the actual timestamps rather than recomputed
+ * from the policy inputs, so it reflects what really happened (a `Retry-After`
+ * override, or jitter landing near zero) rather than the nominal curve. Never
+ * negative on screen: attempts are recorded in order, but a clock oddity folds
+ * to "0s" rather than a confusing negative duration.
+ *
+ * Truncates rather than rounds, for the same reason `formatElapsed` above does:
+ * rounding a remainder can carry it past its own unit, so 59.6s reads "60s"
+ * instead of "1m", and 59m 59.6s reads "59m 60s". Truncation keeps every
+ * component strictly inside its unit and keeps the sequence monotonic, which is
+ * the whole point of a column an operator reads down.
+ */
+export function formatBackoffGap(ms: number): string {
+  const clamped = Math.max(0, ms);
+  if (clamped < SECOND) {
+    return "<1s";
+  }
+  if (clamped < MINUTE) {
+    return `${Math.floor(clamped / SECOND)}s`;
+  }
+  if (clamped < HOUR) {
+    const minutes = Math.floor(clamped / MINUTE);
+    const seconds = Math.floor((clamped % MINUTE) / SECOND);
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  }
+  const hours = Math.floor(clamped / HOUR);
+  const minutes = Math.floor((clamped % HOUR) / MINUTE);
+  return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+}

@@ -2,7 +2,7 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ElapsedTime } from "../src/components/ElapsedTime.js";
-import { formatAbsolute, formatElapsed } from "../src/lib/relativeTime.js";
+import { formatAbsolute, formatBackoffGap, formatElapsed } from "../src/lib/relativeTime.js";
 
 const NOW = new Date("2026-08-14T12:00:00.000Z").getTime();
 
@@ -20,6 +20,28 @@ describe("formatElapsed — issue #54", () => {
 
   it("folds a future timestamp (clock skew) into 'just now' instead of a negative duration", () => {
     expect(formatElapsed(new Date(NOW + 30_000).toISOString(), NOW)).toBe("just now");
+  });
+});
+
+describe("formatBackoffGap — issue #75", () => {
+  it("spans ADR 0003's whole backoff range, from the 5s base to the 1h cap", () => {
+    expect(formatBackoffGap(400)).toBe("<1s");
+    expect(formatBackoffGap(5_000)).toBe("5s");
+    expect(formatBackoffGap(90_000)).toBe("1m 30s");
+    expect(formatBackoffGap(120_000)).toBe("2m");
+    expect(formatBackoffGap(3_600_000)).toBe("1h");
+    expect(formatBackoffGap(7_500_000)).toBe("2h 5m");
+  });
+
+  it("never carries a remainder past its own unit", () => {
+    // Rounding here would read "60s", "59m 60s", and "1h 60m".
+    expect(formatBackoffGap(59_600)).toBe("59s");
+    expect(formatBackoffGap(3_599_600)).toBe("59m 59s");
+    expect(formatBackoffGap(7_199_600)).toBe("1h 59m");
+  });
+
+  it("folds a negative gap (clock oddity) to a zero reading, never a negative duration", () => {
+    expect(formatBackoffGap(-5_000)).toBe("<1s");
   });
 });
 

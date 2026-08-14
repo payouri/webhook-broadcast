@@ -512,6 +512,22 @@ focusable descendant of a button is a nested interactive control and an extra Ta
 busiest lists. Where the timestamp does own its tab stop, `aria-describedby` points at the bubble so
 the exact instant is announced as well as shown.
 
+**The Attempt timeline reverses this default (issue #75).** Elapsed time answers "how long ago", which
+is the right question everywhere else this document grants it — but an Attempt row's question is "how
+does this row differ from the one above it". ADR 0003 spends its 8 attempts across seconds to hours
+(5s base, exponential, 1h cap), while `formatElapsed` resolves in minutes-to-years steps — so a whole
+timeline of Attempts collapses to the same `23h ago` string, and the one fact that actually varies
+between them, backoff spacing, is exactly what elapsed time flattens away. So this one surface
+prints the absolute instant (`toLocaleString()`) directly on the row, with no disclosure and no hover
+step, because the exact instant is the primary reading an operator came for, not a fallback one reveals
+on demand. It is deliberately not a wholesale reversal of issue #54: Activity rows, Endpoint rows, and
+every other elapsed-time surface keep reading elapsed time, because their question really is "how long
+ago", and only the Attempt timeline's question is "how far apart". Backoff spacing itself is not left
+to the operator to compute by eye from two absolute timestamps: each row after the first also states the
+actual gap since the previous Attempt (e.g. `waited 12s`), read back from the recorded timestamps rather
+than recomputed from the backoff formula — a `Retry-After` override or jitter landing near zero both
+change what actually happened, and the timeline's job is to report that, not the nominal curve.
+
 It earns **no shadow token**: The No Drop Shadow Rule holds inside this grant as well, so the bubble
 is scored with a line (`1px solid var(--score)`) and lit with the raised control's `inset 0 1px 0
 var(--lip-light)`, which is the remedy that rule prescribes. A floating surface added after it takes

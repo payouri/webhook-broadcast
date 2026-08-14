@@ -1,12 +1,23 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Inbox, Repeat } from "lucide-react";
 import type { Attempt, BroadcastDetail } from "@webhook-broadcast/contract";
-import { ElapsedTime } from "../components/ElapsedTime.js";
 import { EmptyState } from "../components/EmptyState.js";
 import { DeliveryStatusBadge } from "../components/StatusBadge.js";
 import { api, describeApiError } from "../lib/api.js";
+import { formatAbsolute, formatBackoffGap } from "../lib/relativeTime.js";
 
 type DeliveryItem = BroadcastDetail["deliveries"][number];
+
+/**
+ * ADR 0003's default attempt budget (`DEFAULT_DELIVERY_MAX_ATTEMPTS` in
+ * `packages/contract/src/env.ts`), duplicated here rather than imported: env
+ * schemas are process-boot-only and deliberately not part of this package's
+ * browser-shared entry point (see that file's `index.ts` comment), and there
+ * is no admin-API endpoint that surfaces the runtime-configured value. An
+ * operator running with a `DELIVERY_MAX_ATTEMPTS` override sees the wrong
+ * denominator until such an endpoint exists.
+ */
+const ATTEMPT_BUDGET = 8;
 
 /**
  * A missing HTTP status code stays a dash on screen (the tabular convention) but
@@ -22,11 +33,59 @@ function MissingStatusCode() {
   );
 }
 
+interface AttemptRow {
+  attempt: Attempt;
+  /** `null` when this row's error is identical to what is already on screen. */
+  errorToShow: string | null;
+  /** Actual time since the previous Attempt; `null` for the first row. */
+  gapMs: number | null;
+}
+
+/**
+ * Builds the Attempt timeline's per-row view model in a single pass, pairing
+ * each `Attempt` with the two things issue #75 asked to make legible:
+ *
+ * - The error text repeats a shared string once as the Delivery summary and
+ *   once per Attempt row when every retry failed the same way. This states
+ *   each distinct error only where it first differs from what is already on
+ *   screen — the summary line above the list, then the previous Attempt — so
+ *   a run of eight identical timeouts reads once, and a run that changes
+ *   partway through still shows exactly where.
+ * - The backoff gap since the previous Attempt, read back from the recorded
+ *   timestamps rather than recomputed from the backoff formula, since a
+ *   `Retry-After` override or jitter landing near zero both change what
+ *   really happened.
+ *
+ * `summaryError` must be the error the summary line is *actually rendering*,
+ * not `delivery.lastError` unconditionally — suppressing a row against text
+ * that is not on screen would hide the failure reason entirely.
+ */
+function buildAttemptRows(attempts: Attempt[], summaryError: string | null): AttemptRow[] {
+  const rows: AttemptRow[] = [];
+  let previousError = summaryError;
+  let previousAt: string | null = null;
+  for (const attempt of attempts) {
+    const errorToShow =
+      attempt.error !== null && attempt.error !== previousError ? attempt.error : null;
+    const gapMs =
+      previousAt !== null ? new Date(attempt.at).getTime() - new Date(previousAt).getTime() : null;
+    rows.push({ attempt, errorToShow, gapMs });
+    previousError = attempt.error;
+    previousAt = attempt.at;
+  }
+  return rows;
+}
+
 /**
  * Delivery detail (issue #21): Endpoint identity + status are already on the
  * `delivery` row from the Broadcast detail response; expanding fetches the
  * Attempt timeline, and a Retry action appears only once `dead_lettered`
  * (ADR 0003 — distinct from Broadcast Replay).
+ *
+ * The Attempt timeline (issue #75) states each row's number against
+ * `ATTEMPT_BUDGET`, the actual gap since the previous Attempt
+ * (`buildAttemptRows`), and an absolute timestamp rather than elapsed time —
+ * see DESIGN.md for why this surface reverses the elapsed-time default.
  */
 export function DeliveryDetail({
   delivery,
@@ -78,6 +137,12 @@ export function DeliveryDetail({
     }
   }
 
+  // Single source of truth for "is the Delivery's own last error on screen
+  // above the Attempt list": a fetch or retry failure takes that slot instead,
+  // and the Attempt rows must then state their error rather than suppress it
+  // against a line nobody can see.
+  const summaryError = error === null ? delivery.lastError : null;
+
   return (
     <li
       onKeyDown={(event) => {
@@ -125,9 +190,7 @@ export function DeliveryDetail({
               {error}
             </p>
           )}
-          {delivery.lastError && !error && (
-            <p className="error-text delivery-error">{delivery.lastError}</p>
-          )}
+          {summaryError && <p className="error-text delivery-error">{summaryError}</p>}
 
           {attempts === null && !error && (
             <p className="muted loading-delayed">Loading Attempts…</p>
@@ -137,23 +200,32 @@ export function DeliveryDetail({
           )}
           {attempts !== null && attempts.length > 0 && (
             <ul className="row-list row-list-tight">
-              {attempts.map((attempt) => (
-                <li key={attempt.id} className="row-attempt">
-                  <span className="attempt-n">#{attempt.n}</span>
-                  <ElapsedTime iso={attempt.at} className="muted" />
-                  <span>
-                    {attempt.statusCode !== null ? (
-                      `HTTP ${attempt.statusCode}`
-                    ) : (
-                      <MissingStatusCode />
+              {buildAttemptRows(attempts, summaryError).map(({ attempt, errorToShow, gapMs }) => {
+                return (
+                  <li key={attempt.id} className="row-attempt">
+                    <span className="attempt-n">
+                      Attempt {attempt.n} of {ATTEMPT_BUDGET}
+                    </span>
+                    {gapMs !== null && (
+                      <span className="muted attempt-gap">waited {formatBackoffGap(gapMs)}</span>
                     )}
-                  </span>
-                  <span className="muted">
-                    {attempt.durationMs !== null ? `${attempt.durationMs}ms` : ""}
-                  </span>
-                  {attempt.error && <span className="error-text">{attempt.error}</span>}
-                </li>
-              ))}
+                    <time dateTime={attempt.at} className="muted attempt-time">
+                      {formatAbsolute(attempt.at)}
+                    </time>
+                    <span>
+                      {attempt.statusCode !== null ? (
+                        `HTTP ${attempt.statusCode}`
+                      ) : (
+                        <MissingStatusCode />
+                      )}
+                    </span>
+                    <span className="muted">
+                      {attempt.durationMs !== null ? `${attempt.durationMs}ms` : ""}
+                    </span>
+                    {errorToShow && <span className="error-text">{errorToShow}</span>}
+                  </li>
+                );
+              })}
             </ul>
           )}
 
