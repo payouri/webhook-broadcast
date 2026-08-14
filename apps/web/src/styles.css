@@ -1703,8 +1703,25 @@ a.row:active {
  * Row grids collapse to stacked lines and metadata wraps rather than
  * truncating. The layout composes rather than shrinking: nothing here is a
  * scaled-down desktop row.
+ *
+ * Touch targets: 44px in the vertical axis, on every control, field, and tab.
+ * The one `--control-height` token carries it, so the height is raised in a
+ * single place and `.control` and `input`/`textarea` stay the same height as
+ * each other — a control beside a field in an inline form is still aligned
+ * here, not 8px short of it. Nothing restates 44px at a call site.
+ *
+ * A tab's height is the token too, via `min-height`, rather than padding
+ * inflated until the box happens to measure 44px: at Engraved size that sum
+ * depends on the font's `normal` line-height and would silently fall under
+ * the target if either changed. Its padding only widens the strip, because
+ * 2px of it desktop-side makes a tab barely wider than its own label and
+ * neighbouring tabs mis-tappable.
  */
 @media (max-width: 720px) {
+  :root {
+    --control-height: 44px;
+  }
+
   .app-header-inner,
   .app-main {
     padding: var(--space-md) var(--space-lg);
@@ -1805,6 +1822,12 @@ a.row:active {
   .tabs {
     gap: var(--space-md);
     overflow-x: auto;
+  }
+
+  .tab {
+    min-height: var(--control-height);
+    padding-right: var(--space-sm);
+    padding-left: var(--space-sm);
   }
 
   .field-pair {
