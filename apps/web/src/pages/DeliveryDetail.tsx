@@ -4,6 +4,7 @@ import type { Attempt, BroadcastDetail } from "@webhook-broadcast/contract";
 import { EmptyState } from "../components/EmptyState.js";
 import { DeliveryStatusBadge } from "../components/StatusBadge.js";
 import { api, describeApiError } from "../lib/api.js";
+import { useDelayedPending } from "../lib/delayedPending.js";
 import { formatAbsolute, formatBackoffGap } from "../lib/relativeTime.js";
 
 type DeliveryItem = BroadcastDetail["deliveries"][number];
@@ -100,6 +101,7 @@ export function DeliveryDetail({
   const [attempts, setAttempts] = useState<Attempt[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const retryingLabel = useDelayedPending(retrying);
 
   async function loadAttempts(): Promise<void> {
     try {
@@ -238,7 +240,7 @@ export function DeliveryDetail({
                 disabled={retrying}
               >
                 <Repeat size={13} strokeWidth={1.75} aria-hidden="true" />
-                {retrying ? "Retrying…" : "Retry"}
+                {retryingLabel ? "Retrying…" : "Retry"}
               </button>
             </div>
           )}

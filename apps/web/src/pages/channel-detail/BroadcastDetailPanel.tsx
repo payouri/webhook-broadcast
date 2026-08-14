@@ -7,6 +7,7 @@ import { InlineLoadError } from "../../components/InlineLoadError.js";
 import { PollStatusLine } from "../../components/PollStatusLine.js";
 import { SkeletonRows } from "../../components/SkeletonRows.js";
 import { api, describeApiError } from "../../lib/api.js";
+import { useDelayedPending } from "../../lib/delayedPending.js";
 import {
   freshnessRefetchInterval,
   queryErrorMessage,
@@ -43,6 +44,7 @@ function BulkRetryDeadLettered({
 }) {
   const [confirming, setConfirming] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const retryingLabel = useDelayedPending(retrying);
   const [outcomes, setOutcomes] = useState<BulkRetryOutcome[] | null>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -147,7 +149,7 @@ function BulkRetryDeadLettered({
                 disabled={retrying}
               >
                 <Repeat size={13} strokeWidth={1.75} aria-hidden="true" />
-                {retrying ? "Retrying…" : "Confirm retry"}
+                {retryingLabel ? "Retrying…" : "Confirm retry"}
               </button>
               <button type="button" className="control" onClick={cancel} disabled={retrying}>
                 <X size={13} strokeWidth={2} aria-hidden="true" />
@@ -211,6 +213,7 @@ function ReplayBroadcast({
 }) {
   const [confirming, setConfirming] = useState(false);
   const [replaying, setReplaying] = useState(false);
+  const replayingLabel = useDelayedPending(replaying);
   const [replayError, setReplayError] = useState<string | null>(null);
   const [replayed, setReplayed] = useState(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -315,7 +318,7 @@ function ReplayBroadcast({
               disabled={replaying}
             >
               <RotateCcw size={13} strokeWidth={1.75} aria-hidden="true" />
-              {replaying ? "Replaying…" : "Confirm replay"}
+              {replayingLabel ? "Replaying…" : "Confirm replay"}
             </button>
             <button type="button" className="control" onClick={cancel} disabled={replaying}>
               <X size={13} strokeWidth={2} aria-hidden="true" />

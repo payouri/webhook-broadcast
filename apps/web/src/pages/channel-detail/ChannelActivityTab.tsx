@@ -17,6 +17,7 @@ import {
   type ActivityFilter,
 } from "../../lib/activityFilter.js";
 import { api, describeApiError } from "../../lib/api.js";
+import { useDelayedPending } from "../../lib/delayedPending.js";
 import {
   freshnessRefetchInterval,
   queryErrorMessage,
@@ -107,6 +108,7 @@ export function ChannelActivityTab({
   };
 
   const [loadingMore, setLoadingMore] = useState(false);
+  const loadingMoreLabel = useDelayedPending(loadingMore);
   // Pages fetched beyond the polled first page — the ~5s refetch only ever
   // returns page one, so extra pages (and their cursor) live outside Query
   // and reset whenever a fresh first page arrives, same as before adoption.
@@ -284,7 +286,7 @@ export function ChannelActivityTab({
                 onClick={() => void handleLoadMore()}
                 disabled={loadingMore}
               >
-                {loadingMore ? "Loading…" : "Load more"}
+                {loadingMoreLabel ? "Loading…" : "Load more"}
               </button>
             </div>
           )}

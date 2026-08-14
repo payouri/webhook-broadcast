@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Radio } from "lucide-react";
 import { api, describeApiError } from "../lib/api.js";
 import { ThemeToggle } from "../components/ThemeToggle.js";
+import { useDelayedPending } from "../lib/delayedPending.js";
 
 export function LoginPage({
   onLoggedIn,
@@ -15,6 +16,7 @@ export function LoginPage({
   const [apiKey, setApiKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submittingLabel = useDelayedPending(submitting);
 
   useEffect(() => {
     document.title = "Log in · webhook-broadcast";
@@ -70,7 +72,7 @@ export function LoginPage({
           className="control control-primary"
           disabled={submitting || apiKey.length === 0}
         >
-          {submitting ? "Signing in…" : "Sign in"}
+          {submittingLabel ? "Signing in…" : "Sign in"}
         </button>
       </form>
     </main>

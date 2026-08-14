@@ -3,6 +3,7 @@ import { Trash2, TriangleAlert, X } from "lucide-react";
 import type { Channel } from "@webhook-broadcast/contract";
 import { SectionTitle } from "../../components/SectionTitle.js";
 import { api, describeApiError } from "../../lib/api.js";
+import { useDelayedPending } from "../../lib/delayedPending.js";
 
 /**
  * Settings tab soft-delete (epic US4): removes the Channel from normal use while its Broadcasts and
@@ -17,6 +18,7 @@ export function ChannelDangerZonePanel({
 }) {
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const deletingLabel = useDelayedPending(deleting);
   const [error, setError] = useState<string | null>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -106,7 +108,7 @@ export function ChannelDangerZonePanel({
               disabled={deleting}
             >
               <Trash2 size={13} strokeWidth={1.75} aria-hidden="true" />
-              {deleting ? "Deleting…" : "Confirm delete"}
+              {deletingLabel ? "Deleting…" : "Confirm delete"}
             </button>
             <button type="button" className="control" onClick={cancelDelete} disabled={deleting}>
               <X size={13} strokeWidth={2} aria-hidden="true" />

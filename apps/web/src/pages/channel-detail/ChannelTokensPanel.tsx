@@ -10,6 +10,7 @@ import { SectionTitle } from "../../components/SectionTitle.js";
 import { SkeletonRows } from "../../components/SkeletonRows.js";
 import { api, describeApiError } from "../../lib/api.js";
 import { channelQueryKey, useChannelQuery } from "../../lib/channelQuery.js";
+import { useDelayedPending } from "../../lib/delayedPending.js";
 import { queryErrorMessage } from "../../lib/freshness.js";
 
 type ChannelToken = Channel["tokens"][number];
@@ -34,6 +35,7 @@ function TokenRevokeConfirm({
   onCancel: () => void;
 }) {
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const revokingLabel = useDelayedPending(revoking);
 
   useEffect(() => {
     confirmRef.current?.focus();
@@ -65,7 +67,7 @@ function TokenRevokeConfirm({
           disabled={revoking}
         >
           <ShieldOff size={13} strokeWidth={1.75} aria-hidden="true" />
-          {revoking ? "Revoking…" : "Confirm revoke"}
+          {revokingLabel ? "Revoking…" : "Confirm revoke"}
         </button>
         <button type="button" className="control" onClick={onCancel} disabled={revoking}>
           <X size={13} strokeWidth={2} aria-hidden="true" />
@@ -92,6 +94,7 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [minting, setMinting] = useState(false);
+  const mintingLabel = useDelayedPending(minting);
   const [mintedToken, setMintedToken] = useState<ChannelTokenCreated | null>(null);
   const [confirmingRevokeId, setConfirmingRevokeId] = useState<string | null>(null);
   const [revoking, setRevoking] = useState(false);
@@ -236,7 +239,7 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
           {/* Creation, not confirmation: a checkmark here would read as "this
               succeeded" on a control that has not run yet. */}
           <Plus size={13} strokeWidth={2} aria-hidden="true" />
-          {minting ? "Minting…" : "Mint new token"}
+          {mintingLabel ? "Minting…" : "Mint new token"}
         </button>
       </div>
     </section>

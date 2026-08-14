@@ -11,6 +11,7 @@ import { SkeletonRows } from "../components/SkeletonRows.js";
 import { ChannelHealthBadge, EnabledStatusBadge } from "../components/StatusBadge.js";
 import { channelActivityHref } from "../lib/activityFilter.js";
 import { api, describeApiError } from "../lib/api.js";
+import { useDelayedPending } from "../lib/delayedPending.js";
 import {
   freshnessRefetchInterval,
   queryErrorMessage,
@@ -46,6 +47,7 @@ export function ChannelDirectoryPage() {
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
+  const creatingLabel = useDelayedPending(creating);
   const [createError, setCreateError] = useState<string | null>(null);
   // Silent on first pass, announced once the field has been left or submitted,
   // then live on every keystroke until it clears (DESIGN.md §5). The timing is
@@ -210,7 +212,7 @@ export function ChannelDirectoryPage() {
               Pressing it with an invalid slug is the path that forces the
               message onto the screen. */}
           <button type="submit" className="control control-primary" disabled={creating}>
-            {creating ? "Creating…" : "Create Channel"}
+            {creatingLabel ? "Creating…" : "Create Channel"}
           </button>
 
           {createError && (

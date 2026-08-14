@@ -4,6 +4,7 @@ import { MIN_OPEN_INGEST_SLUG_LENGTH, type Channel } from "@webhook-broadcast/co
 import { SectionTitle } from "../../components/SectionTitle.js";
 import { Switch } from "../../components/Switch.js";
 import { api, describeApiError } from "../../lib/api.js";
+import { useDelayedPending } from "../../lib/delayedPending.js";
 import { ingestUrl } from "../../lib/ingestUrl.js";
 
 export function ChannelSettingsForm({
@@ -20,6 +21,7 @@ export function ChannelSettingsForm({
     channel.allowUnauthenticatedIngest,
   );
   const [saving, setSaving] = useState(false);
+  const savingLabel = useDelayedPending(saving);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [enabledEndpointCount, setEnabledEndpointCount] = useState<number | null>(null);
@@ -158,7 +160,7 @@ export function ChannelSettingsForm({
       <div className="inline-form">
         <button type="submit" className="control control-primary" disabled={saving}>
           <Check size={13} strokeWidth={2} aria-hidden="true" />
-          {saving ? "Saving…" : "Save changes"}
+          {savingLabel ? "Saving…" : "Save changes"}
         </button>
       </div>
     </form>

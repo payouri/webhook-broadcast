@@ -20,6 +20,7 @@ import { SectionTitle } from "../../components/SectionTitle.js";
 import { SkeletonRows } from "../../components/SkeletonRows.js";
 import { EnabledStatusBadge } from "../../components/StatusBadge.js";
 import { api, describeApiError } from "../../lib/api.js";
+import { useDelayedPending } from "../../lib/delayedPending.js";
 import { useNow } from "../../lib/elapsedClock.js";
 import { formatElapsed } from "../../lib/relativeTime.js";
 import {
@@ -56,6 +57,7 @@ function EndpointAutoDisabledNotice({
   onReenabled: () => Promise<void>;
 }) {
   const [reenabling, setReenabling] = useState(false);
+  const reenablingLabel = useDelayedPending(reenabling);
   const [error, setError] = useState<string | null>(null);
 
   async function handleReenable(): Promise<void> {
@@ -104,7 +106,7 @@ function EndpointAutoDisabledNotice({
           disabled={reenabling}
         >
           <Power size={13} strokeWidth={1.75} aria-hidden="true" />
-          {reenabling ? "Re-enabling…" : "Re-enable"}
+          {reenablingLabel ? "Re-enabling…" : "Re-enable"}
         </button>
       </div>
     </div>

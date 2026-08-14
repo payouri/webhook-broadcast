@@ -7,6 +7,7 @@ import {
 } from "@webhook-broadcast/contract";
 import { Switch } from "../../components/Switch.js";
 import { describeApiError } from "../../lib/api.js";
+import { useDelayedPending } from "../../lib/delayedPending.js";
 import { useFieldError } from "../../lib/useFieldError.js";
 
 export interface EndpointFormValues {
@@ -115,6 +116,7 @@ export function EndpointForm({
   const [headersText, setHeadersText] = useState(initialHeadersText);
   const [enabled, setEnabled] = useState(initialEnabled);
   const [saving, setSaving] = useState(false);
+  const savingLabel = useDelayedPending(saving);
   const [error, setError] = useState<string | null>(null);
   const urlField = useFieldError<string, HTMLInputElement>(url, validateUrl);
   const headersField = useFieldError<string, HTMLTextAreaElement>(headersText, validateHeaders);
@@ -295,7 +297,7 @@ export function EndpointForm({
           disabled={saving}
         >
           <Check size={13} strokeWidth={2} aria-hidden="true" />
-          {saving ? "Saving…" : submitLabel}
+          {savingLabel ? "Saving…" : submitLabel}
         </button>
         {onCancel && (
           <button type="button" className="control" onClick={onCancel}>
