@@ -267,10 +267,28 @@ palette: they attach to state and nothing else.
 ### Neutral
 
 - **Plate** (`oklch(96.6% 0.004 195)`): the page ground.
-- **Face** (`oklch(99.2% 0.002 195)`): raised content. Faceplates, the header, rows, controls. It is
-  the lightest value in the light theme and it is still not white.
+- **Face** (`oklch(99.2% 0.002 195)`): raised content. Faceplates, the header, rows. It is the
+  lightest value in the light theme and it is still not white.
+- **Face Raised** (`oklch(96% 0.004 195)` light, `oklch(29% 0.009 195)` dark): a control's own
+  material, distinct from `--face`. In the light theme `--face` is already the palette's lightest
+  value, which leaves the milled top-edge highlight nowhere to fall from; `--face-raised` sits one
+  step below it so the highlight reads. In the dark theme, where lightening still has headroom,
+  it sits one step above `--face` instead. Both directions produce the same result: a control's
+  ground is never identical to the ground it rests on. See "The lip" below for the measurement. It
+  lands within `1.02:1` of Plate, so a control sitting directly on the page ground rather than inside
+  a plate is read by its lip and its Score Control border, not by its fill. The light theme's
+  Plate-to-Face band is too narrow to hold a third value that separates from both, and widening it is
+  a change to every surface in the system rather than to controls.
+- **Face Sunk** (`oklch(90% 0.007 195)` light, `oklch(16.5% 0.008 195)` dark): what Face Raised
+  darkens into on hover and on press. A control resting on Face Raised cannot hover to Well — that
+  step measures `1.06:1` in the light theme, which is the same invisible step this section exists to
+  keep out of the system.
 - **Well** (`oklch(94% 0.006 195)`): recessed content. Fields, payload blocks, expanded detail,
   hovered rows, empty states. Always darker than Face, in **both** themes.
+- **Well Deep** (`oklch(90% 0.007 195)` light, `oklch(12.5% 0.008 195)` dark): second-level nesting.
+  An expanded Delivery and its payload are inside an already-expanded Broadcast, so `--well` — spent
+  on the first level — cannot also describe the second. Always darker than Well, in **both** themes
+  (The Inward Depth Rule).
 - **Score** (`oklch(88% 0.007 195)`): every default border and divider, always 1px. This is what the
   grooves are drawn in — the section legend's rule, the divider under the tab strip. Measures
   `1.40:1` against Face in the light theme and `1.24:1` in the dark one; it is a pure divider and
@@ -291,6 +309,14 @@ and casts a hairline beneath it (**Lip Shade**); a pressed or recessed one takes
 on the inside. In the dark theme these invert in prominence: the highlight nearly vanishes and the
 recess is what you read. All three are zero-blur or near-zero-blur. They describe an edge, never a
 float.
+
+The highlight only reads against a ground with room beneath white. Composited over `--face` in the
+light theme it measures `1.02:1` — invisible, because `--face` is already the palette's lightest
+value. A control's ground is `--face-raised` instead, which was chosen to clear roughly `1.10:1`
+against Lip Light: enough to see the milled edge without the control's own fill reading as a
+separate color, only as a separate material. A field takes the opposite treatment — **Lip Shade**
+falling into a `--well` ground — so raised and recessed remain distinguishable by direction in both
+themes, not only in the theme that happened to leave headroom for it.
 
 ### Named Rules
 
@@ -404,13 +430,28 @@ edge beneath a raised control.
 The distinction is exact and it is the whole doctrine:
 
 - **Raised** (a control, a row, a faceplate, the header): `inset 0 1px 0` highlight, optionally
-  `0 1px 0` shade beneath. Zero blur. This is a milled edge catching light.
+  `0 1px 0` shade beneath. Zero blur. This is a milled edge catching light. A control's own ground is
+  `--face-raised`, one step off whatever `--face` or `--well` it sits on — see "The lip" in §2 — so
+  the highlight has a surface to leave and the control reads as its own material, not a flat patch of
+  its background.
+
+  On a **control** the milled edge is the thing you see: the highlight measures `1.11:1` against Face
+  Raised in the light theme and `1.24:1` in the dark one. On a **faceplate, a row, or the header** it
+  is not. Those sit on Face, the lightest value the light theme has, where the same highlight
+  measures `1.02:1` and is invisible; there the scored border and the ground step do the work, and
+  the highlight is a hairline that only pays off in the dark theme (`1.23:1`). This is deliberate.
+  Getting the plate's edge to read in light would mean moving Face down off its ceiling, which
+  repaints every surface in the system to sharpen one hairline. So the doctrine holds for the objects
+  an operator manipulates, and the faceplate is a flat plate in the light theme. Do not "fix" it by
+  raising `--lip-light`: it is already `oklch(100% 0 0 / 0.9)` and white is the ceiling.
+
 - **Pressed** (`:active` on a control or row): `inset 0 2px 3px` shade. The plate sinks.
 - **Recessed** (a field, a well, a payload block, an empty state, a confirm region): `inset 0 1px
 2px` shade. Light falls into the cut.
 
 Containment reads inward, in this order: Plate page ground → Face faceplate → Face row → Well
-expanded detail. Never lighter and lifted.
+expanded detail → Well Deep, for detail nested a second level inside an already-expanded well (a
+Delivery, or a payload, inside an expanded Broadcast). Never lighter and lifted.
 
 ### Named Rules
 
@@ -451,15 +492,16 @@ while `.channel-row` inherited the primary button's hover fill and turned an ent
 
 - **Shape:** 2px radius, 8px by 14px, Label typography, sentence case, sized by its own label and
   never stretched by a flex or grid parent.
-- **Default:** Face ground, 1px Score Control, inner top highlight, 1px shade beneath. Present at
-  rest.
+- **Default:** Face Raised ground, 1px Score Control, inner top highlight, 1px shade beneath.
+  Present at rest.
 - **Primary:** Anodize ground, Anodize Ink text, weight 600. Reserved for the single committing
   action in a plate: Save changes, Add Endpoint, Mint new token, Retry, Sign in. One per plate,
   never two.
 - **Commit (destructive):** outlined Anodize, weight 600, for the moment a destructive action fires
   (Confirm revoke, Confirm delete). Form carries the difference, the same way the lamps use it. Never
   a lamp color; The Quarantine Rule forbids red on a control.
-- **Hover:** ground goes to Well, border to Ink Muted. 150ms on `cubic-bezier(0.22, 1, 0.36, 1)`.
+- **Hover:** ground goes to Face Sunk, border to Ink Muted. 150ms on `cubic-bezier(0.22, 1, 0.36, 1)`.
+  Not Well: a control rests on Face Raised, and Well is only `1.06:1` off that in the light theme.
 - **Active:** the lip inverts to an inner shade, with **no transition** and no `transform`. Real
   hardware does not ease, and a control that moves also nudges its neighbours' baselines.
 - **Focus:** 2px Anodize ring at 2px offset, on every control, via `:focus-visible`.
@@ -601,8 +643,11 @@ region that holds content. Nothing in this system is a clickable card.
 - **Plate:** Face on Plate, 1px Score, 3px radius, 20px padding, inner top highlight, no drop
   shadow. Prose-shaped plates cap at 72ch; a plate holding a machine string (the ingest URL) opts out
   with `.plate-wide`.
-- **Well:** Well ground, 1px Score, 3px radius, 12px padding, inner shade. Every nested detail region:
-  expanded Broadcast, expanded Delivery, Endpoint edit form, confirm region, advisory, empty state.
+- **Well:** Well ground, 1px Score, 3px radius, 12px padding, inner shade. Every first-level nested
+  detail region: expanded Broadcast, Endpoint edit form, confirm region, advisory, empty state.
+- **Well Deep:** Well Deep ground, 1px Score Strong (Score would nearly vanish against it), inner
+  shade. Second-level nesting only: an expanded Delivery and the inbound payload, both already
+  inside an expanded Broadcast's well.
 - **Plates never nest.** A plate inside a plate is always wrong. Nested content becomes a well.
 - Padding tightens as nesting deepens (20px plate, 12px row, 12px well, 6px by 8px Attempt row).
   That rhythm is what signals depth.

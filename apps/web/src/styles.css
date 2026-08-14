@@ -18,10 +18,27 @@
   color-scheme: light;
 
   /* Grounds, from raised to recessed. Depth reads inward: `well` is always
-     darker than `face`, in both themes (The Inward Depth Rule). */
+     darker than `face`, in both themes (The Inward Depth Rule).
+     `--face-raised` is a control's own material, not a control's ground: a
+     control sits on `--face` (or on `--well`, inside an expanded detail) but
+     is milled from a distinct stock so the top-edge highlight has somewhere
+     to fall from. `--well-deep` is the second-level well: a payload or an
+     expanded Delivery nested inside an already-expanded Broadcast goes one
+     step darker again, since `--well` was already spent on the first level.
+     `--face-sunk` is what `--face-raised` darkens into when a control is
+     hovered or pressed. It exists because moving the control's rest ground
+     down to `--face-raised` shrank the old `face -> well` hover step to
+     `1.06:1` in the light theme — the same unreadable step this palette was
+     opened to remove — so the hover needs its own value rather than borrowing
+     `--well`. Its light value coincides with `--well-deep` and its dark value
+     with `--well`; that is arithmetic, not a synonym, and the two families
+     move independently. */
   --plate: oklch(96.6% 0.004 195); /* page ground */
-  --face: oklch(99.2% 0.002 195); /* raised faceplate, rows, controls */
+  --face: oklch(99.2% 0.002 195); /* raised faceplate, rows */
+  --face-raised: oklch(96% 0.004 195); /* a control's own material */
+  --face-sunk: oklch(90% 0.007 195); /* a control's material, hovered or pressed */
   --well: oklch(94% 0.006 195); /* recessed: inputs, payloads, expanded detail */
+  --well-deep: oklch(90% 0.007 195); /* second-level nesting: payload, nested Delivery */
 
   /* Scored lines. Every boundary in the system is one of these three, at 1px.
      `--score` draws the grooves and dividers (section legend, tab strip).
@@ -54,8 +71,11 @@
   --anodize-ink: oklch(99% 0.004 195); /* text on an anodized ground */
 
   /* The two lamps, quarantined to Delivery status, Attempt outcome, and
-     enabled state (The Quarantine Rule). */
-  --lamp-live: oklch(52% 0.14 152);
+     enabled state (The Quarantine Rule). `--lamp-live` is set dark enough to
+     carry the 11px 600-weight legend it labels: at this value that legend
+     measures `5.9:1` on `--face`. PRODUCT.md declines AA as a requirement, so
+     the target is legibility at the Engraved size rather than a threshold. */
+  --lamp-live: oklch(48% 0.14 152);
   --lamp-live-glass: oklch(93% 0.045 152);
   --lamp-cut: oklch(51% 0.19 27);
   --lamp-cut-glass: oklch(93% 0.05 27);
@@ -145,7 +165,10 @@
 
     --plate: oklch(20% 0.008 195);
     --face: oklch(24.5% 0.008 195);
+    --face-raised: oklch(29% 0.009 195);
+    --face-sunk: oklch(16.5% 0.008 195);
     --well: oklch(16.5% 0.008 195);
+    --well-deep: oklch(12.5% 0.008 195);
     --score: oklch(31% 0.01 195);
     --score-strong: oklch(41% 0.011 195);
     --score-control: oklch(54% 0.011 195);
@@ -173,7 +196,10 @@
 
   --plate: oklch(20% 0.008 195);
   --face: oklch(24.5% 0.008 195);
+  --face-raised: oklch(29% 0.009 195);
+  --face-sunk: oklch(16.5% 0.008 195);
   --well: oklch(16.5% 0.008 195);
+  --well-deep: oklch(12.5% 0.008 195);
   --score: oklch(31% 0.01 195);
   --score-strong: oklch(41% 0.011 195);
   --score-control: oklch(54% 0.011 195);
@@ -505,6 +531,13 @@ button {
  * The control plate. Raised at rest: scored border, a milled highlight inside
  * its top edge, a hairline of shade under its bottom. It states its affordance
  * standing still; nothing here is discovered by hovering.
+ *
+ * Its ground is `--face-raised`, not `--face`: in the light theme `--face` is
+ * already the lightest value the palette allows, which leaves the top-edge
+ * highlight nowhere to fall from and no separation between a control and the
+ * row or plate it sits on. `--face-raised` gives the highlight somewhere to
+ * land and gives the control its own material, distinct from its ground in
+ * both themes (The Lip Direction Rule).
  */
 .control {
   display: inline-flex;
@@ -520,7 +553,7 @@ button {
   padding: 8px 14px;
   border: 1px solid var(--score-control);
   border-radius: var(--radius-control);
-  background: var(--face);
+  background: var(--face-raised);
   color: var(--ink);
   font-size: var(--text-label-size);
   font-weight: 500;
@@ -538,7 +571,7 @@ button {
 }
 
 .control:hover:not(:disabled) {
-  background: var(--well);
+  background: var(--face-sunk);
   border-color: var(--ink-muted);
 }
 
@@ -549,7 +582,7 @@ button {
  * neighbours' baselines.
  */
 .control:active:not(:disabled) {
-  background: var(--well);
+  background: var(--face-sunk);
   box-shadow: inset 0 2px 3px var(--lip-shade-deep);
   transition: none;
 }
@@ -777,7 +810,7 @@ input[type="number"] {
   height: 14px;
   border: 1px solid var(--score-control);
   border-radius: 1px;
-  background: var(--face);
+  background: var(--face-raised);
   box-shadow:
     inset 0 1px 0 var(--lip-light),
     0 1px 0 var(--lip-shade);
@@ -1213,11 +1246,20 @@ a.row:active {
   margin-top: var(--space-2xs);
 }
 
+/*
+ * An expanded Delivery is always inside an already-expanded Broadcast, so it
+ * is second-level nesting: one step darker than `.well` (The Inward Depth
+ * Rule needs a ground below `--well` to go into), with the stronger scored
+ * border, since the plain `--score` groove was designed against `--face` and
+ * `--well` and nearly vanishes against `--well-deep`.
+ */
 .well-delivery {
   margin: var(--space-xs) 0 0 var(--space-md);
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  background: var(--well-deep);
+  border-color: var(--score-strong);
 }
 
 .well-endpoint-edit {
@@ -1229,14 +1271,15 @@ a.row:active {
 }
 
 /*
- * A payload block. Already inside a well, so it takes the same ground rather
- * than going lighter than its container, with the stronger scored border that
- * survives against it.
+ * A payload block, always nested inside the Broadcast detail `.well`. Second
+ * level of nesting goes one step darker still (`--well-deep`) rather than
+ * repeating the well it is already inside, with the stronger scored border
+ * that survives against it.
  */
 .payload {
   margin: 0 0 var(--space-md);
   padding: 10px;
-  background: var(--well);
+  background: var(--well-deep);
   border: 1px solid var(--score-strong);
   border-radius: var(--radius-control);
   font-size: var(--text-data-size);
