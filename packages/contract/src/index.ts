@@ -13,6 +13,7 @@ export {
   channelTokenSummarySchema,
   channelTokenCreatedSchema,
   channelSchema,
+  channelSlugSchema,
   channelCreateSchema,
   channelUpdateSchema,
   channelListQuerySchema,

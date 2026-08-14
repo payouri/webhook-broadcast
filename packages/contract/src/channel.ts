@@ -97,8 +97,17 @@ export const channelSchema = z
 
 export type Channel = z.infer<typeof channelSchema>;
 
-/** Slugs are ingest-path segments (`POST /ingest/:slug`): URL-safe, no spaces. */
-const slugSchema = z
+/**
+ * Slugs are ingest-path segments (`POST /ingest/:slug`): URL-safe, no spaces.
+ *
+ * Exported because the admin API is not the only thing that needs the rule:
+ * `apps/web` validates its slug field locally against this schema, which is
+ * what DESIGN.md §5's Reward-Early-Punish-Late Rule asks for ("validates
+ * locally against the contract schema"). A second hand-written copy of the
+ * regex in the browser drifts from this one — one such copy accepted `a--b`,
+ * which this schema rejects, so the field passed input the server then 400'd.
+ */
+export const channelSlugSchema = z
   .string()
   .min(1)
   .max(200)
@@ -131,7 +140,7 @@ function refineOpenIngestSlugLength<
 
 export const channelCreateSchema = z
   .object({
-    slug: slugSchema,
+    slug: channelSlugSchema,
     description: z.string().optional(),
     enabled: z.boolean().default(true),
     forwardHeaders: forwardHeadersSchema.default([]),
@@ -144,7 +153,7 @@ export type ChannelCreate = z.infer<typeof channelCreateSchema>;
 
 export const channelUpdateSchema = z
   .object({
-    slug: slugSchema.optional(),
+    slug: channelSlugSchema.optional(),
     description: z.string().nullable().optional(),
     enabled: z.boolean().optional(),
     forwardHeaders: forwardHeadersSchema.optional(),

@@ -144,7 +144,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
               details: [
                 {
                   path: "slug",
-                  message: "slug must be lowercase kebab-case (a-z, 0-9, -)",
+                  message: "slug is already taken",
                 },
               ],
             },
@@ -157,15 +157,140 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
     renderRoutes("/");
     await flushAsync();
 
-    fireEvent.change(screen.getByLabelText("Slug"), { target: { value: "UnipileDev" } });
+    // A slug the field itself accepts, so the request actually reaches the API:
+    // what is under test is the envelope's `details` winning over its generic
+    // `message`, not local validation.
+    fireEvent.change(screen.getByLabelText("Slug"), { target: { value: "unipile-dev" } });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Create Channel" }));
       await Promise.resolve();
     });
 
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("slug must be lowercase kebab-case (a-z, 0-9, -)");
+    expect(alert.textContent).toContain("slug is already taken");
     expect(alert.textContent).not.toContain("invalid channel payload");
+  });
+
+  describe("the New Channel form (issue #64)", () => {
+    /** The directory's own GET, with no Channels, for the form-shape cases. */
+    function stubEmptyDirectory(): void {
+      fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+        const path = requestPath(input);
+        const method = requestMethod(input, init);
+        if (path === "/channels" && method === "GET") {
+          return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+        }
+        throw new Error(`unexpected fetch: ${method} ${path}`);
+      });
+    }
+
+    it("puts the Channels list ahead of the create form, on the page and without a modal", async () => {
+      stubEmptyDirectory();
+      renderRoutes("/");
+      await flushAsync();
+
+      const legends = Array.from(document.querySelectorAll(".section-title")).map((node) =>
+        (node.textContent ?? "").trim(),
+      );
+      // Health before detail (PRODUCT.md §1): the list legend precedes the form's.
+      expect(legends.indexOf("Channels")).toBeGreaterThan(-1);
+      expect(legends.indexOf("Channels")).toBeLessThan(legends.indexOf("New Channel"));
+
+      // Still reachable in place: the form is mounted, not behind a dialog.
+      expect(screen.getByRole("button", { name: "Create Channel" })).toBeTruthy();
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+    });
+
+    it("labels each field with a visible label element, not an aria-label", async () => {
+      stubEmptyDirectory();
+      renderRoutes("/");
+      await flushAsync();
+
+      const fields = [
+        { labelText: "Slug", inputId: "new-channel-slug" },
+        { labelText: "Description", inputId: "new-channel-description" },
+      ];
+      for (const { labelText, inputId } of fields) {
+        const label = Array.from(document.querySelectorAll("label")).find(
+          (node) => (node.textContent ?? "").trim() === labelText,
+        );
+        // A real, on-screen <label> pointing at the field — `getByLabelText`
+        // alone would still pass against the `aria-label` this replaced.
+        expect(label).toBeTruthy();
+        expect(label?.getAttribute("for")).toBe(inputId);
+        const input = screen.getByLabelText(labelText);
+        expect(input.id).toBe(inputId);
+        expect(input.getAttribute("aria-label")).toBeNull();
+      }
+    });
+
+    it("keeps the slug format rule on screen before, during, and after typing", async () => {
+      stubEmptyDirectory();
+      renderRoutes("/");
+      await flushAsync();
+
+      const rule = document.getElementById("new-channel-slug-rule");
+      expect(rule?.textContent).toContain("Lowercase letters, digits, and hyphens");
+      // The field points at the rule, so it is announced with the field too.
+      const slugInput = screen.getByLabelText("Slug");
+      expect(slugInput.getAttribute("aria-describedby")).toContain("new-channel-slug-rule");
+
+      // A placeholder would have vanished here; the rule does not.
+      fireEvent.change(slugInput, { target: { value: "Unipile" } });
+      expect(document.getElementById("new-channel-slug-rule")?.textContent).toContain(
+        "Lowercase letters, digits, and hyphens",
+      );
+    });
+
+    it("catches an invalid slug before submit, in the contract's own words", async () => {
+      stubEmptyDirectory();
+      renderRoutes("/");
+      await flushAsync();
+
+      const slugInput = screen.getByLabelText("Slug");
+
+      // Silent on first pass: nothing is announced while the field is being filled.
+      fireEvent.change(slugInput, { target: { value: "UnipileDev" } });
+      expect(document.getElementById("new-channel-slug-error")).toBeNull();
+
+      // Announced on blur, in the same sentence the admin API would have returned.
+      fireEvent.blur(slugInput);
+      const error = document.getElementById("new-channel-slug-error");
+      expect(error?.textContent).toContain("slug must be lowercase kebab-case (a-z, 0-9, -)");
+      expect(slugInput.getAttribute("aria-invalid")).toBe("true");
+
+      // The commit control stays live — invalidity is stated, not expressed by a
+      // dead button (DESIGN.md §5) — and pressing it sends no request.
+      const submit = screen.getByRole("button", { name: "Create Channel" });
+      expect(submit.hasAttribute("disabled")).toBe(false);
+      const callsBefore = fetchMock.mock.calls.length;
+      await act(async () => {
+        fireEvent.click(submit);
+        await Promise.resolve();
+      });
+      expect(fetchMock.mock.calls.length).toBe(callsBefore);
+
+      // Live once marked: the message clears the moment the value becomes valid.
+      fireEvent.change(slugInput, { target: { value: "unipile-dev" } });
+      expect(document.getElementById("new-channel-slug-error")).toBeNull();
+      expect(slugInput.getAttribute("aria-invalid")).toBe("false");
+    });
+
+    it("rejects a slug the old hand-rolled check would have let through", async () => {
+      stubEmptyDirectory();
+      renderRoutes("/");
+      await flushAsync();
+
+      // `a--b` matches /^[a-z0-9-]+$/ but not the contract's kebab-case rule, so
+      // a local copy of the regex passed input the server then 400'd.
+      const slugInput = screen.getByLabelText("Slug");
+      fireEvent.change(slugInput, { target: { value: "unipile--dev" } });
+      fireEvent.blur(slugInput);
+
+      expect(document.getElementById("new-channel-slug-error")?.textContent).toContain(
+        "slug must be lowercase kebab-case (a-z, 0-9, -)",
+      );
+    });
   });
 
   it("shows a Retry control when loading Channels fails", async () => {
