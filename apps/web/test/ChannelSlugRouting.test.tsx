@@ -163,7 +163,7 @@ describe("Channel routes accept a slug (issue #56)", () => {
       const method = requestMethod(input, init);
       if (path === "/channels" && method === "GET") {
         return Promise.resolve(
-          jsonResponse(500, { error: { code: "internal", message: "lookup unavailable" } }),
+          jsonResponse(500, { error: { code: "internal_error", message: "lookup unavailable" } }),
         );
       }
       throw new Error(`unexpected fetch: ${method} ${path}`);
@@ -171,7 +171,10 @@ describe("Channel routes accept a slug (issue #56)", () => {
 
     renderRoutes(`/channels/${SLUG}`);
 
-    expect(await screen.findByText(/lookup unavailable/)).toBeTruthy();
+    // Described for the operator, not echoed: a crash the handler never authored
+    // a message for loses its wording but keeps its status (issue #58).
+    expect(await screen.findByText(/Failed to load Channel \(HTTP 500\)/)).toBeTruthy();
+    expect(screen.queryByText(/lookup unavailable/)).toBeNull();
     // Neither of the two views this must not degrade into.
     expect(screen.queryByRole("heading", { name: "Channel not found" })).toBeNull();
     expect(screen.queryByRole("status", { name: "Loading Channel" })).toBeNull();

@@ -4,7 +4,7 @@ import { Inbox, RotateCcw } from "lucide-react";
 import { EmptyState } from "../../components/EmptyState.js";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
 import { SkeletonRows } from "../../components/SkeletonRows.js";
-import { api } from "../../lib/api.js";
+import { api, describeApiError } from "../../lib/api.js";
 import {
   freshnessRefetchInterval,
   queryErrorMessage,
@@ -46,7 +46,7 @@ export function BroadcastDetailPanel({
       setReplayedId(id);
       onReplayed?.();
     } catch (err) {
-      setReplayError(err instanceof Error ? err.message : "Failed to replay Broadcast");
+      setReplayError(describeApiError(err, "Failed to replay Broadcast"));
     } finally {
       setReplaying(false);
     }

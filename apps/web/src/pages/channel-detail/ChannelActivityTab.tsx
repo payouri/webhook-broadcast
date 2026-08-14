@@ -13,7 +13,7 @@ import {
   fanoutHasFailure,
   type ActivityFilter,
 } from "../../lib/activityFilter.js";
-import { api } from "../../lib/api.js";
+import { api, describeApiError } from "../../lib/api.js";
 import {
   freshnessRefetchInterval,
   queryErrorMessage,
@@ -153,7 +153,7 @@ export function ChannelActivityTab({
       setNextCursor(page.nextCursor);
       setLoadMoreError(null);
     } catch (err) {
-      setLoadMoreError(err instanceof Error ? err.message : "Failed to load more Activity");
+      setLoadMoreError(describeApiError(err, "Failed to load more Activity"));
     } finally {
       setLoadingMore(false);
     }

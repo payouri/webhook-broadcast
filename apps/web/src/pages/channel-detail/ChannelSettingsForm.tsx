@@ -3,7 +3,7 @@ import { Check, Info, SlidersHorizontal, TriangleAlert } from "lucide-react";
 import { MIN_OPEN_INGEST_SLUG_LENGTH, type Channel } from "@webhook-broadcast/contract";
 import { SectionTitle } from "../../components/SectionTitle.js";
 import { Switch } from "../../components/Switch.js";
-import { api } from "../../lib/api.js";
+import { api, describeApiError } from "../../lib/api.js";
 import { ingestUrl } from "../../lib/ingestUrl.js";
 
 export function ChannelSettingsForm({
@@ -59,7 +59,7 @@ export function ChannelSettingsForm({
       onSaved(updated);
       setSaved(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save settings");
+      setError(describeApiError(err, "Failed to save settings"));
     } finally {
       setSaving(false);
     }

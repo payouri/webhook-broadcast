@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Trash2, TriangleAlert, X } from "lucide-react";
 import type { Channel } from "@webhook-broadcast/contract";
 import { SectionTitle } from "../../components/SectionTitle.js";
-import { api } from "../../lib/api.js";
+import { api, describeApiError } from "../../lib/api.js";
 
 /**
  * Settings tab soft-delete (epic US4): removes the Channel from normal use while its Broadcasts and
@@ -58,7 +58,7 @@ export function ChannelDangerZonePanel({
       await api.deleteChannel(channel.id);
       onDeleted();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete Channel");
+      setError(describeApiError(err, "Failed to delete Channel"));
       setDeleting(false);
     }
   }

@@ -16,7 +16,7 @@ import { InlineLoadError } from "../../components/InlineLoadError.js";
 import { SectionTitle } from "../../components/SectionTitle.js";
 import { SkeletonRows } from "../../components/SkeletonRows.js";
 import { EnabledStatusBadge } from "../../components/StatusBadge.js";
-import { api } from "../../lib/api.js";
+import { api, describeApiError } from "../../lib/api.js";
 import {
   freshnessRefetchInterval,
   queryErrorMessage,
@@ -60,7 +60,7 @@ function EndpointAutoDisabledNotice({
       await api.updateEndpoint(channelId, endpoint.id, { enabled: true });
       await onReenabled();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to re-enable Endpoint");
+      setError(describeApiError(err, "Failed to re-enable Endpoint"));
       setReenabling(false);
     }
   }

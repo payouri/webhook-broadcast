@@ -567,7 +567,14 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
           return Promise.resolve(jsonResponse(200, firstPage));
         }
         if (cursorPageFails) {
-          return Promise.resolve(jsonResponse(500, { error: { message: "page two exploded" } }));
+          // Shaped like the real `internal_error` envelope (`app.ts`'s catch-all):
+          // an unhandled crash, so the operator sees the domain fallback below
+          // (issue #58) rather than this server-internal string verbatim.
+          return Promise.resolve(
+            jsonResponse(500, {
+              error: { code: "internal_error", message: "page two exploded" },
+            }),
+          );
         }
         return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
       }
@@ -577,7 +584,12 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
     fireEvent.click(await screen.findByRole("button", { name: "Load more" }));
 
-    expect((await screen.findByRole("alert")).textContent).toContain("page two exploded");
+    // Not "page two exploded" verbatim: an `internal_error` never authored a
+    // message worth repeating, so the operator gets the domain sentence plus the
+    // one part of an unhandled failure they can act on — the status (issue #58).
+    const banner = (await screen.findByRole("alert")).textContent;
+    expect(banner).toContain("Failed to load more Activity (HTTP 500)");
+    expect(banner).not.toContain("page two exploded");
 
     // The polled first page still loads fine, so the stale load-more banner goes.
     cursorPageFails = false;
@@ -663,7 +675,7 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
       }
       if (path === `/channels/${CHANNEL_ID}` && method === "DELETE") {
         return Promise.resolve(
-          jsonResponse(500, { error: { code: "internal", message: "delete exploded" } }),
+          jsonResponse(500, { error: { code: "internal_error", message: "delete exploded" } }),
         );
       }
       throw new Error(`unexpected fetch: ${method} ${path}`);
@@ -677,7 +689,8 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
 
     // The failure is reported next to the control that failed, and no navigation happens.
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("delete exploded");
+    expect(alert.textContent).toContain("Failed to delete Channel (HTTP 500)");
+    expect(alert.textContent).not.toContain("delete exploded");
     expect(screen.queryByText("New Channel")).toBeNull();
 
     // The operator can retry: the confirm control is live again, not stuck on "Deleting…".

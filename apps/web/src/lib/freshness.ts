@@ -1,11 +1,16 @@
 import { useEffect, useRef } from "react";
+import { describeApiError } from "./api.js";
 
 /** ADR 0004: Channel list, activity, Endpoints, and Broadcast deliveries refresh ~every 5s. */
 export const FRESHNESS_POLL_MS = 5_000;
 
-/** Same "Failed to load X" fallback the manual fetch effects used, for TanStack Query errors. */
+/**
+ * The "Failed to load X" naming a query's error banner shows. A thin alias for
+ * `describeApiError` so a load failure and a mutation failure are described by
+ * one rule (issue #58); the separate name is what the query call sites read as.
+ */
 export function queryErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  return describeApiError(error, fallback);
 }
 
 /**

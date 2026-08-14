@@ -9,7 +9,7 @@ import { SectionTitle } from "../components/SectionTitle.js";
 import { SkeletonRows } from "../components/SkeletonRows.js";
 import { ChannelHealthBadge, EnabledStatusBadge } from "../components/StatusBadge.js";
 import { channelActivityHref } from "../lib/activityFilter.js";
-import { api } from "../lib/api.js";
+import { api, describeApiError } from "../lib/api.js";
 import {
   freshnessRefetchInterval,
   queryErrorMessage,
@@ -53,7 +53,7 @@ export function ChannelDirectoryPage() {
       setDescription("");
       await queryClient.invalidateQueries({ queryKey: ["channels"] });
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Failed to create Channel");
+      setCreateError(describeApiError(err, "Failed to create Channel"));
     } finally {
       setCreating(false);
     }

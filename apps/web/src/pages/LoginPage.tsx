@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Radio } from "lucide-react";
-import { api } from "../lib/api.js";
+import { api, describeApiError } from "../lib/api.js";
 import { ThemeToggle } from "../components/ThemeToggle.js";
 
 export function LoginPage({
@@ -28,7 +28,7 @@ export function LoginPage({
       await api.login(apiKey);
       onLoggedIn();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(describeApiError(err, "Login failed"));
     } finally {
       setSubmitting(false);
     }

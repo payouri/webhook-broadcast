@@ -7,7 +7,7 @@ import { EmptyState } from "../../components/EmptyState.js";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
 import { SectionTitle } from "../../components/SectionTitle.js";
 import { SkeletonRows } from "../../components/SkeletonRows.js";
-import { api } from "../../lib/api.js";
+import { api, describeApiError } from "../../lib/api.js";
 import { channelQueryKey, useChannelQuery } from "../../lib/channelQuery.js";
 import { queryErrorMessage } from "../../lib/freshness.js";
 
@@ -133,7 +133,7 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
       setMintedToken(created);
       await queryClient.invalidateQueries({ queryKey: channelQueryKey(channelId) });
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to mint token");
+      setActionError(describeApiError(err, "Failed to mint token"));
     } finally {
       setMinting(false);
     }
@@ -150,7 +150,7 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
       setConfirmingRevokeId(null);
       await queryClient.invalidateQueries({ queryKey: channelQueryKey(channelId) });
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to revoke token");
+      setActionError(describeApiError(err, "Failed to revoke token"));
     } finally {
       setRevoking(false);
     }

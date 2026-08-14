@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Inbox, Repeat } from "lucide-react";
 import type { Attempt, BroadcastDetail } from "@webhook-broadcast/contract";
 import { EmptyState } from "../components/EmptyState.js";
 import { DeliveryStatusBadge } from "../components/StatusBadge.js";
-import { api } from "../lib/api.js";
+import { api, describeApiError } from "../lib/api.js";
 
 type DeliveryItem = BroadcastDetail["deliveries"][number];
 
@@ -45,7 +45,7 @@ export function DeliveryDetail({
       setAttempts(list.items);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load Attempts");
+      setError(describeApiError(err, "Failed to load Attempts"));
     }
   }
 
@@ -68,7 +68,7 @@ export function DeliveryDetail({
       await loadAttempts();
       onRetried();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to retry Delivery");
+      setError(describeApiError(err, "Failed to retry Delivery"));
     } finally {
       setRetrying(false);
     }

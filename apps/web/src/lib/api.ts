@@ -1,4 +1,4 @@
-import type { LoginResponse } from "@webhook-broadcast/contract";
+import type { ErrorCode, LoginResponse } from "@webhook-broadcast/contract";
 import { getAdminFetchClient, type paths } from "@webhook-broadcast/contract/client";
 
 /**
@@ -74,6 +74,47 @@ function throwApiError(
     formatApiErrorMessage(body?.error?.message, body?.error?.details, fallback),
     body?.error?.details ?? [],
   );
+}
+
+/**
+ * The contract codes whose `message` a handler deliberately wrote for a human
+ * to read ("channel not found", "slug already exists", "invalid operator API
+ * key"). Deliberately an allowlist, not a denylist of the unauthored ones:
+ * `code` arrives as an untrusted string, so anything off-contract — a gateway
+ * that answers with its own JSON envelope, `throwApiError`'s `"unknown"` when
+ * the body didn't parse as an envelope at all — lands on the safe side and gets
+ * described rather than echoed. `internal_error` is excluded on purpose: it is
+ * `app.ts`'s catch-all for a crash no handler anticipated, so its "internal
+ * server error" is transport detail dressed as content.
+ */
+const AUTHORED_ERROR_CODES: ReadonlySet<string> = new Set<Exclude<ErrorCode, "internal_error">>([
+  "unauthorized",
+  "not_found",
+  "conflict",
+  "validation_failed",
+  "payload_too_large",
+  "rate_limited",
+]);
+
+/**
+ * Renders a caught error for direct display on a control (issue #58). Zod field
+ * detail (`ApiRequestError.details`) is already named in the domain's own terms
+ * and renders verbatim, as does an authored code's message. Everything else —
+ * a crash, an off-contract envelope, a status nobody wrote a message for — is
+ * unhandled by definition, so the caller's own domain sentence renders instead
+ * of a `statusText`. The status code still rides along, because PRODUCT.md's
+ * voice asks an error to name it and it is the one part of an unhandled failure
+ * the operator can act on; a transport failure that never reached the server
+ * has no status to name.
+ */
+export function describeApiError(err: unknown, fallback: string): string {
+  if (!(err instanceof ApiRequestError)) {
+    return fallback;
+  }
+  if (err.details.length > 0 || AUTHORED_ERROR_CODES.has(err.code)) {
+    return err.message;
+  }
+  return `${fallback} (HTTP ${err.status})`;
 }
 
 async function unwrap<T>(result: { data?: T; error?: unknown; response: Response }): Promise<T> {

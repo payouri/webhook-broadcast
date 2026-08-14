@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Check, X } from "lucide-react";
 import type { Endpoint } from "@webhook-broadcast/contract";
 import { Switch } from "../../components/Switch.js";
+import { describeApiError } from "../../lib/api.js";
 
 export interface EndpointFormValues {
   name: string | null;
@@ -117,7 +118,7 @@ export function EndpointForm({
         setEnabled(true);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save Endpoint");
+      setError(describeApiError(err, "Failed to save Endpoint"));
     } finally {
       setSaving(false);
     }
