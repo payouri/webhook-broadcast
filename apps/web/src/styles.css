@@ -4,12 +4,17 @@
  * system and is stale until `/impeccable document` regenerates it.
  *
  * Two layers, in this order:
- *   1. Palette tokens, defined three times (light, system-dark, forced-dark).
+ *   1. Palette tokens: light values at `:root`, then the dark palette declared
+ *      once as `--dark-*` sources and assigned into the public tokens by both
+ *      the system-dark and forced-dark selectors, so the two dark paths cannot
+ *      drift apart.
  *   2. Everything else, which references only those tokens and never a raw
- *      color. There is no untinted grey, no `#fff`, and no `#000` in this file
- *      (The Anodized Grey Rule).
+ *      color. There is no untinted grey, no `#fff`, and no `#000` in this
+ *      file (The Anodized Grey Rule), except the machined lip's highlight and
+ *      shade overlays, which sit at the achromatic extremes and are exempt for
+ *      the reasons given in DESIGN.md §2.
  *
- * Neutrals are graphite at hue 195, chroma 0.003 to 0.010: tinted toward the
+ * Neutrals are graphite at hue 195, chroma 0.002 to 0.011: tinted toward the
  * accent, as a machined aluminium plate is tinted by its own anodizing. The
  * accent is that same hue at 20x the chroma. The two lamp colors are the only
  * other saturated values in the system and they attach to state alone.
@@ -58,7 +63,14 @@
 
   /* The machined lip. A raised control catches light on its top edge and casts
      a hairline on its bottom; a pressed one takes light on the inside instead.
-     Both are zero-blur or near-zero-blur: this is an edge, never a float. */
+     Both are zero-blur or near-zero-blur: this is an edge, never a float.
+     `--lip-light` sits at the achromatic white extreme (`L 100%`). It is
+     exempt from The Anodized Grey Rule (DESIGN.md §2) rather than in violation
+     of it: sRGB white is the ceiling, so chroma at that lightness can only be
+     bought by darkening — `oklch(100% 0.01 195)` paints `rgb(248, 255, 255)` —
+     and this overlay is specular light on metal, not a painted neutral. Dark's
+     `--lip-shade`/`--lip-shade-deep` are exempt for the other reason: at
+     `L 0%` sRGB has no chroma at all, so a tint there renders identically. */
   --lip-light: oklch(100% 0 0 / 0.9);
   --lip-shade: oklch(60% 0.01 195 / 0.22);
   --lip-shade-deep: oklch(40% 0.02 195 / 0.3);
@@ -149,76 +161,117 @@
 
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-kerning: normal;
+
+  /*
+   * Dark is not an inversion. The grounds compress (a dark plate needs less
+   * separation to read as separate), the accent lifts well above its light
+   * value to stay legible on it, the lamps lift with it, and the machined lip
+   * flips: on dark metal the top edge is the faint one and the recess is what
+   * you see.
+   *
+   * These `--dark-*` values are the single source for the dark palette.
+   * Two selectors below assign the public tokens from them — the automatic
+   * (`prefers-color-scheme`) path and the forced (`data-theme="dark"`) path
+   * — because the three-state theme genuinely needs both selectors to reach
+   * the same values. A token that only exists as a bare value here, with no
+   * matching `--x: var(--dark-x)` line in one of the two selectors, is
+   * visibly wrong in that theme path rather than silently drifted, since
+   * there is nowhere left for a second literal to diverge from.
+   */
+  --dark-plate: oklch(20% 0.008 195);
+  --dark-face: oklch(24.5% 0.008 195);
+  --dark-face-raised: oklch(29% 0.009 195);
+  --dark-face-sunk: oklch(16.5% 0.008 195);
+  --dark-well: oklch(16.5% 0.008 195);
+  --dark-well-deep: oklch(12.5% 0.008 195);
+  --dark-score: oklch(31% 0.01 195);
+  --dark-score-strong: oklch(41% 0.011 195);
+  --dark-score-control: oklch(54% 0.011 195);
+  --dark-ink: oklch(93% 0.004 195);
+  --dark-ink-muted: oklch(67% 0.008 195);
+  --dark-lip-light: oklch(100% 0 0 / 0.07);
+  --dark-lip-shade: oklch(0% 0 0 / 0.35);
+  --dark-lip-shade-deep: oklch(0% 0 0 / 0.5);
+  --dark-anodize: oklch(68% 0.105 195);
+  --dark-anodize-pressed: oklch(58% 0.1 195);
+  --dark-anodize-wash: oklch(29% 0.035 195);
+  --dark-anodize-ink: oklch(17% 0.02 195);
+  --dark-lamp-live: oklch(72% 0.14 152);
+  --dark-lamp-live-glass: oklch(28% 0.05 152);
+  --dark-lamp-cut: oklch(70% 0.16 27);
+  --dark-lamp-cut-glass: oklch(28% 0.06 27);
 }
 
 /*
- * Dark is not an inversion. The grounds compress (a dark plate needs less
- * separation to read as separate), the accent lifts well above its light
- * value to stay legible on it, the lamps lift with it, and the machined lip
- * flips: on dark metal the top edge is the faint one and the recess is what
- * you see. Defined twice so the manual override wins in both directions,
- * with the media query guarded against a forced light theme.
+ * The automatic dark path: OS preference, with no explicit override. Guarded
+ * against a forced light theme. Assigns the public tokens from the `--dark-*`
+ * sources declared once above.
  */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    --plate: oklch(20% 0.008 195);
-    --face: oklch(24.5% 0.008 195);
-    --face-raised: oklch(29% 0.009 195);
-    --face-sunk: oklch(16.5% 0.008 195);
-    --well: oklch(16.5% 0.008 195);
-    --well-deep: oklch(12.5% 0.008 195);
-    --score: oklch(31% 0.01 195);
-    --score-strong: oklch(41% 0.011 195);
-    --score-control: oklch(54% 0.011 195);
-    --ink: oklch(93% 0.004 195);
-    --ink-muted: oklch(67% 0.008 195);
+    --plate: var(--dark-plate);
+    --face: var(--dark-face);
+    --face-raised: var(--dark-face-raised);
+    --face-sunk: var(--dark-face-sunk);
+    --well: var(--dark-well);
+    --well-deep: var(--dark-well-deep);
+    --score: var(--dark-score);
+    --score-strong: var(--dark-score-strong);
+    --score-control: var(--dark-score-control);
+    --ink: var(--dark-ink);
+    --ink-muted: var(--dark-ink-muted);
 
-    --lip-light: oklch(100% 0 0 / 0.07);
-    --lip-shade: oklch(0% 0 0 / 0.35);
-    --lip-shade-deep: oklch(0% 0 0 / 0.5);
+    --lip-light: var(--dark-lip-light);
+    --lip-shade: var(--dark-lip-shade);
+    --lip-shade-deep: var(--dark-lip-shade-deep);
 
-    --anodize: oklch(68% 0.105 195);
-    --anodize-pressed: oklch(58% 0.1 195);
-    --anodize-wash: oklch(29% 0.035 195);
-    --anodize-ink: oklch(17% 0.02 195);
+    --anodize: var(--dark-anodize);
+    --anodize-pressed: var(--dark-anodize-pressed);
+    --anodize-wash: var(--dark-anodize-wash);
+    --anodize-ink: var(--dark-anodize-ink);
 
-    --lamp-live: oklch(72% 0.14 152);
-    --lamp-live-glass: oklch(28% 0.05 152);
-    --lamp-cut: oklch(70% 0.16 27);
-    --lamp-cut-glass: oklch(28% 0.06 27);
+    --lamp-live: var(--dark-lamp-live);
+    --lamp-live-glass: var(--dark-lamp-live-glass);
+    --lamp-cut: var(--dark-lamp-cut);
+    --lamp-cut-glass: var(--dark-lamp-cut-glass);
   }
 }
 
+/*
+ * The forced dark path: an explicit override, which must win regardless of
+ * OS preference. Assigns the public tokens from the same `--dark-*` sources
+ * as the automatic path above.
+ */
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --plate: oklch(20% 0.008 195);
-  --face: oklch(24.5% 0.008 195);
-  --face-raised: oklch(29% 0.009 195);
-  --face-sunk: oklch(16.5% 0.008 195);
-  --well: oklch(16.5% 0.008 195);
-  --well-deep: oklch(12.5% 0.008 195);
-  --score: oklch(31% 0.01 195);
-  --score-strong: oklch(41% 0.011 195);
-  --score-control: oklch(54% 0.011 195);
-  --ink: oklch(93% 0.004 195);
-  --ink-muted: oklch(67% 0.008 195);
+  --plate: var(--dark-plate);
+  --face: var(--dark-face);
+  --face-raised: var(--dark-face-raised);
+  --face-sunk: var(--dark-face-sunk);
+  --well: var(--dark-well);
+  --well-deep: var(--dark-well-deep);
+  --score: var(--dark-score);
+  --score-strong: var(--dark-score-strong);
+  --score-control: var(--dark-score-control);
+  --ink: var(--dark-ink);
+  --ink-muted: var(--dark-ink-muted);
 
-  --lip-light: oklch(100% 0 0 / 0.07);
-  --lip-shade: oklch(0% 0 0 / 0.35);
-  --lip-shade-deep: oklch(0% 0 0 / 0.5);
+  --lip-light: var(--dark-lip-light);
+  --lip-shade: var(--dark-lip-shade);
+  --lip-shade-deep: var(--dark-lip-shade-deep);
 
-  --anodize: oklch(68% 0.105 195);
-  --anodize-pressed: oklch(58% 0.1 195);
-  --anodize-wash: oklch(29% 0.035 195);
-  --anodize-ink: oklch(17% 0.02 195);
+  --anodize: var(--dark-anodize);
+  --anodize-pressed: var(--dark-anodize-pressed);
+  --anodize-wash: var(--dark-anodize-wash);
+  --anodize-ink: var(--dark-anodize-ink);
 
-  --lamp-live: oklch(72% 0.14 152);
-  --lamp-live-glass: oklch(28% 0.05 152);
-  --lamp-cut: oklch(70% 0.16 27);
-  --lamp-cut-glass: oklch(28% 0.06 27);
+  --lamp-live: var(--dark-lamp-live);
+  --lamp-live-glass: var(--dark-lamp-live-glass);
+  --lamp-cut: var(--dark-lamp-cut);
+  --lamp-cut-glass: var(--dark-lamp-cut-glass);
 }
 
 * {
@@ -1286,6 +1339,12 @@ a.row:active {
  * level of nesting goes one step darker still (`--well-deep`) rather than
  * repeating the well it is already inside, with the stronger scored border
  * that survives against it.
+ *
+ * The height cap and internal scroll are a documented exemption from "the
+ * document scrolls" (DESIGN.md §6, Exemptions): a Broadcast's body is sized by
+ * the caller, not by this UI, and is bounded only by the ingest limit (1 MiB by
+ * default), so left uncapped one body pushes the Deliveries below it off the
+ * screen.
  */
 .payload {
   margin: 0 0 var(--space-md);

@@ -210,8 +210,8 @@ accent and never as decoration, so "healthy" can never be confused with "selecte
 **Scene**: two or three engineers at their desks in a normally lit office, mid-morning, this console
 in a tab between a dark editor and a dark terminal, glancing at it every few minutes rather than
 staring at it. That forces a light default. A dark theme ships alongside it for editor parity, which
-is a real reason and not the observability-dashboard reflex; both are first-class and every token is
-defined twice.
+is a real reason and not the observability-dashboard reflex; both are first-class and every token
+carries a value in both.
 
 It rejects the two things PRODUCT.md named: **enterprise monitoring dread** (walls of red gauges,
 undifferentiated dense config panels, density with no ranking) and **consumer SaaS marketing bleed**
@@ -330,6 +330,25 @@ lamp is correct.
 
 **The Anodized Grey Rule.** Every neutral carries hue 195 at chroma 0.002 to 0.011. There is no
 `#fff`, no `#000`, and no untinted grey anywhere in this system. If a grey looks warm, it is wrong.
+Exempted: the machined lip's highlight and shade overlays that sit at the achromatic extremes,
+`--lip-light` at `oklch(100% 0 0 / a)` in both themes and dark's `--lip-shade`/`--lip-shade-deep` at
+`oklch(0% 0 0 / a)`. These two are exempt for different reasons, and neither generalizes to a
+neutral you are about to paint:
+
+- **At `L 0%` the tint is unrepresentable.** sRGB has no chroma at black, so `oklch(0% 0.01 195)`
+  renders as `rgb(0, 0, 0)`, byte-identical to `oklch(0% 0 0)`. Tinting dark's shade overlays would
+  change the document and not the pixels.
+- **At `L 100%` the tint is representable but costs the highlight.** sRGB white is the ceiling, so
+  the only way to add chroma at that lightness is downward: `oklch(100% 0.01 195)` renders as
+  `rgb(248, 255, 255)` (measured in Chromium), a real faint cyan and a real loss of luminance. The
+  lip highlight is specular light on machined metal, not a painted neutral — it is the ground's own
+  color pushed toward the light source, and a tinted light source would say the room is lit cyan.
+  A white highlight composited over a near-white `--face` has very little margin to begin with —
+  making it perceptible in the light theme took work of its own — so spending that margin on a tint
+  no one can name is the wrong trade.
+
+The rule is otherwise absolute: an overlay is exempt only because it stands for light and shadow
+composited over an already-tinted ground. A neutral with a lightness of its own is never exempt.
 
 **The Both-Themes Rule.** A color introduced in one theme is not introduced until it exists in the
 other. Dark is not an inversion: grounds compress, the accent lifts, the lamps lift, and the lip
@@ -773,7 +792,7 @@ dead with no stated reason is worse than a control that explains what is wrong w
 is the one path by which an operator can force every message onto the screen at once. It disables
 only while a request is genuinely in flight.
 
-This is where the No-Flicker Rule stops applying. That rule governs representations of *waiting*,
+This is where the No-Flicker Rule stops applying. That rule governs representations of _waiting_,
 and local validation does not wait for anything; a message that has been earned appears on the
 frame it is earned on, with no delay and no hold. What replaces the round trip is not a faster
 loading state, it is the absence of one.
@@ -816,7 +835,8 @@ Settings: it is a viewing preference of this browser, not Channel configuration.
 
 ### Don't:
 
-- **Don't** use `#ffffff`, `#000000`, or any untinted grey.
+- **Don't** use `#ffffff`, `#000000`, or any untinted grey, except the lip overlays exempted under
+  The Anodized Grey Rule in §2.
 - **Don't** use an 8px radius, or any radius above 3px, on anything but a lamp's glass. The rounded
   rectangle is the tell this system exists to remove.
 - **Don't** use a pill shape for a status. Pills are gone; lamps replaced them.
@@ -825,7 +845,8 @@ Settings: it is a viewing preference of this browser, not Channel configuration.
   the `0 1px 0` zero-blur edge under a raised control.
 - **Don't** give a control the field's inner shade at rest, or a field the control's highlight. The
   lip direction is what says which kind of object it is.
-- **Don't** nest an `overflow-y: auto` region inside the page. The document scrolls.
+- **Don't** nest an `overflow-y: auto` region inside the page. The document scrolls. Exempted: the
+  Broadcast `.payload` block — see "Exemptions" below.
 - **Don't** use `border-left` or `border-right` above 1px as a colored stripe.
 - **Don't** put Lamp Live or Lamp Cut on a control, a link, a heading, or a non-status border. Red
   belongs on a `DEAD LETTERED` lamp, never on the plate that contains it.
@@ -852,3 +873,14 @@ Settings: it is a viewing preference of this browser, not Channel configuration.
 - **Don't** animate layout properties on elements that affect their siblings, add bounce or elastic
   easing, or animate anything that is not a state change.
 - **Don't** use `text-transform: uppercase` outside the Engraved role.
+
+### Exemptions
+
+- **The Broadcast `.payload` block caps its height at `220px` and scrolls internally**, against the
+  rule that the document scrolls. Every other length in this UI is something the operator typed or
+  the system generated; a Broadcast's body is whatever the caller sent to `POST /ingest/:slug`,
+  bounded only by the ingest limit (`INGEST_MAX_BODY_BYTES`, 1 MiB by default) — thousands of lines
+  of unwrapped JSON at the worst end. The block renders directly above the Replay control and the
+  Broadcast's Deliveries, so left uncapped a single large body pushes both off the screen. The nested
+  scroll region is a deliberate exception, scoped to this one element, rather than a rule to weaken
+  generally.
