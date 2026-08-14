@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRightLeft,
@@ -20,6 +20,8 @@ import { SectionTitle } from "../../components/SectionTitle.js";
 import { SkeletonRows } from "../../components/SkeletonRows.js";
 import { EnabledStatusBadge } from "../../components/StatusBadge.js";
 import { api, describeApiError } from "../../lib/api.js";
+import { useNow } from "../../lib/elapsedClock.js";
+import { formatElapsed } from "../../lib/relativeTime.js";
 import {
   freshnessRefetchInterval,
   queryErrorMessage,
@@ -114,6 +116,76 @@ function endpointLabel(endpoint: Endpoint): string {
 }
 
 /**
+ * Issue #74: what the row's name cell prints, which is deliberately *not*
+ * `endpointLabel`. That helper falls back to the URL so an aria-label or a
+ * confirm sentence can still say which Endpoint it means; inside the row the
+ * URL already has its own cell, so falling back there set the same machine
+ * string twice — once in bold sans and once in mono — which is the Machine
+ * Voice Rule violation the issue names, and left the name track holding a
+ * full URL at max-content while the URL track it starved fell back to its
+ * pinned minimum for every row in the list. A nameless Endpoint prints
+ * nothing here and is identified by the URL cell alone.
+ */
+function endpointRowLabel(endpoint: Endpoint): string | null {
+  return endpoint.name;
+}
+
+/**
+ * The statistics that trail an Endpoint row, as one ordered list rather than
+ * two parallel ones. The cell is the one this family lets truncate, so it
+ * needs a `title` carrying the whole string (issue #74) — and building the
+ * title and the DOM from the same parts is what stops the two drifting.
+ * Notably the elapsed readings are formatted once: a title assembled
+ * separately would have printed the raw ISO instants that issue #54 took out
+ * of this row in the first place, and disagreed with the text beneath it.
+ */
+function endpointMetaParts(
+  endpoint: Endpoint,
+  now: number,
+): { key: string; text: string; node: ReactNode }[] {
+  const parts: { key: string; text: string; node: ReactNode }[] = [];
+
+  if (endpoint.autoDisabledAt != null) {
+    parts.push({
+      key: "state",
+      text: `since ${formatElapsed(endpoint.autoDisabledAt, now)}`,
+      node: (
+        <>
+          since <ElapsedTime iso={endpoint.autoDisabledAt} focusable={false} />
+        </>
+      ),
+    });
+  } else {
+    const timeout = endpoint.timeoutMs ? `${endpoint.timeoutMs}ms` : "default timeout";
+    parts.push({ key: "state", text: timeout, node: timeout });
+  }
+
+  if (endpoint.successRate24h != null) {
+    const rate = `${Math.round(endpoint.successRate24h * 100)}% ok (24h)`;
+    parts.push({ key: "successRate", text: rate, node: rate });
+  }
+
+  if (endpoint.p95Ms != null) {
+    const p95 = `p95 ${endpoint.p95Ms}ms`;
+    parts.push({ key: "p95", text: p95, node: p95 });
+  }
+
+  if (endpoint.lastSuccessAt != null) {
+    parts.push({
+      key: "lastSuccess",
+      text: `last ok ${formatElapsed(endpoint.lastSuccessAt, now)}`,
+      node: (
+        <>
+          last ok <ElapsedTime iso={endpoint.lastSuccessAt} focusable={false} />
+        </>
+      ),
+    });
+  }
+
+  return parts;
+}
+
+/**
  * Switching straight to a different Endpoint's edit form used to call
  * `setEditingId` again and silently drop whatever was half-typed in the one
  * that was open. This is the same confirm-region idiom the rest of the app
@@ -189,6 +261,9 @@ function EndpointRow({
   onReenabled: () => Promise<void>;
 }) {
   const rowRef = useRef<HTMLButtonElement>(null);
+  const now = useNow();
+  const label = endpointRowLabel(endpoint);
+  const metaParts = endpointMetaParts(endpoint, now);
 
   // Cancelling the edit returns focus to the row that opened it (DESIGN.md
   // #4 overlay focus contract, issue #61), rather than to <body>. This works
@@ -210,7 +285,13 @@ function EndpointRow({
         onClick={() => onRowClick(endpoint.id)}
       >
         <EnabledStatusBadge enabled={endpoint.enabled} autoDisabledAt={endpoint.autoDisabledAt} />
-        <span className="row-name">{endpointLabel(endpoint)}</span>
+        {/* The cell stays in the markup when there is no name so the grid
+            lines still agree down the list. It truncates (and so carries its
+            own `title`) because a long name is the other way this track could
+            reach max-content and starve the URL beside it. */}
+        <span className="row-name row-truncate" title={label ?? undefined}>
+          {label}
+        </span>
         {/* An Endpoint's identity is where it sends, so the URL owns this
             family's flexible column rather than the trailing statistics. It can
             still outrun the column on a long path, so the full value stays
@@ -224,27 +305,16 @@ function EndpointRow({
             separators are only ever inserted between parts that are actually
             present. `focusable={false}` on both: this row is itself the button,
             so each exact instant is revealed from the row's own focus rather
-            than from tab stops nested inside it. */}
-        <span className="row-meta">
-          {endpoint.autoDisabledAt != null ? (
-            <>
-              since <ElapsedTime iso={endpoint.autoDisabledAt} focusable={false} />
-            </>
-          ) : endpoint.timeoutMs ? (
-            `${endpoint.timeoutMs}ms`
-          ) : (
-            "default timeout"
-          )}
-          {endpoint.successRate24h != null && (
-            <> · {Math.round(endpoint.successRate24h * 100)}% ok (24h)</>
-          )}
-          {endpoint.p95Ms != null && <> · p95 {endpoint.p95Ms}ms</>}
-          {endpoint.lastSuccessAt != null && (
-            <>
-              {" "}
-              · last ok <ElapsedTime iso={endpoint.lastSuccessAt} focusable={false} />
-            </>
-          )}
+            than from tab stops nested inside it — the `title` here belongs to
+            the cell that truncates, not to the timestamps inside it, and it
+            prints the same elapsed readings they do. */}
+        <span className="row-meta" title={metaParts.map((part) => part.text).join(" · ")}>
+          {metaParts.map((part, index) => (
+            <Fragment key={part.key}>
+              {index > 0 ? " · " : null}
+              {part.node}
+            </Fragment>
+          ))}
         </span>
         {/* Whether this row opens, and whether it is open now, are shapes at
             rest rather than discoveries (DESIGN.md #5 Rows), matching the

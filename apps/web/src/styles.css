@@ -1101,18 +1101,26 @@ input[type="number"] {
  * Borrowing the Channel tracks resolved the trailing statistics at their
  * max-content width across the whole list, which left the URL 64px of the
  * 291px it wanted. The URL therefore takes a pinned minimum and the flexible
- * remainder, and the statistics track is allowed to fall below its
- * max-content width instead of the identity column absorbing the shortfall.
+ * remainder, and the name and statistics tracks both take minmax(0, auto):
+ * they size to their content while there is room, and are the two allowed to
+ * fall below it once there is not, rather than the URL absorbing the
+ * shortfall. Note that what keeps a nameless Endpoint from starving the URL
+ * for the whole list is not this declaration — an auto track holds its
+ * max-content width whenever the row is wide enough to grant it — but
+ * `endpointRowLabel` in EndpointsTab.tsx no longer putting the URL in the
+ * name cell at all (issue #74).
  */
 .row-list-endpoint {
   grid-template-columns:
-    minmax(var(--status-lamp-column), auto) auto minmax(var(--endpoint-url-column), 1fr)
+    minmax(var(--status-lamp-column), auto) minmax(0, auto) minmax(var(--endpoint-url-column), 1fr)
     minmax(0, auto) auto;
 }
 
-/* Statistics yield before identity does: this cell is the one allowed to
-   truncate when the row runs out of width, which is why it needs the
-   `min-width: 0` that a grid item does not take by default. */
+/* Statistics yield before identity does: this cell truncates when the row
+   runs out of width so the URL does not, which is why it needs the
+   `min-width: 0` that a grid item does not take by default. (The name cell
+   yields too, but takes it from the `row-truncate` utility it carries in the
+   markup, whose `overflow: hidden` zeroes that automatic minimum already.) */
 .row-list-endpoint .row-meta {
   min-width: 0;
   overflow: hidden;
@@ -1224,7 +1232,7 @@ a.row:active {
 
 .row-endpoint {
   grid-template-columns:
-    minmax(var(--status-lamp-column), auto) auto minmax(var(--endpoint-url-column), 1fr)
+    minmax(var(--status-lamp-column), auto) minmax(0, auto) minmax(var(--endpoint-url-column), 1fr)
     minmax(0, auto) auto;
 }
 
