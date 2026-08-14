@@ -154,63 +154,69 @@ export function ChannelDirectoryPage() {
 
       {/* Below the list, so the directory's prime slot answers "is anything
           broken here?" before it offers a create form (PRODUCT.md §1). Still on
-          the page and still one scroll away: no modal, no navigation. A plate at
-          the ordinary prose cap now that the form is a vertical field-stack —
-          the earlier `plate-wide` opt-out existed for a row of inline controls
-          that no longer exists. */}
-      <section className="plate stack">
+          the page and still one scroll away: no modal, no navigation.
+          `plate-wide`: a field-stack capped at the ordinary 72ch prose measure
+          left roughly a third of the 1032px column as dead ground (the
+          2026-08-14 critique) — the Slug/Description field-pair below is what
+          actually spends the width this opts into. */}
+      <section className="plate plate-wide stack">
         <SectionTitle icon={<Plus size={13} strokeWidth={2} />}>New Channel</SectionTitle>
         {/* `noValidate`: the slug rule is stated in this form's own voice, and
             the browser's default bubble would pre-empt that message and suppress
             the submit event this form validates on. */}
         <form className="field-stack" noValidate onSubmit={(event) => void handleCreate(event)}>
-          <div className="field">
-            <label htmlFor="new-channel-slug">Slug</label>
-            <input
-              ref={slugField.ref}
-              id="new-channel-slug"
-              name="slug"
-              value={slug}
-              onChange={(event) => setSlug(event.target.value)}
-              onBlur={slugField.onBlur}
-              placeholder="unipile-dev"
-              required
-              aria-invalid={slugField.error ? "true" : "false"}
-              aria-describedby={
-                slugField.error
-                  ? "new-channel-slug-rule new-channel-slug-error"
-                  : "new-channel-slug-rule"
-              }
-            />
-            {/* The format rule is standing guidance, not a validation result, so
-                it is present before the first keystroke and stays legible during
-                and after typing — where the old placeholder-and-`title` pair
-                stated it only while the field was empty, and never to a keyboard
-                or touch operator. */}
-            <p className="advisory" id="new-channel-slug-rule">
-              <Info className="advisory-icon" size={14} strokeWidth={2} aria-hidden="true" />
-              <span>
-                Lowercase letters, digits, and hyphens between them (e.g. <code>unipile-dev</code>).
-                The slug is the ingest path: <code>POST /ingest/&lt;slug&gt;</code>.
-              </span>
-            </p>
-            {slugField.error && (
-              <p className="error-text" id="new-channel-slug-error" role="alert">
-                <TriangleAlert size={13} strokeWidth={2} aria-hidden="true" />
-                {slugField.error}
+          {/* Two short fields share a line (the field-pair rule), which is what
+              lets this plate earn the width `.plate-wide` now gives it instead
+              of stretching either input to a whole 1032px line on its own. */}
+          <div className="field-pair">
+            <div className="field">
+              <label htmlFor="new-channel-slug">Slug</label>
+              <input
+                ref={slugField.ref}
+                id="new-channel-slug"
+                name="slug"
+                value={slug}
+                onChange={(event) => setSlug(event.target.value)}
+                onBlur={slugField.onBlur}
+                placeholder="unipile-dev"
+                required
+                aria-invalid={slugField.error ? "true" : "false"}
+                aria-describedby={
+                  slugField.error
+                    ? "new-channel-slug-rule new-channel-slug-error"
+                    : "new-channel-slug-rule"
+                }
+              />
+              {/* The format rule is standing guidance, not a validation result, so
+                  it is present before the first keystroke and stays legible during
+                  and after typing — where the old placeholder-and-`title` pair
+                  stated it only while the field was empty, and never to a keyboard
+                  or touch operator. */}
+              <p className="advisory" id="new-channel-slug-rule">
+                <Info className="advisory-icon" size={14} strokeWidth={2} aria-hidden="true" />
+                <span>
+                  Lowercase letters, digits, and hyphens between them (e.g. <code>unipile-dev</code>
+                  ). The slug is the ingest path: <code>POST /ingest/&lt;slug&gt;</code>.
+                </span>
               </p>
-            )}
-          </div>
+              {slugField.error && (
+                <p className="error-text" id="new-channel-slug-error" role="alert">
+                  <TriangleAlert size={13} strokeWidth={2} aria-hidden="true" />
+                  {slugField.error}
+                </p>
+              )}
+            </div>
 
-          <div className="field">
-            <label htmlFor="new-channel-description">Description</label>
-            <input
-              id="new-channel-description"
-              name="description"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Optional"
-            />
+            <div className="field">
+              <label htmlFor="new-channel-description">Description</label>
+              <input
+                id="new-channel-description"
+                name="description"
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="Optional"
+              />
+            </div>
           </div>
 
           {/* Disabled only while a request is genuinely in flight: a commit

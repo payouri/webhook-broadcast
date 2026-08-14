@@ -578,9 +578,25 @@ svg {
   gap: var(--space-md);
 }
 
-/* A plate holding tabular or machine-shaped content rather than prose opts out
-   of the prose cap: an ingest URL is not read at a comfortable measure, it is
-   copied whole. */
+/*
+ * A plate holding tabular or machine-shaped content rather than prose opts out
+ * of the prose cap: an ingest URL is not read at a comfortable measure, it is
+ * copied whole.
+ *
+ * The same opt-out serves a second case: New Channel and New Endpoint, whose
+ * fields are not prose either. Capped at 72ch they measured ~600px inside the
+ * 1032px content column — the exact dead ground narrowing the column from
+ * 1180px to 1080px was meant to remove (DESIGN.md's Content column note),
+ * still there because a lone field-stack stays 72ch wide regardless of how
+ * wide its column is. A field is read a value at a time, not across a whole
+ * line the way a paragraph is, so the reading-width cap was never earning its
+ * keep here either.
+ *
+ * A form plate that opts out owes the width a `.field-pair` (DESIGN.md §Plates
+ * and wells): the cap's real job was stopping a single input from stretching
+ * across the whole column, and pairing the fields is what keeps that from
+ * being the result of removing it.
+ */
 .plate-wide {
   max-width: none;
 }
@@ -1005,6 +1021,7 @@ input[type="number"] {
   font-weight: 600;
   letter-spacing: var(--text-engraved-tracking);
   text-transform: uppercase;
+  text-decoration: none;
   cursor: pointer;
   transition: color 150ms var(--ease-out);
 }
@@ -1776,7 +1793,13 @@ a.row:active {
   border: 1px solid var(--score);
   border-radius: var(--radius-control);
   font-size: var(--text-data-size);
-  word-break: break-all;
+  /* `break-all` broke wherever a line ran out of room, mid-token and all — a
+     slug's own hyphen or a path segment split as readily as any other
+     character. `overflow-wrap: anywhere` only breaks inside an unbreakable
+     run once the normal break opportunities (the `/` after a path segment)
+     are exhausted, the same fix `.delivery-endpoint-url` already carries for
+     an unbounded machine string. */
+  overflow-wrap: anywhere;
   box-shadow: inset 0 1px 2px var(--lip-shade);
 }
 
@@ -2117,6 +2140,34 @@ a.row:active {
   .row-token {
     grid-template-columns: 1fr;
     gap: var(--space-xs);
+  }
+
+  /*
+   * A stacked row leads with the value that names it, not with its status.
+   * `.row-channel` and `.row-endpoint` both open with the Enabled lamp, which
+   * reads the same "ENABLED" on every row but the disabled few — the slug or
+   * Endpoint name is what a stacked list is actually scanned for. The row is
+   * still a grid at this width (only its column count changed above), so
+   * `order` moves the identifying cell first without touching DOM/reading
+   * order: assistive tech still meets the status before the name, exactly as
+   * it does in the wide grid.
+   */
+  .row-channel .row-name,
+  .row-endpoint .row-name {
+    order: -1;
+  }
+
+  /*
+   * A nameless Endpoint prints nothing in that cell (`endpointRowLabel` leaves
+   * it empty on purpose, so the URL identifies the row alone). The cell has to
+   * stay in the markup for the wide grid's tracks to line up down the list,
+   * but stacked it is a zero-height grid item — and once `order` hoists it to
+   * the top it spends the row's leading gap on nothing, reading as stray
+   * padding above the lamp. Only safe to drop here: at this width the row is a
+   * single `1fr` column, so removing an item costs no alignment.
+   */
+  .row-endpoint .row-name:empty {
+    display: none;
   }
 
   /* The statistics column truncates only where width is scarce. Once the row

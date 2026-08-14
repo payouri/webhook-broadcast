@@ -747,8 +747,13 @@ Faceplates, not cards. The distinction matters: a card is an object you might cl
 region that holds content. Nothing in this system is a clickable card.
 
 - **Plate:** Face on Plate, 1px Score, 3px radius, 20px padding, inner top highlight, no drop
-  shadow. Prose-shaped plates cap at 72ch; a plate holding a machine string (the ingest URL) opts out
-  with `.plate-wide`.
+  shadow. Prose-shaped plates cap at 72ch; `.plate-wide` is the opt-out, and two shapes qualify. A
+  plate holding a **machine string** (the ingest URL) is not read at a comfortable measure, it is
+  copied whole. A plate holding a **form** is not prose either: a field is read one value at a time,
+  never across a full line, so the reading measure buys it nothing — while a lone field-stack stays
+  72ch wide however wide its column is, which is what left New Channel and New Endpoint at roughly
+  600px inside the 1032px column. A form plate that opts out owes the width a field pair; stretching
+  a single input across the whole column is the failure the cap existed to prevent.
 - **Well:** Well ground, 1px Score, 3px radius, 12px padding, inner shade. Every first-level nested
   detail region: expanded Broadcast, Endpoint edit form, confirm region, advisory, empty state.
 - **Well Deep:** Well Deep ground, 1px Score Strong (Score would nearly vanish against it), inner
@@ -807,13 +812,25 @@ scale a sidebar would be chrome standing in for structure.
   `.app-header-inner` so the brand sits over the content and not over the ground beside it. Brand
   (glyph plus wordmark) at Title size on the left; theme toggle and Log out on the right.
 - **Content column:** 1080px. Narrowed from 1180px, which was wide enough that the roughly 620px
-  plates left a third of the column as dead ground.
+  plates left a third of the column as dead ground. Narrowing the column only ever closed half of
+  that gap: a plate capped at a reading measure leaves dead ground at any column width, which is why
+  a form plate takes `.plate-wide` rather than waiting for the column to shrink to meet it.
 - **Tabs:** the Engraved role on a scored baseline, each with its domain glyph. The active tab is
-  Anodize with a 2px Anodize bottom border overlapping that baseline.
+  Anodize with a 2px Anodize bottom border overlapping that baseline. A tab is an **anchor**, never a
+  styled button: it changes the address, and what an element does decides what it is. That is what
+  gives the app's primary navigation cmd-click, middle-click, open-in-new-tab, copy-link-address and
+  the screen reader's "link" announcement, none of which a `button` can be styled into. Since a link
+  has no notion of "active", the selected tab carries `aria-current="page"` — the visual Anodize
+  treatment is the same fact for the eye, and neither one alone is enough.
 - **Back navigation:** an explicit control with a left-arrow glyph (`Back to Channels`), wrapped so it
   is sized by its label rather than stretched to the column width, never a bare chevron.
 - **Responsive:** below 720px row grids collapse to stacked lines and metadata wraps rather than
-  truncating. The layout composes; it does not shrink.
+  truncating. The layout composes; it does not shrink. A **stacked row leads with the value that
+  identifies it** — a Channel's slug, an Endpoint's name — not with its status lamp, which prints the
+  same `ENABLED` on nearly every row and so distinguishes nothing when it owns the first line. Wide,
+  the lamp leads because the eye scans a column of them; stacked, there is no column to scan. The
+  reorder is CSS `order` on the identifying cell, never a change to the markup: DOM order is what a
+  screen reader follows linearly, and it still meets the status first exactly as the wide grid does.
 
 ### Loading, empty, and error
 
@@ -825,6 +842,15 @@ scale a sidebar would be chrome standing in for structure.
   token."_ Never _"Nothing here."_ No illustration, ever.
 - **Error:** inline, in Lamp Cut, with a warning glyph, `role="alert"`, and a Retry control beside the
   message.
+- **Not found** (an address that names no view: an unknown Channel, a URL matching no route): on a
+  plate like every other screen, with the view's own `h1`, the message in the **advisory** well, and
+  `Back to Channels` beneath it. Deliberately not the Error treatment, which it once borrowed: an
+  error says something failed and can be tried again, and here nothing failed and nothing is
+  retryable — the address simply never named a view. Lamp Cut and `role="alert"` both promise a fault
+  an operator can act on, and The Quarantine Rule reserves Lamp Cut for a real one. Deliberately not
+  the Empty well either: an empty list is a Channel with no Broadcasts yet, a fact about data, where
+  this is a fact about the address. The glyph is `SearchX`, not the advisory's usual `Info` — see the
+  advisory rule below.
 - **Advisory** (a consequence that is neither a failure nor a validation error, e.g. what disabling a
   Channel or an auto-disabled Endpoint means, not a validation error or a failed request): a recessed
   well with an info glyph in Ink. It may not borrow a lamp color (The Quarantine Rule binds Lamp Cut
@@ -837,7 +863,11 @@ scale a sidebar would be chrome standing in for structure.
   deliberately not the confirm region's look, even for a multi-line advisory with its own control (an
   auto-disabled Endpoint's Re-enable): a confirm region carries no glyph and poses a question with two
   controls, where an advisory states a consequence and carries the info glyph regardless of how many
-  elements it holds.
+  elements it holds. The **not-found** message above is the one place the well is spent on something
+  other than a consequence, and the one place its glyph changes: glyphs here are semantic, never
+  decorative, and that panel's fact _is_ not-found, so it keeps `SearchX`. The well, the Ink, and the
+  ban on a lamp color and a live region all still hold — what the advisory contributes there is
+  precisely "this is worth saying and nothing has gone wrong", which is the whole of a 404.
 
 #### Named Rules
 

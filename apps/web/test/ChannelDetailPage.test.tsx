@@ -100,7 +100,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Activity" }));
 
     expect(await screen.findByText("hello-world")).toBeTruthy();
     // The row's leading lamp is the one place the fan-out result is stated; the
@@ -123,7 +123,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
     });
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
-    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Activity" }));
 
     expect(await screen.findByText(/No Broadcasts yet/)).toBeTruthy();
   });
@@ -173,7 +173,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
     // Default hub tab is Activity (ADR 0004); tokens live under Settings.
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
     fireEvent.click(await screen.findByRole("button", { name: "Mint new token" }));
 
     expect(await screen.findByText(/wbt_abcd1234-plaintext-secret/)).toBeTruthy();
@@ -226,7 +226,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
     fireEvent.click(await screen.findByRole("button", { name: "Revoke" }));
 
     // Confirmation is shown
@@ -279,7 +279,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
     fireEvent.click(await screen.findByRole("button", { name: "Revoke" }));
 
     // The overlay focus contract (DESIGN.md #4): the row this button lived on
@@ -334,7 +334,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
 
     // The tokens panel reads the Channel the page already holds in the
     // ["channel", channelId] cache, so mounting it must not refetch it.
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
     expect(await screen.findByText("wbt_abcd1234…")).toBeTruthy();
     await flushAsync();
 
@@ -437,7 +437,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Activity" }));
     fireEvent.click(await screen.findByText("hello-world"));
     fireEvent.click(await screen.findByRole("button", { name: "Replay" }));
 
@@ -515,7 +515,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Activity" }));
     fireEvent.click(await screen.findByText("hello-world"));
     fireEvent.click(await screen.findByRole("button", { name: "Replay" }));
 
@@ -603,7 +603,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Activity" }));
     fireEvent.click(await screen.findByText("hello-world"));
     expect(await screen.findByText("1 dead-lettered, 0/1 succeeded")).toBeTruthy();
 
@@ -852,7 +852,7 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
     // Navigate to Settings tab
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
 
     // Delete Channel button should be visible
     const deleteButton = await screen.findByRole("button", { name: "Delete Channel" });
@@ -896,7 +896,7 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
     fireEvent.click(await screen.findByRole("button", { name: "Delete Channel" }));
     fireEvent.click(await screen.findByRole("button", { name: "Confirm delete" }));
 
@@ -932,7 +932,7 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
 
     // Open delete confirmation
     fireEvent.click(await screen.findByRole("button", { name: "Delete Channel" }));
@@ -969,7 +969,7 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
     fireEvent.click(await screen.findByRole("button", { name: "Delete Channel" }));
 
     // The overlay focus contract (DESIGN.md #4): the button just clicked is
@@ -1007,7 +1007,7 @@ describe("ChannelDetailPage — Settings delete flow (issue #33)", () => {
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
 
     // Toggling `enabled` is a separate, reversible control and never arms the delete confirmation.
     const enabledToggle = await screen.findByLabelText("Enabled");
@@ -1081,7 +1081,7 @@ describe("ChannelDetailPage — Settings channel disable guard (issue #46)", () 
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
 
     // Initially, no warning (channel is enabled)
     expect(screen.queryByText(/Disabling this Channel stops fan-out/)).toBeNull();
@@ -1156,7 +1156,7 @@ describe("ChannelDetailPage — Settings channel disable guard (issue #46)", () 
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
 
     // Disable the channel
     const enabledToggle = await screen.findByLabelText("Enabled");
@@ -1204,7 +1204,7 @@ describe("ChannelDetailPage — Settings channel disable guard (issue #46)", () 
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
 
     // Disable the channel
     const enabledToggle = await screen.findByLabelText("Enabled");
@@ -1267,7 +1267,7 @@ describe("ChannelDetailPage — Settings channel disable guard (issue #46)", () 
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
 
     // Re-enable the channel
     const enabledToggle = await screen.findByLabelText("Enabled");
@@ -1328,7 +1328,7 @@ describe("ChannelDetailPage — Destructive at rest (issue #80)", () => {
   it("gives the resting Delete Channel and Revoke triggers the destructive treatment", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
 
     const deleteTrigger = await screen.findByRole("button", { name: "Delete Channel" });
     expect(deleteTrigger.className).toContain("control-destructive");
@@ -1342,7 +1342,7 @@ describe("ChannelDetailPage — Destructive at rest (issue #80)", () => {
   it("leaves the confirm regions on the Commit treatment", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
 
     fireEvent.click(await screen.findByRole("button", { name: "Delete Channel" }));
     const confirmDelete = await screen.findByRole("button", { name: "Confirm delete" });
@@ -1361,7 +1361,7 @@ describe("ChannelDetailPage — Destructive at rest (issue #80)", () => {
   it("does not reach for a lamp tone on the destructive controls", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
 
     for (const name of ["Delete Channel", "Revoke"]) {
       const trigger = await screen.findByRole("button", { name });

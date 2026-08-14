@@ -470,7 +470,7 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
 
   return (
     <div className="stack">
-      <section className="plate stack">
+      <section className="plate plate-wide stack">
         <SectionTitle icon={<Plus size={13} strokeWidth={2} />}>New Endpoint</SectionTitle>
         <EndpointForm
           onSubmit={async (input) => {

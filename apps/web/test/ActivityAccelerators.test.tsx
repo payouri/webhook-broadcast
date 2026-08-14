@@ -94,7 +94,7 @@ describe("Activity accelerators — keyboard traversal (issue #53)", () => {
     });
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
-    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Activity" }));
 
     const firstRow = await screen.findByRole("button", { name: /first-payload/ });
     const secondRow = await screen.findByRole("button", { name: /second-payload/ });
@@ -153,7 +153,7 @@ describe("Activity accelerators — keyboard traversal (issue #53)", () => {
     });
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
-    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Activity" }));
 
     const broadcastRow = await screen.findByRole("button", { name: /first-payload/ });
     fireEvent.click(broadcastRow);
@@ -187,7 +187,7 @@ describe("Activity accelerators — keyboard traversal (issue #53)", () => {
     });
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
-    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Activity" }));
 
     const disclosure = await screen.findByText("Keyboard shortcuts");
     fireEvent.click(disclosure);
@@ -226,7 +226,7 @@ describe("Activity accelerators — keyboard traversal (issue #53)", () => {
     });
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
-    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Activity" }));
 
     const row = await screen.findByRole("button", { name: /first-payload/ });
     fireEvent.click(row);
@@ -304,7 +304,7 @@ describe("Bulk retry of dead-lettered Deliveries (issue #53)", () => {
   it("states how many Deliveries it will retry before it runs", async () => {
     stubCommon();
     renderRoutes(`/channels/${CHANNEL_ID}`);
-    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Activity" }));
     fireEvent.click(await screen.findByText("fan-out-payload"));
 
     const trigger = await screen.findByRole("button", { name: /Retry 2 dead-lettered/ });
@@ -317,7 +317,7 @@ describe("Bulk retry of dead-lettered Deliveries (issue #53)", () => {
   it("reports the outcome per Delivery, leaving a partial failure's successes queued", async () => {
     stubCommon();
     renderRoutes(`/channels/${CHANNEL_ID}`);
-    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Activity" }));
     fireEvent.click(await screen.findByText("fan-out-payload"));
 
     fireEvent.click(await screen.findByRole("button", { name: /Retry 2 dead-lettered/ }));
@@ -386,7 +386,7 @@ describe("Bulk retry of dead-lettered Deliveries (issue #53)", () => {
     });
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
-    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Activity" }));
     fireEvent.click(await screen.findByText("fan-out-payload"));
 
     fireEvent.click(await screen.findByRole("button", { name: /Retry 1 dead-lettered/ }));
@@ -404,7 +404,7 @@ describe("Bulk retry of dead-lettered Deliveries (issue #53)", () => {
   it("Escape cancels the confirm region without retrying", async () => {
     stubCommon();
     renderRoutes(`/channels/${CHANNEL_ID}`);
-    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Activity" }));
     fireEvent.click(await screen.findByText("fan-out-payload"));
 
     const trigger = await screen.findByRole("button", { name: /Retry 2 dead-lettered/ });

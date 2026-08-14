@@ -113,7 +113,7 @@ describe("Channel routes accept a slug (issue #56)", () => {
     renderRoutes(`/channels/${SLUG}`);
 
     expect(await screen.findByText(SLUG)).toBeTruthy();
-    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Activity" }));
     expect(await screen.findByText("hello-world")).toBeTruthy();
   });
 
@@ -123,7 +123,7 @@ describe("Channel routes accept a slug (issue #56)", () => {
     renderRoutes(`/channels/${SLUG}/activity/${BROADCAST_ID}?filter=failed`);
 
     expect(await screen.findByText(SLUG)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Activity" }).className).toContain("tab-active");
+    expect(screen.getByRole("link", { name: "Activity" }).className).toContain("tab-active");
     expect(await screen.findByText(/hello-world-body|hello-world/)).toBeTruthy();
   });
 
@@ -136,9 +136,9 @@ describe("Channel routes accept a slug (issue #56)", () => {
     // Visiting by id stays on the id in the address bar (MemoryRouter has no
     // real `window.location`, so this is asserted via the rendered tab link
     // instead — see the next test for the id preserved through navigation).
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Endpoints" }).className).toContain("tab-active");
+      expect(screen.getByRole("link", { name: "Endpoints" }).className).toContain("tab-active");
     });
   });
 
@@ -258,12 +258,17 @@ describe("a route segment shaped like a UUID but rejected by the API (issue #57)
     expect(await screen.findByRole("heading", { name: "Channel not found" })).toBeTruthy();
     expect(screen.queryByText(/channelId must be a UUID/)).toBeNull();
     expect(screen.getByRole("link", { name: /Back to Channels/i })).toBeTruthy();
-    // A broken address is a failure, not an empty list: the panel takes the
-    // Lamp Cut error treatment and must not borrow the dashed empty-state well
-    // that `EmptyState` still owns for a genuinely empty list (issue #57).
-    const alert = screen.getByRole("alert");
-    expect(alert.className).toContain("error-text");
-    expect(alert.className).not.toContain("empty-state");
+    // Nothing failed here — the address just never named a view — so the
+    // message takes the `.advisory` treatment (Ink, no `role="alert"`), not
+    // the Lamp Cut error banner that promises a retryable fault, and it must
+    // not borrow the dashed empty-state well that `EmptyState` still owns for
+    // a genuinely empty list (issue #57).
+    expect(screen.queryByRole("alert")).toBeNull();
+    const message = screen.getByText(/may have been deleted/i).closest("p");
+    expect(message?.className).toContain("advisory");
+    expect(message?.className).not.toContain("empty-state");
+    // The 404 sits on a plate like every other screen.
+    expect(message?.closest(".plate")).toBeTruthy();
   });
 
   it("stops polling once the API rejects the id, same as a 404", async () => {

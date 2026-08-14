@@ -88,11 +88,6 @@ export function ChannelDetailPage() {
     }
   }, [channel, tab]);
 
-  const goToTab = useCallback(
-    (nextTab: Tab) => navigate(`/channels/${routeChannelId}/${nextTab}`),
-    [navigate, routeChannelId],
-  );
-
   /*
    * A slug rename retires the slug this page may itself be addressed by. Left
    * alone, the very page doing the renaming would flip to "Channel not found"
@@ -183,16 +178,26 @@ export function ChannelDetailPage() {
           <nav className="tabs">
             {TABS.map((candidateTab) => {
               const Glyph = TAB_ICON[candidateTab];
+              const active = tab === candidateTab;
               return (
-                <button
+                // A tab that changes the URL is a navigation control, not a
+                // button that happens to look like one: an `<a>` gets
+                // cmd-click, middle-click, "open in new tab", and "copy link
+                // address" for free, none of which a `<button>` can offer no
+                // matter how it is styled (DESIGN.md's "what it does decides
+                // what it is"). `aria-current="page"` carries the selected
+                // state for assistive tech the same way `.tab-active` carries
+                // it visually, since a link has no notion of "active" of its
+                // own.
+                <Link
                   key={candidateTab}
-                  type="button"
-                  className={`tab ${tab === candidateTab ? "tab-active" : ""}`}
-                  onClick={() => goToTab(candidateTab)}
+                  to={`/channels/${routeChannelId}/${candidateTab}`}
+                  className={`tab ${active ? "tab-active" : ""}`}
+                  aria-current={active ? "page" : undefined}
                 >
                   <Glyph size={13} strokeWidth={2} aria-hidden="true" />
                   {TAB_LABEL[candidateTab]}
-                </button>
+                </Link>
               );
             })}
           </nav>

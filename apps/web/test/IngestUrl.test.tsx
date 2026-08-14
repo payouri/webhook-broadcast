@@ -75,7 +75,7 @@ describe("Ingest URL visibility (issue #47)", () => {
     // The Endpoints tab has nothing to do with Broadcast activity, yet the
     // ingest URL is present here too — it lives on the Channel, not the
     // Activity empty state.
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
 
     expect(await screen.findByText(ingestUrl("orders"))).toBeTruthy();
   });
@@ -198,7 +198,7 @@ describe("Ingest URL visibility (issue #47)", () => {
 
     it("shows no warning while the slug is untouched", async () => {
       renderRoutes(`/channels/${CHANNEL_ID}`);
-      fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+      fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
 
       await screen.findByDisplayValue("orders");
       expect(screen.queryByText(/Renaming the slug changes the ingest URL/)).toBeNull();
@@ -206,7 +206,7 @@ describe("Ingest URL visibility (issue #47)", () => {
 
     it("shows the future URL and a breakage warning once the slug is edited", async () => {
       renderRoutes(`/channels/${CHANNEL_ID}`);
-      fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+      fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
 
       const slugInput = await screen.findByLabelText("Slug");
       fireEvent.change(slugInput, { target: { value: "orders-v2" } });
@@ -219,7 +219,7 @@ describe("Ingest URL visibility (issue #47)", () => {
 
     it("clears the warning once the slug is edited back to its saved value", async () => {
       renderRoutes(`/channels/${CHANNEL_ID}`);
-      fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+      fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
 
       const slugInput = await screen.findByLabelText("Slug");
       fireEvent.change(slugInput, { target: { value: "orders-v2" } });
@@ -248,7 +248,7 @@ describe("Ingest URL visibility (issue #47)", () => {
       });
 
       renderRoutes(`/channels/${CHANNEL_ID}`);
-      fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+      fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
 
       // Visible before any mint happens — not only after the fact.
       expect(
@@ -282,7 +282,7 @@ describe("Ingest URL visibility (issue #47)", () => {
       });
 
       renderRoutes(`/channels/${CHANNEL_ID}`);
-      fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+      fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
       fireEvent.click(await screen.findByRole("button", { name: "Mint new token" }));
 
       expect(await screen.findByText("wbt_secret-plaintext")).toBeTruthy();

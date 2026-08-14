@@ -125,7 +125,7 @@ describe("Channel Detail — Endpoints tab", () => {
   it("lists existing Endpoints under the Endpoints tab", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
 
     expect(await screen.findByText("Primary")).toBeTruthy();
     expect(screen.getByText("https://example.com/hook")).toBeTruthy();
@@ -143,17 +143,35 @@ describe("Channel Detail — Endpoints tab", () => {
     ];
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
 
     expect(await screen.findByText("Auto-disabled")).toBeTruthy();
     expect(screen.getByText(/50% ok \(24h\)/)).toBeTruthy();
     expect(screen.getByText(/p95 120ms/)).toBeTruthy();
   });
 
+  it("spends the content column on the New Endpoint form instead of the prose measure", async () => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
+
+    // Purely visual, so nothing else observable would fail if an edit dropped
+    // it. The New Endpoint plate opts out of the 72ch prose cap; the form it
+    // holds already pairs Name and Timeout, which is what a form plate owes the
+    // width it takes (DESIGN.md §Plates and wells).
+    const legend = Array.from(document.querySelectorAll(".section-title")).find(
+      (node) => (node.textContent ?? "").trim() === "New Endpoint",
+    );
+    const plate = legend?.closest(".plate");
+    expect(plate).toBeTruthy();
+    expect(plate?.className).toContain("plate-wide");
+    expect(plate?.querySelector(".field-pair")).toBeTruthy();
+  });
+
   it("creates a new Endpoint from the Endpoints tab form", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     await screen.findByText("Primary");
 
     fireEvent.change(screen.getByLabelText("URL", { selector: "#endpoint-url-new" }), {
@@ -176,7 +194,7 @@ describe("Channel Detail — Endpoints tab", () => {
   it("edits an existing Endpoint in place", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     fireEvent.click(await screen.findByText("Primary"));
 
     const nameInput = await screen.findByLabelText("Name", {
@@ -202,7 +220,7 @@ describe("Channel Detail — Endpoints tab", () => {
   it("keeps one filled primary while the Endpoint edit well is open", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     const addEndpoint = await screen.findByRole("button", { name: "Add Endpoint" });
     expect(addEndpoint.className).toContain("control-primary");
 
@@ -225,7 +243,7 @@ describe("Channel Detail — Endpoints tab", () => {
   it("leaves Add Endpoint pressable with an empty URL", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     await screen.findByText("Primary");
 
     const urlField = screen.getByLabelText("URL", { selector: "#endpoint-url-new" });
@@ -241,7 +259,7 @@ describe("Channel Detail — Endpoints tab", () => {
   it("states an Endpoint row's disclosure at rest and moves focus into the edit form on open", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     const row = (await screen.findByText("Primary")).closest("button")!;
 
     // The chevron and `aria-expanded` are shapes at rest (DESIGN.md #5 Rows),
@@ -270,7 +288,7 @@ describe("Channel Detail — Endpoints tab", () => {
   it("closes the Endpoint edit form on Escape, the same as Cancel, and returns focus to the row", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     fireEvent.click(await screen.findByText("Primary"));
 
     const urlInput = await screen.findByLabelText("URL", {
@@ -293,7 +311,7 @@ describe("Channel Detail — Endpoints tab", () => {
   it("returns focus to the Endpoint row when Cancel is pressed in the edit form", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     fireEvent.click(await screen.findByText("Primary"));
 
     await screen.findByLabelText("URL", { selector: `#endpoint-url-${ENDPOINT_ID}` });
@@ -311,7 +329,7 @@ describe("Channel Detail — Endpoints tab", () => {
   it("opens the Endpoint editor by clicking the disclosure chevron itself", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     const row = (await screen.findByText("Primary")).closest("button")!;
     const chevron = row.querySelector(".row-chevron svg")!;
     expect(chevron).toBeTruthy();
@@ -336,7 +354,7 @@ describe("Channel Detail — Endpoints tab", () => {
     ];
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     await screen.findByText("Auto-disabled");
 
     // The Re-enable control sits outside the row's own clickable region (a
@@ -356,7 +374,7 @@ describe("Channel Detail — Endpoints tab", () => {
     ];
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     fireEvent.click(await screen.findByText("Primary"));
 
     const nameInput = await screen.findByLabelText("Name", {
@@ -405,7 +423,7 @@ describe("Channel Detail — Endpoints tab", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     await screen.findByText("Primary");
 
     const endpointCalls = () =>
@@ -435,7 +453,7 @@ describe("Channel Detail — Endpoints tab", () => {
     ];
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     await screen.findByText("Auto-disabled");
 
     // Names the failure streak, the (unnumbered) threshold, and states it
@@ -483,7 +501,7 @@ describe("Channel Detail — Endpoints tab", () => {
   it("is silent on a malformed URL until the field is left, then marks it in the schema's own words", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     await screen.findByText("Primary");
 
     const urlInput = screen.getByLabelText("URL", { selector: "#endpoint-url-new" });
@@ -514,7 +532,7 @@ describe("Channel Detail — Endpoints tab", () => {
   it('refuses {"a": 1} as Headers in the browser, which the old hand-rolled check let through', async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     await screen.findByText("Primary");
 
     const headersInput = screen.getByLabelText("Headers (JSON)", {
@@ -537,7 +555,7 @@ describe("Channel Detail — Endpoints tab", () => {
   it("marks every invalid field at once on submit and moves focus to the first of them", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     await screen.findByText("Primary");
 
     fireEvent.change(screen.getByLabelText("URL", { selector: "#endpoint-url-new" }), {
@@ -596,7 +614,7 @@ describe("Channel Detail — Endpoints tab", () => {
     });
 
     renderRoutes(`/channels/${CHANNEL_ID}`);
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
 
     expect(await screen.findByRole("alert")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();

@@ -181,7 +181,7 @@ describe("dashboard smoke flow", () => {
     render(<App />);
 
     fireEvent.click(await screen.findByText("orders"));
-    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
     fireEvent.click(await screen.findByRole("button", { name: "Delete Channel" }));
     fireEvent.click(await screen.findByRole("button", { name: "Confirm delete" }));
 
@@ -220,16 +220,24 @@ describe("dashboard smoke flow", () => {
     window.history.pushState({}, "", `/channels/${channelId}/endpoints`);
     render(<App />);
 
-    expect(await screen.findByRole("button", { name: "Endpoints" })).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "Endpoints" })).toBeTruthy();
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Endpoints" }).className).toContain("tab-active");
+      const endpointsTab = screen.getByRole("link", { name: "Endpoints" });
+      expect(endpointsTab.className).toContain("tab-active");
+      // Tabs are links (cmd-click, middle-click, open-in-new-tab), so
+      // `aria-current` is what carries the selected state to assistive tech
+      // in place of the visual-only `.tab-active` class.
+      expect(endpointsTab.getAttribute("aria-current")).toBe("page");
+      expect(
+        screen.getByRole("link", { name: "Activity" }).getAttribute("aria-current"),
+      ).toBeNull();
     });
     await waitFor(() => {
       expect(document.title).toBe("orders · Endpoints · webhook-broadcast");
     });
 
     // Switching tabs updates the address and the title together.
-    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("link", { name: "Settings" }));
     await waitFor(() => {
       expect(window.location.pathname).toBe(`/channels/${channelId}/settings`);
     });
@@ -306,12 +314,12 @@ describe("dashboard smoke flow", () => {
       expect(window.location.pathname).toBe("/channels/orders");
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Endpoints" }));
     await waitFor(() => {
       expect(window.location.pathname).toBe("/channels/orders/endpoints");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("link", { name: "Settings" }));
     await waitFor(() => {
       expect(window.location.pathname).toBe("/channels/orders/settings");
     });
@@ -406,8 +414,7 @@ describe("dashboard smoke flow", () => {
     window.history.pushState({}, "", `/channels/${missingId}`);
     render(<App />);
 
-    const message = await screen.findByRole("alert");
-    expect(message.textContent?.toLowerCase()).toContain("not found");
+    const message = await screen.findByText(/may have been deleted/i);
     expect(message.textContent?.toLowerCase()).not.toContain("oops");
 
     const backLink = screen.getByRole("link", { name: /Back to Channels/i });
@@ -477,8 +484,7 @@ describe("dashboard smoke flow", () => {
     window.history.pushState({}, "", "/channels");
     render(<App />);
 
-    const message = await screen.findByRole("alert");
-    expect(message.textContent?.toLowerCase()).toContain("does not match any view");
+    const message = await screen.findByText(/does not match any view/i);
     expect(message.textContent?.toLowerCase()).not.toContain("oops");
     expect(document.title).toBe("Page not found · webhook-broadcast");
 
@@ -510,7 +516,7 @@ describe("dashboard smoke flow", () => {
     try {
       window.history.pushState({}, "", `/channels/${missingId}`);
       render(<App />);
-      await screen.findByRole("alert");
+      await screen.findByText(/may have been deleted/i);
 
       const afterFirstLoad = detailRequests;
       // Well past several ~5s ADR 0004 poll intervals: a 404 is terminal, so the

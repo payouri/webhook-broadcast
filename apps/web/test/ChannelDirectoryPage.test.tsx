@@ -250,6 +250,29 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
       expect(document.querySelector('[role="dialog"]')).toBeNull();
     });
 
+    it("spends the content column instead of capping the form at the prose measure", async () => {
+      stubEmptyDirectory();
+      renderRoutes("/");
+      await flushAsync();
+
+      // Purely visual, so nothing else observable would fail if an edit dropped
+      // it: the plate opts out of the 72ch prose cap, and the field pair is what
+      // it owes the width it takes (DESIGN.md §Plates and wells). Pinned
+      // together because either alone is the failure — a capped pair wastes a
+      // third of the column, an uncapped stack stretches one input across all
+      // of it.
+      const slugInput = screen.getByLabelText("Slug");
+      const plate = slugInput.closest(".plate");
+      expect(plate).toBeTruthy();
+      expect(plate?.className).toContain("plate-wide");
+
+      const pair = slugInput.closest(".field-pair");
+      expect(pair).toBeTruthy();
+      // Both short fields share the one line, rather than the pair wrapping
+      // only the slug.
+      expect(pair?.contains(screen.getByLabelText("Description"))).toBe(true);
+    });
+
     it("labels each field with a visible label element, not an aria-label", async () => {
       stubEmptyDirectory();
       renderRoutes("/");
