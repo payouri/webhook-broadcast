@@ -23,9 +23,18 @@
   --face: oklch(99.2% 0.002 195); /* raised faceplate, rows, controls */
   --well: oklch(94% 0.006 195); /* recessed: inputs, payloads, expanded detail */
 
-  /* Scored lines. Every boundary in the system is one of these two, at 1px. */
+  /* Scored lines. Every boundary in the system is one of these three, at 1px.
+     `--score` draws the grooves and dividers (section legend, tab strip).
+     `--score-strong` is the heavier non-component border: a hovered row's
+     edge, a payload block, an empty state — surfaces that must survive
+     against `--well` but are not a component's own boundary, so they do not
+     carry the 3:1 non-text-contrast obligation. `--score-control` is the one
+     functional boundary token: it is what a control, field, switch plate, or
+     lamp bezel draws at rest, and it is designed to clear 3:1 against both
+     `--face` and `--well` (see DESIGN.md §2). */
   --score: oklch(88% 0.007 195); /* default border and divider */
-  --score-strong: oklch(79% 0.009 195); /* control resting border, groove */
+  --score-strong: oklch(79% 0.009 195); /* row hover, payload, empty state */
+  --score-control: oklch(61% 0.011 195); /* control, field, switch, lamp bezel */
 
   --ink: oklch(23% 0.01 195); /* primary text */
   --ink-muted: oklch(50% 0.01 195); /* metadata, engraved labels, placeholders */
@@ -139,6 +148,7 @@
     --well: oklch(16.5% 0.008 195);
     --score: oklch(31% 0.01 195);
     --score-strong: oklch(41% 0.011 195);
+    --score-control: oklch(54% 0.011 195);
     --ink: oklch(93% 0.004 195);
     --ink-muted: oklch(67% 0.008 195);
 
@@ -166,6 +176,7 @@
   --well: oklch(16.5% 0.008 195);
   --score: oklch(31% 0.01 195);
   --score-strong: oklch(41% 0.011 195);
+  --score-control: oklch(54% 0.011 195);
   --ink: oklch(93% 0.004 195);
   --ink-muted: oklch(67% 0.008 195);
 
@@ -507,7 +518,7 @@ button {
      inline form lines up exactly rather than sitting 1.4px short of it. */
   min-height: var(--control-height);
   padding: 8px 14px;
-  border: 1px solid var(--score-strong);
+  border: 1px solid var(--score-control);
   border-radius: var(--radius-control);
   background: var(--face);
   color: var(--ink);
@@ -676,7 +687,7 @@ textarea {
   width: 100%;
   min-height: var(--control-height);
   padding: 8px 10px;
-  border: 1px solid var(--score-strong);
+  border: 1px solid var(--score-control);
   border-radius: var(--radius-control);
   background: var(--well);
   color: var(--ink);
@@ -751,7 +762,7 @@ input[type="number"] {
   flex-shrink: 0;
   width: 34px;
   height: 20px;
-  border: 1px solid var(--score-strong);
+  border: 1px solid var(--score-control);
   border-radius: var(--radius-control);
   background: var(--well);
   box-shadow: inset 0 1px 2px var(--lip-shade);
@@ -764,7 +775,7 @@ input[type="number"] {
   left: 2px;
   width: 14px;
   height: 14px;
-  border: 1px solid var(--score-strong);
+  border: 1px solid var(--score-control);
   border-radius: 1px;
   background: var(--face);
   box-shadow:
@@ -871,7 +882,7 @@ input[type="number"] {
 /* Lit: the glass carries its tone. */
 .lamp-lit .lamp-glass {
   background: var(--lamp-glass-fill, var(--well));
-  border-color: var(--lamp-glass-edge, var(--score-strong));
+  border-color: var(--lamp-glass-edge, var(--score-control));
   color: var(--lamp-glass-ink, var(--ink));
 }
 
@@ -879,7 +890,7 @@ input[type="number"] {
    with color and label both set aside. */
 .lamp-hollow .lamp-glass {
   background: none;
-  border-color: var(--lamp-glass-edge, var(--score-strong));
+  border-color: var(--lamp-glass-edge, var(--score-control));
   color: var(--lamp-glass-ink, var(--ink-muted));
 }
 
@@ -899,7 +910,7 @@ input[type="number"] {
 
 .lamp-neutral {
   --lamp-glass-fill: var(--well);
-  --lamp-glass-edge: var(--score-strong);
+  --lamp-glass-edge: var(--score-control);
   --lamp-glass-ink: var(--ink);
   color: var(--ink-muted);
 }

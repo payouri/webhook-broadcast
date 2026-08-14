@@ -7,6 +7,7 @@ colors:
   well: "oklch(94% 0.006 195)"
   score: "oklch(88% 0.007 195)"
   score-strong: "oklch(79% 0.009 195)"
+  score-control: "oklch(61% 0.011 195)"
   ink: "oklch(23% 0.010 195)"
   ink-muted: "oklch(50% 0.010 195)"
   anodize: "oklch(48% 0.115 195)"
@@ -23,6 +24,7 @@ colorsDark:
   well: "oklch(16.5% 0.008 195)"
   score: "oklch(31% 0.010 195)"
   score-strong: "oklch(41% 0.011 195)"
+  score-control: "oklch(54% 0.011 195)"
   ink: "oklch(93% 0.004 195)"
   ink-muted: "oklch(67% 0.008 195)"
   anodize: "oklch(68% 0.105 195)"
@@ -87,7 +89,7 @@ components:
   control:
     backgroundColor: "{colors.face}"
     textColor: "{colors.ink}"
-    borderColor: "{colors.score-strong}"
+    borderColor: "{colors.score-control}"
     typography: "{typography.label}"
     rounded: "{rounded.control}"
     padding: "8px 14px"
@@ -111,14 +113,14 @@ components:
   field:
     backgroundColor: "{colors.well}"
     textColor: "{colors.ink}"
-    borderColor: "{colors.score-strong}"
+    borderColor: "{colors.score-control}"
     typography: "{typography.body}"
     rounded: "{rounded.control}"
     padding: "8px 10px"
     boxShadow: "inset 0 1px 2px {lip.shade}"
   switch-plate:
     backgroundColor: "{colors.well}"
-    borderColor: "{colors.score-strong}"
+    borderColor: "{colors.score-control}"
     rounded: "{rounded.control}"
     size: "34px 20px"
   switch-plate-checked:
@@ -168,12 +170,12 @@ components:
     typography: "{typography.engraved}"
   lamp-neutral:
     glassFill: "{colors.well}"
-    glassEdge: "{colors.score-strong}"
+    glassEdge: "{colors.score-control}"
     textColor: "{colors.ink-muted}"
     typography: "{typography.engraved}"
   lamp-hollow:
     glassFill: "transparent"
-    glassEdge: "{colors.score-strong}"
+    glassEdge: "{colors.score-control}"
 ---
 
 # Design System: webhook-broadcast
@@ -269,9 +271,17 @@ palette: they attach to state and nothing else.
   the lightest value in the light theme and it is still not white.
 - **Well** (`oklch(94% 0.006 195)`): recessed content. Fields, payload blocks, expanded detail,
   hovered rows, empty states. Always darker than Face, in **both** themes.
-- **Score** (`oklch(88% 0.007 195)`): every default border and divider, always 1px.
-- **Score Strong** (`oklch(79% 0.009 195)`): a control's or field's resting border, and borders that
-  must survive against Well.
+- **Score** (`oklch(88% 0.007 195)`): every default border and divider, always 1px. This is what the
+  grooves are drawn in — the section legend's rule, the divider under the tab strip. Measures
+  `1.40:1` against Face in the light theme and `1.24:1` in the dark one; it is a pure divider and
+  carries no non-text-contrast obligation.
+- **Score Strong** (`oklch(79% 0.009 195)` light, `oklch(41% 0.011 195)` dark): the heavier border
+  that is still not a component's edge — a hovered row, a payload block, an empty state's dashed
+  well. These need to survive against Well rather than state an affordance, so this token is not held
+  to the `3:1` non-text-contrast target.
+- **Score Control** (`oklch(61% 0.011 195)` light, `oklch(54% 0.011 195)` dark): the resting boundary
+  of every control, field, switch plate, and lamp bezel. See "The Component Boundary Contrast
+  Decision" below for the ratios it was designed against.
 - **Ink** / **Ink Muted**: primary text; metadata, engraved legends, and placeholders.
 
 ### The lip
@@ -298,6 +308,47 @@ lamp is correct.
 **The Both-Themes Rule.** A color introduced in one theme is not introduced until it exists in the
 other. Dark is not an inversion: grounds compress, the accent lifts, the lamps lift, and the lip
 flips.
+
+### The Component Boundary Contrast Decision
+
+`PRODUCT.md` records that WCAG 2.2 AA was considered and deliberately not adopted as a requirement,
+to be followed "where it costs nothing." Component-boundary contrast cost something visible — a
+step from `79%`/`41%` lightness to `61%`/`54%` reads as a harder-edged plate — so the decision below
+was made deliberately rather than by checklist.
+
+Before the split, `Score Strong` did two jobs at once: the resting border of every control, field,
+switch plate, and lamp bezel, _and_ the heavier non-component border on a hovered row, a payload
+block, and an empty state. Measured against the two grounds a control can sit on:
+
+| Pair                   | Light    | Dark     |
+| ---------------------- | -------- | -------- |
+| `Score Strong` on Face | `1.88:1` | `1.84:1` |
+| `Score Strong` on Well | `1.62:1` | `2.19:1` |
+
+Both fall short of WCAG 2.2 §1.4.11's `3:1` for a UI component's boundary, and DESIGN.md §5's own
+claim — "every control states its affordance at rest… a border that only appears on hover is a
+defect" — was not true of a border this close to invisible in normal office light.
+
+The chosen fix: split the token. `Score Strong` keeps its exact value and its three non-component
+call sites — the hovered row's border, `.payload`, `.empty-state`. A new token, `Score Control`,
+takes over the resting boundary of `.control`, `input`/`textarea`, `.switch-plate`,
+`.switch-plunger`, and every lamp bezel — the surfaces `§1.4.11` actually covers. It was designed to
+clear `3:1` against **both** Face and Well, not just the nearer one:
+
+| Pair                    | Light (`61%`) | Dark (`54%`) |
+| ----------------------- | ------------- | ------------ |
+| `Score Control` on Face | `3.69:1`      | `3.22:1`     |
+| `Score Control` on Well | `3.17:1`      | `3.82:1`     |
+
+`61%` was taken rather than the `62%` the audit suggested: at `62%` the Well pair lands on `3.05:1`,
+close enough to the line that a later tweak to Well would break it, and `61%` buys margin without
+reading as a harder edge.
+
+No groove or divider got darker, because the grooves are drawn in `Score`, not `Score Strong` —
+`.section-title::after` and the `.tabs` bottom border both take `Score`, and it was left untouched.
+The lit and hollow lamp forms stay distinguishable at the new value because the distinction is
+carried by fill (`Well`-toned vs. transparent), not by the edge color, and both lamp forms share the
+same edge.
 
 ## 3. Typography
 
@@ -400,7 +451,7 @@ while `.channel-row` inherited the primary button's hover fill and turned an ent
 
 - **Shape:** 2px radius, 8px by 14px, Label typography, sentence case, sized by its own label and
   never stretched by a flex or grid parent.
-- **Default:** Face ground, 1px Score Strong, inner top highlight, 1px shade beneath. Present at
+- **Default:** Face ground, 1px Score Control, inner top highlight, 1px shade beneath. Present at
   rest.
 - **Primary:** Anodize ground, Anodize Ink text, weight 600. Reserved for the single committing
   action in a plate: Save changes, Add Endpoint, Mint new token, Retry, Sign in. One per plate,
@@ -565,7 +616,7 @@ already delimited row by row in a second layer of chrome.
 
 ### Fields
 
-- **Field:** Well ground, 1px Score Strong (visible at rest, which is the point), 2px radius, 8px by
+- **Field:** Well ground, 1px Score Control (visible at rest, which is the point), 2px radius, 8px by
   10px, Body typography, inner shade falling from the top edge. The inverse of a control.
 - **Label:** the Engraved role, above the field, always present. No placeholder-as-label. Set tight to
   its own field (6px) and a full step from the next field (16px), so a label belongs visibly to what
