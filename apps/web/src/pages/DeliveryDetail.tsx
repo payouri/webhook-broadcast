@@ -31,9 +31,11 @@ function MissingStatusCode() {
 export function DeliveryDetail({
   delivery,
   onRetried,
+  onActivityChanged,
 }: {
   delivery: DeliveryItem;
   onRetried: () => void;
+  onActivityChanged?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [attempts, setAttempts] = useState<Attempt[] | null>(null);
@@ -68,6 +70,7 @@ export function DeliveryDetail({
       await api.retryDelivery(delivery.id);
       await loadAttempts();
       onRetried();
+      onActivityChanged?.();
     } catch (err) {
       setError(describeApiError(err, "Failed to retry Delivery"));
     } finally {

@@ -110,6 +110,49 @@ describe("DeliveryDetail — Attempt timeline and Retry action (issue #21)", () 
     });
   });
 
+  it("reports a retry as an Activity change, and only when the retry succeeded (issue #72)", async () => {
+    // `onRetried` refreshes the Broadcast detail this row sits in;
+    // `onActivityChanged` refreshes the Activity list the parent row's lamp
+    // reads. A retry moves the Delivery out of `dead_lettered`, so it changes
+    // both — but a failed retry changed nothing and must announce nothing.
+    let retryStatus = 500;
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+      if (path === `/deliveries/${DELIVERY_ID}/attempts`) {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      if (path === `/deliveries/${DELIVERY_ID}/retry` && method === "POST") {
+        return Promise.resolve(
+          retryStatus === 200
+            ? jsonResponse(200, baseDelivery({ status: "pending" }))
+            : jsonResponse(500, { error: { message: "worker unreachable" } }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    const onActivityChanged = vi.fn();
+    render(
+      <DeliveryDetail
+        delivery={baseDelivery()}
+        onRetried={() => undefined}
+        onActivityChanged={onActivityChanged}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Orders webhook/ }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    await screen.findByRole("alert");
+    expect(onActivityChanged).not.toHaveBeenCalled();
+
+    retryStatus = 200;
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => {
+      expect(onActivityChanged).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("announces a missing status code by meaning, not as a bare dash", async () => {
     fetchMock.mockImplementation((input: string | URL | Request) => {
       const path = requestPath(input);

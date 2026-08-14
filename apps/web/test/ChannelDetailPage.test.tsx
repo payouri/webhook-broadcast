@@ -403,6 +403,93 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
     expect(await screen.findByText(/Replayed/)).toBeTruthy();
   });
 
+  it("updates the parent Broadcast's lamp in the same interaction as a Delivery retry (issue #72)", async () => {
+    const broadcastId = "44444444-4444-4444-4444-444444444444";
+    const deliveryId = "66666666-6666-6666-6666-666666666666";
+    // The lamp reads the Activity list, not the Broadcast detail. Both sources
+    // flip together the moment the retry is accepted, so a lamp still reading
+    // "1 dead-lettered" after the interaction can only mean the list was never
+    // refetched — which is exactly the defect. No fake timer is advanced here,
+    // so the ~5s poll cannot heal it for us.
+    let retried = false;
+
+    function delivery() {
+      return {
+        id: deliveryId,
+        endpointId: "77777777-7777-7777-7777-777777777777",
+        endpointName: "Orders webhook",
+        endpointUrl: "https://example.com/hook",
+        status: retried ? "pending" : "dead_lettered",
+        attemptCount: 2,
+        lastStatusCode: 503,
+        lastDurationMs: 42,
+        lastError: "service unavailable",
+        updatedAt: "2026-08-10T12:00:00.000Z",
+      };
+    }
+
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            items: [
+              {
+                id: broadcastId,
+                channelId: CHANNEL_ID,
+                receivedAt: "2026-08-10T12:00:00.000Z",
+                bodyPreview: "hello-world",
+                fanout: retried
+                  ? { total: 1, succeeded: 0, failed: 0, deadLettered: 0, pending: 1 }
+                  : { total: 1, succeeded: 0, failed: 0, deadLettered: 1, pending: 0 },
+              },
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts/${broadcastId}` && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            id: broadcastId,
+            channelId: CHANNEL_ID,
+            receivedAt: "2026-08-10T12:00:00.000Z",
+            contentType: "application/json",
+            body: "hello-world",
+            deliveries: [delivery()],
+          }),
+        );
+      }
+      if (path === `/deliveries/${deliveryId}/attempts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      if (path === `/deliveries/${deliveryId}/retry` && method === "POST") {
+        retried = true;
+        return Promise.resolve(jsonResponse(200, delivery()));
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByText("hello-world"));
+    expect(await screen.findByText("1 dead-lettered, 0/1 succeeded")).toBeTruthy();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Orders webhook/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+
+    // The child reads `pending` and the parent lamp agrees, in one interaction.
+    expect(await screen.findByText("pending")).toBeTruthy();
+    expect(await screen.findByText("1 pending, 0/1 succeeded")).toBeTruthy();
+    expect(screen.queryByText("1 dead-lettered, 0/1 succeeded")).toBeNull();
+  });
+
   it("polls Activity every ~5s", async () => {
     // shouldAdvanceTime: react-router's location subscription schedules through
     // the same low-priority scheduler React uses, which needs real time to tick

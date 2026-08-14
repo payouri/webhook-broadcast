@@ -301,6 +301,7 @@ export function BroadcastDetailPanel({
                     key={delivery.id}
                     delivery={delivery}
                     onRetried={() => void broadcastQuery.refetch()}
+                    {...(onActivityChanged ? { onActivityChanged } : {})}
                   />
                 ))}
               </ul>
