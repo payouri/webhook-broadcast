@@ -1284,3 +1284,88 @@ describe("ChannelDetailPage — Settings channel disable guard (issue #46)", () 
     expect(screen.queryByText(/Disabling this Channel stops fan-out/)).toBeNull();
   });
 });
+
+describe("ChannelDetailPage — Destructive at rest (issue #80)", () => {
+  const TOKEN_ID = "88888888-8888-8888-8888-888888888888";
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    stubFetchMock(fetchMock);
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(
+            200,
+            baseChannel([
+              { id: TOKEN_ID, prefix: "wbt_abcd1234", createdAt: "2026-08-10T12:00:00.000Z" },
+            ]),
+          ),
+        );
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      if (path === `/channels/${CHANNEL_ID}/endpoints` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  // DESIGN.md §5 "Destructive at rest": an irreversible control says so before the
+  // press, not only in the confirm region that follows it. These assert the class
+  // because the treatment is entirely visual — nothing else observable would fail
+  // if a future edit dropped it back to a plain `.control`.
+  it("gives the resting Delete Channel and Revoke triggers the destructive treatment", async () => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+
+    const deleteTrigger = await screen.findByRole("button", { name: "Delete Channel" });
+    expect(deleteTrigger.className).toContain("control-destructive");
+
+    const revokeTrigger = await screen.findByRole("button", { name: "Revoke" });
+    expect(revokeTrigger.className).toContain("control-destructive");
+  });
+
+  // The treatment is a signal added *before* the press; it does not replace the
+  // guard after it, and it does not restyle that guard's own commit button.
+  it("leaves the confirm regions on the Commit treatment", async () => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Channel" }));
+    const confirmDelete = await screen.findByRole("button", { name: "Confirm delete" });
+    expect(confirmDelete.className).toContain("control-commit");
+    expect(confirmDelete.className).not.toContain("control-destructive");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Revoke" }));
+    const confirmRevoke = await screen.findByRole("button", { name: "Confirm revoke" });
+    expect(confirmRevoke.className).toContain("control-commit");
+    expect(confirmRevoke.className).not.toContain("control-destructive");
+  });
+
+  // The Quarantine Rule forbids a lamp color on a control; the treatment must not
+  // smuggle one in via a status/tone class.
+  it("does not reach for a lamp tone on the destructive controls", async () => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+
+    for (const name of ["Delete Channel", "Revoke"]) {
+      const trigger = await screen.findByRole("button", { name });
+      expect(trigger.className).not.toMatch(/\b(lamp|tone-|is-danger|danger)\b/);
+    }
+  });
+});

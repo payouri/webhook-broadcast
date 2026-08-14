@@ -727,6 +727,34 @@ button {
   color: var(--anodize-pressed);
 }
 
+/*
+ * Destructive at rest (issue #80, DESIGN.md #5 "Destructive at rest"): an
+ * irreversible control — Delete Channel, Revoke token — states that at rest,
+ * before the confirm region exists. The Quarantine Rule forbids a lamp color
+ * on a control, so gravity is carried by border and weight instead of hue.
+ * Ink Muted at 1px is otherwise `.control:hover`'s border; giving it here
+ * permanently is deliberate, not a collision with hover — it means this
+ * control already carries the weight a plain one only reaches once a
+ * pointer arrives. Ground stays Face Raised and text stays Ink: still the
+ * same object as Default, not the outlined Anodize of Commit, because
+ * irreversibility is a fact about the action and never the operator's own
+ * accent (The One Voice Rule).
+ */
+.control-destructive {
+  border-color: var(--ink-muted);
+  font-weight: 600;
+}
+
+/* Spending Ink Muted at rest costs this control the ordinary `.control:hover`
+   border, so hover escalates one step further, to full Ink — the only border
+   in the system that does. Without it a destructive control would answer a
+   pointer with the border it was already wearing and read as dead, which is
+   the one thing a destructive control may never do. Stated in DESIGN.md #5. */
+.control-destructive:hover:not(:disabled) {
+  background: var(--face-sunk);
+  border-color: var(--ink);
+}
+
 /* An icon-only control (theme, and nothing else today). Square, so the glyph
    sits on the plate's own center rather than off a label's optical center. */
 .control-icon {

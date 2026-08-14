@@ -110,6 +110,14 @@ components:
     textColor: "{colors.anodize}"
     borderColor: "{colors.anodize}"
     fontWeight: 600
+  control-destructive:
+    backgroundColor: "{colors.face}"
+    textColor: "{colors.ink}"
+    borderColor: "{colors.ink-muted}"
+    fontWeight: 600
+  control-destructive-hover:
+    backgroundColor: "{colors.well}"
+    borderColor: "{colors.ink}"
   field:
     backgroundColor: "{colors.well}"
     textColor: "{colors.ink}"
@@ -574,8 +582,32 @@ while `.channel-row` inherited the primary button's hover fill and turned an ent
   primary next to one already on screen (the Endpoint edit well's Save changes, beside Add
   Endpoint). Form carries the difference, the same way the lamps use it. Never a lamp color; The
   Quarantine Rule forbids red on a control.
+- **Destructive at rest:** Ink Muted border, weight 600 label, Face Raised ground
+  unchanged — the same object as Default, carrying more weight. Delete Channel, Revoke token, and
+  any control whose action cannot be undone carry it starting at rest, before the operator has
+  pressed anything, not only once a confirm region has armed it. The Quarantine Rule forbids a lamp
+  color here the same as everywhere else on a control, so gravity has to be carried by border and
+  weight instead of hue. Ink Muted at 1px is otherwise the value `.control:hover` reaches only once
+  a pointer has arrived; a destructive control is given that same weight permanently, so it already
+  reads as "an operator is about to act on this" before anyone has touched it, and the confirm
+  region that follows the press is a second guard rather than the first one. It is bold like Primary
+  and Commit, because irreversibility is exactly the kind of fact this document already spends
+  weight to rank, but it is Ink Muted rather than Anodize: The One Voice Rule reserves the accent for
+  what the operator is doing or has chosen, and a control's own destructiveness is a property of the
+  action, not a claim about who is acting, so it may not borrow the operator's own color. That same
+  reasoning is what keeps it out of the Commit form too — Commit is Anodize, outlined, and means "the
+  committing action in this region"; Destructive at rest is Ink Muted, still filled like Default, and
+  means "this one cannot be undone" whether or not it is also the region's commit. The two compose
+  rather than collide: the confirm region's own button stays `.control-commit` exactly as before,
+  because by the time it is on screen the operator has already read the warning this treatment
+  exists to give at rest. Spending Ink Muted at rest costs this control the ordinary Hover border,
+  so its hover escalates one step further, to full **Ink** — the only border in the system that
+  does. It has to: a control that answered a pointer with the border it was already wearing would
+  read as dead, and a destructive one is the last control that may read as unresponsive. Introduced
+  by issue #80.
 - **Hover:** ground goes to Face Sunk, border to Ink Muted. 150ms on `cubic-bezier(0.22, 1, 0.36, 1)`.
   Not Well: a control rests on Face Raised, and Well is only `1.06:1` off that in the light theme.
+  The one exception is Destructive at rest, which already wears Ink Muted and so escalates to Ink.
 - **Active:** the lip inverts to an inner shade, with **no transition** and no `transform`. Real
   hardware does not ease, and a control that moves also nudges its neighbours' baselines.
 - **Focus:** 2px Anodize ring at 2px offset, on every control, via `:focus-visible`.

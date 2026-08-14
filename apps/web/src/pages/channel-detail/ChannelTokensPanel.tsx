@@ -212,7 +212,10 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
                       }
                     }}
                     type="button"
-                    className="control"
+                    // Destructive at rest (DESIGN.md #5, issue #80): Ink Muted
+                    // border and bold label read as irreversible before the
+                    // press, not only in the confirm region that follows it.
+                    className="control control-destructive"
                     onClick={() => setConfirmingRevokeId(token.id)}
                   >
                     <ShieldOff size={13} strokeWidth={1.75} aria-hidden="true" />

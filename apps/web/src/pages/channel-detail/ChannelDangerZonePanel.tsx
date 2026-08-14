@@ -118,10 +118,13 @@ export function ChannelDangerZonePanel({
         </div>
       ) : (
         <div className="inline-form">
+          {/* Destructive at rest (DESIGN.md #5, issue #80): Ink Muted border and
+              bold label state that this is irreversible before the press, not
+              only in the confirm region that follows it. */}
           <button
             ref={triggerRef}
             type="button"
-            className="control"
+            className="control control-destructive"
             onClick={() => setConfirming(true)}
           >
             <Trash2 size={13} strokeWidth={1.75} aria-hidden="true" />
