@@ -289,6 +289,13 @@ palette: they attach to state and nothing else.
   An expanded Delivery and its payload are inside an already-expanded Broadcast, so `--well` — spent
   on the first level — cannot also describe the second. Always darker than Well, in **both** themes
   (The Inward Depth Rule).
+- **Well Deepest** (`oklch(85% 0.008 195)` light, `oklch(9% 0.008 195)` dark): third-level nesting.
+  An Attempt row sits inside the Well Deep an expanded Delivery already opened, and a Delivery row
+  already resting on Well Deep has to hover somewhere darker still. Always darker than Well Deep, in
+  **both** themes (The Inward Depth Rule). It is the last ground on the ladder: a fourth level of
+  nesting needs a new value rather than wrapping back around to Face. Metadata set in Ink Muted
+  measures `3.79:1` here against `5.84:1` on Face; `PRODUCT.md` declines AA as a requirement, and
+  reading the containment order is what this ground is spent on.
 - **Score** (`oklch(88% 0.007 195)`): every default border and divider, always 1px. This is what the
   grooves are drawn in — the section legend's rule, the divider under the tab strip. Measures
   `1.40:1` against Face in the light theme and `1.24:1` in the dark one; it is a pure divider and
@@ -468,9 +475,13 @@ The distinction is exact and it is the whole doctrine:
 - **Recessed** (a field, a well, a payload block, an empty state, a confirm region): `inset 0 1px
 2px` shade. Light falls into the cut.
 
-Containment reads inward, in this order: Plate page ground → Face faceplate → Face row → Well
-expanded detail → Well Deep, for detail nested a second level inside an already-expanded well (a
-Delivery, or a payload, inside an expanded Broadcast). Never lighter and lifted.
+Containment reads inward, in this order: Plate page ground → Face faceplate → Face top-level row →
+Well expanded detail → Well Deep, for detail nested a second level inside an already-expanded well
+(a Delivery row, or a payload, inside an expanded Broadcast) → Well Deepest, for detail nested a
+third level in (an Attempt row, inside the Well Deep an expanded Delivery opened). Never lighter and
+lifted. A row is not a reset point: it takes its ground from whatever well contains it, one step
+darker, the same as any other nested detail, rather than returning to Face at every level (issue
+#78).
 
 ### Named Rules
 

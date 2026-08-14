@@ -30,6 +30,10 @@
      to fall from. `--well-deep` is the second-level well: a payload or an
      expanded Delivery nested inside an already-expanded Broadcast goes one
      step darker again, since `--well` was already spent on the first level.
+     `--well-deepest` is the third: an Attempt row inside the Well Deep an
+     expanded Delivery already opened, and the hover tint of a row already
+     resting on `--well-deep`. It is the bottom of the ladder; nothing in the
+     product nests a fourth level.
      `--face-sunk` is what `--face-raised` darkens into when a control is
      hovered or pressed. It exists because moving the control's rest ground
      down to `--face-raised` shrank the old `face -> well` hover step to
@@ -44,6 +48,38 @@
   --face-sunk: oklch(90% 0.007 195); /* a control's material, hovered or pressed */
   --well: oklch(94% 0.006 195); /* recessed: inputs, payloads, expanded detail */
   --well-deep: oklch(90% 0.007 195); /* second-level nesting: payload, nested Delivery */
+  /* third-level nesting: an Attempt row, and a Delivery row's hover tint */
+  --well-deepest: oklch(85% 0.008 195);
+
+  /* A row's own ground, one step darker than whatever contains it (The Inward
+     Depth Rule applies to rows exactly as it does to containers, issue #78),
+     rather than the hardcoded `background: var(--face)` `.row` used to carry,
+     which made an Attempt row the brightest surface in the system while
+     sitting on the darkest container in it.
+
+     `--row-ground` defaults to `--face` for a top-level row (Channel,
+     Activity, Endpoint, API token). A `.well` re-declares it to `--well-deep`
+     for a row nested inside it (a Delivery row inside an expanded Broadcast),
+     and `.well-delivery` re-declares it again to `--well-deepest` for a row
+     nested inside *that* (an Attempt row). Because custom properties inherit,
+     a row picks its ground up from its containing well however many elements
+     sit in between, rather than each row family naming a ground of its own.
+
+     The ladder bottoms out there deliberately: `--well-deepest` is the last
+     ground, so a hypothetical fourth level would need a new token, and a
+     plain `.well` nested inside `.well-delivery` would reset `--row-ground`
+     back up to `--well-deep`. Nothing in the product nests that far; if
+     something ever does, it declares the next ground rather than inheriting
+     one that does not exist.
+
+     `--row-ground-hover` is the matching one-step-darker hover tint, declared
+     at the two levels that actually hold an interactive row: top level
+     (`--well`) and inside a `.well` (`--well-deepest`, for a Delivery row).
+     `.well-delivery` does not re-declare it — the only row it contains, the
+     Attempt row, is a plain `<li>` with no hover state, and there is no
+     ground below `--well-deepest` for it to tint into. */
+  --row-ground: var(--face);
+  --row-ground-hover: var(--well);
 
   /* Scored lines. Every boundary in the system is one of these three, at 1px.
      `--score` draws the grooves and dividers (section legend, tab strip).
@@ -184,6 +220,7 @@
   --dark-face-sunk: oklch(16.5% 0.008 195);
   --dark-well: oklch(16.5% 0.008 195);
   --dark-well-deep: oklch(12.5% 0.008 195);
+  --dark-well-deepest: oklch(9% 0.008 195);
   --dark-score: oklch(31% 0.01 195);
   --dark-score-strong: oklch(41% 0.011 195);
   --dark-score-control: oklch(54% 0.011 195);
@@ -217,6 +254,7 @@
     --face-sunk: var(--dark-face-sunk);
     --well: var(--dark-well);
     --well-deep: var(--dark-well-deep);
+    --well-deepest: var(--dark-well-deepest);
     --score: var(--dark-score);
     --score-strong: var(--dark-score-strong);
     --score-control: var(--dark-score-control);
@@ -253,6 +291,7 @@
   --face-sunk: var(--dark-face-sunk);
   --well: var(--dark-well);
   --well-deep: var(--dark-well-deep);
+  --well-deepest: var(--dark-well-deepest);
   --score: var(--dark-score);
   --score-strong: var(--dark-score-strong);
   --score-control: var(--dark-score-control);
@@ -1165,7 +1204,7 @@ input[type="number"] {
   align-items: center;
   gap: var(--space-md);
   padding: var(--pad-row);
-  background: var(--face);
+  background: var(--row-ground);
   color: var(--ink);
   border: 1px solid var(--score);
   border-radius: var(--radius-plate);
@@ -1198,7 +1237,7 @@ a.row {
  */
 button.row:hover,
 a.row:hover {
-  background: var(--well);
+  background: var(--row-ground-hover);
   border-color: var(--score-strong);
 }
 
@@ -1247,10 +1286,25 @@ a.row:active {
   grid-template-columns: subgrid;
 }
 
+/*
+ * A Delivery row is always nested inside an expanded Broadcast's `.well`
+ * (The Inward Depth Rule, issue #78): its ground inherits `--row-ground` from
+ * that well, which lands one step darker than the well itself
+ * (`--well-deep`). The plain `--score` groove nearly vanishes against
+ * `--well-deep` for the same reason it does on `.well-delivery` and
+ * `.payload`, so this border takes `--score-strong` at rest too, not only on
+ * hover. That spends the border half of the shared row hover early: a hovered
+ * Delivery row reads as a ground step alone (`--well-deep` to
+ * `--well-deepest`) rather than a ground step plus a darkening groove. The
+ * alternative — reaching past `--score-strong` on hover — would land on
+ * `--score-control`, which The Component Boundary Contrast Decision reserves
+ * for a control's own edge, so a hovered row may not borrow it.
+ */
 .row-delivery {
   grid-template-columns: minmax(var(--status-lamp-column), auto) 1fr auto;
   gap: var(--space-sm);
   padding: var(--pad-row-tight);
+  border-color: var(--score-strong);
 }
 
 .row-token {
@@ -1282,8 +1336,14 @@ a.row:active {
 
 /*
  * The deepest nesting level (Broadcast, Delivery, Attempt), so the tightest
- * padding in the rhythm. Already inside a well, so it takes the raised face to
- * stay legible against it.
+ * padding in the rhythm. It is nested inside `.well-delivery` (`--well-deep`),
+ * so The Inward Depth Rule requires it to go darker still, not lighter: its
+ * ground is `--row-ground`, which `.well-delivery` below re-declares to
+ * `--well-deepest` for exactly this row (issue #78 — this row used to read
+ * `--face` unconditionally, the brightest ground in the system, on the
+ * darkest container in the system). `--score` would nearly vanish against
+ * that ground, the same reason `.well-delivery` and `.payload` both take
+ * `--score-strong`.
  */
 .row-attempt {
   display: flex;
@@ -1291,8 +1351,8 @@ a.row:active {
   align-items: center;
   gap: var(--space-sm);
   padding: var(--pad-attempt-row);
-  background: var(--face);
-  border: 1px solid var(--score);
+  background: var(--row-ground);
+  border: 1px solid var(--score-strong);
   border-radius: var(--radius-control);
   font-size: var(--text-label-size);
   font-variant-numeric: tabular-nums;
@@ -1309,6 +1369,15 @@ a.row:active {
  * Nested detail is recessed and inset, never lifted. Depth reads inward: the
  * expanded region goes darker and tighter than the row that opened it, with a
  * full scored border. Never a colored stripe down the leading edge.
+ *
+ * A well also re-declares `--row-ground`/`--row-ground-hover` for any row it
+ * contains (a Delivery row inside an expanded Broadcast), one step darker
+ * than its own ground, so that nested row keeps descending instead of
+ * resetting to `--face` (The Inward Depth Rule, issue #78). `.well-delivery`
+ * below re-declares `--row-ground` again, one step darker still, for the
+ * Attempt rows nested inside *it*; it leaves `--row-ground-hover` alone,
+ * since an Attempt row is not interactive and `--well-deepest` is the last
+ * ground on the ladder.
  */
 .well {
   padding: var(--pad-detail);
@@ -1316,6 +1385,8 @@ a.row:active {
   border: 1px solid var(--score);
   border-radius: var(--radius-plate);
   box-shadow: inset 0 1px 2px var(--lip-shade);
+  --row-ground: var(--well-deep);
+  --row-ground-hover: var(--well-deepest);
 }
 
 .well-broadcast {
@@ -1336,6 +1407,7 @@ a.row:active {
   gap: var(--space-sm);
   background: var(--well-deep);
   border-color: var(--score-strong);
+  --row-ground: var(--well-deepest);
 }
 
 .well-endpoint-edit {
