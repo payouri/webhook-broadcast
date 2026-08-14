@@ -18,6 +18,7 @@ export function EndpointForm({
   onSubmit,
   onCancel,
   onDirtyChange,
+  submitTreatment = "primary",
 }: {
   initial?: Endpoint;
   submitLabel: string;
@@ -29,6 +30,13 @@ export function EndpointForm({
    * discarding an edit in progress (the 2026-08-14 critique).
    */
   onDirtyChange?: (dirty: boolean) => void;
+  /**
+   * Which treatment the submit control takes, per DESIGN.md §5 Controls: one
+   * filled Primary per plate, never two, so whichever instance is not the
+   * plate's primary passes "commit". Here the always-mounted New Endpoint
+   * form holds the tab's primary and an open edit well passes "commit".
+   */
+  submitTreatment?: "primary" | "commit";
 }) {
   const initialName = initial?.name ?? "";
   const initialUrl = initial?.url ?? "";
@@ -187,8 +195,8 @@ export function EndpointForm({
       <div className="inline-form">
         <button
           type="submit"
-          className="control control-primary"
-          disabled={saving || url.length === 0}
+          className={`control ${submitTreatment === "commit" ? "control-commit" : "control-primary"}`}
+          disabled={saving}
         >
           <Check size={13} strokeWidth={2} aria-hidden="true" />
           {saving ? "Saving…" : submitLabel}

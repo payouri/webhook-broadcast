@@ -515,10 +515,15 @@ while `.channel-row` inherited the primary button's hover fill and turned an ent
   Present at rest.
 - **Primary:** Anodize ground, Anodize Ink text, weight 600. Reserved for the single committing
   action in a plate: Save changes, Add Endpoint, Mint new token, Retry, Sign in. One per plate,
-  never two.
-- **Commit (destructive):** outlined Anodize, weight 600, for the moment a destructive action fires
-  (Confirm revoke, Confirm delete). Form carries the difference, the same way the lamps use it. Never
-  a lamp color; The Quarantine Rule forbids red on a control.
+  never two — including a plate that is really two peers sharing one screen, such as the always-open
+  New Endpoint form beside an Endpoint's open edit well. Whichever one is not the plate's primary
+  takes **Commit** instead, so the committing action in each region stays unambiguous without a
+  second filled control.
+- **Commit:** outlined Anodize, weight 600, for the moment a destructive action fires (Confirm
+  revoke, Confirm delete), or for a committing action that would otherwise be a second filled
+  primary next to one already on screen (the Endpoint edit well's Save changes, beside Add
+  Endpoint). Form carries the difference, the same way the lamps use it. Never a lamp color; The
+  Quarantine Rule forbids red on a control.
 - **Hover:** ground goes to Face Sunk, border to Ink Muted. 150ms on `cubic-bezier(0.22, 1, 0.36, 1)`.
   Not Well: a control rests on Face Raised, and Well is only `1.06:1` off that in the light theme.
 - **Active:** the lip inverts to an inner shade, with **no transition** and no `transform`. Real
@@ -738,8 +743,19 @@ scale a sidebar would be chrome standing in for structure.
   token."_ Never _"Nothing here."_ No illustration, ever.
 - **Error:** inline, in Lamp Cut, with a warning glyph, `role="alert"`, and a Retry control beside the
   message.
-- **Advisory** (a consequence that is neither a failure nor a validation error): a recessed well with
-  an info glyph in Ink. It may not borrow a lamp color, and it may not be a live region.
+- **Advisory** (a consequence that is neither a failure nor a validation error, e.g. what disabling a
+  Channel or an auto-disabled Endpoint means, not a validation error or a failed request): a recessed
+  well with an info glyph in Ink. It may not borrow a lamp color (The Quarantine Rule binds Lamp Cut
+  to a failed or dead-lettered Delivery, an auto-disabled Endpoint's status, a failing Channel, a form
+  validation error, and an errored Attempt — never a consequence the operator is merely being told
+  about), and it may not be a live region, since an advisory's visibility is typically driven by a
+  control the operator is actively working (a switch, a field), where an assertive region would
+  re-announce the whole message on every change. This is the one rule for every consequence advisory
+  in the dashboard; a call site states its own copy, never this reasoning again. It is also
+  deliberately not the confirm region's look, even for a multi-line advisory with its own control (an
+  auto-disabled Endpoint's Re-enable): a confirm region carries no glyph and poses a question with two
+  controls, where an advisory states a consequence and carries the info glyph regardless of how many
+  elements it holds.
 
 #### Named Rules
 

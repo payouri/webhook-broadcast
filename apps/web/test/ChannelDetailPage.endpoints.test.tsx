@@ -197,6 +197,47 @@ describe("Channel Detail — Endpoints tab", () => {
     expect(await screen.findByText("Renamed")).toBeTruthy();
   });
 
+  // Issue #67: the New Endpoint form and an open edit well are two peers on one
+  // screen, and only one of them may carry the filled primary treatment.
+  it("keeps one filled primary while the Endpoint edit well is open", async () => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    const addEndpoint = await screen.findByRole("button", { name: "Add Endpoint" });
+    expect(addEndpoint.className).toContain("control-primary");
+
+    fireEvent.click(await screen.findByText("Primary"));
+
+    const saveChanges = await screen.findByRole("button", { name: "Save changes" });
+    expect(saveChanges.className).toContain("control-commit");
+    expect(saveChanges.className).not.toContain("control-primary");
+    expect(addEndpoint.className).toContain("control-primary");
+    expect(
+      screen
+        .getAllByRole("button")
+        .filter((button) => button.className.includes("control-primary")),
+    ).toHaveLength(1);
+  });
+
+  // Issue #67: a dead control with no stated reason is worse than one that
+  // explains itself when pressed, so submit disables only while a request is in
+  // flight — never to express an empty URL.
+  it("leaves Add Endpoint pressable with an empty URL", async () => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    await screen.findByText("Primary");
+
+    const urlField = screen.getByLabelText("URL", { selector: "#endpoint-url-new" });
+    expect((urlField as HTMLInputElement).value).toBe("");
+    expect(
+      (screen.getByRole("button", { name: "Add Endpoint" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+    // The emptiness is still caught, by the field's own constraint rather than
+    // by a control the operator cannot press.
+    expect(urlField.hasAttribute("required")).toBe(true);
+  });
+
   it("states an Endpoint row's disclosure at rest and moves focus into the edit form on open", async () => {
     renderRoutes(`/channels/${CHANNEL_ID}`);
 
@@ -403,6 +444,13 @@ describe("Channel Detail — Endpoints tab", () => {
     expect(screen.getByText(/configured auto-disable window/i)).toBeTruthy();
     expect(screen.getByText(/does not recover on its own/i)).toBeTruthy();
     expect(screen.queryByLabelText("URL", { selector: `#endpoint-url-${ENDPOINT_ID}` })).toBeNull();
+
+    // It says so as an advisory, not in the destructive confirm-region
+    // treatment (issue #67): an informational notice may not read identically
+    // to "Confirm delete".
+    const notice = screen.getByText(/failure streak/i).closest("p")!;
+    expect(notice.className).toContain("advisory");
+    expect(notice.closest(".confirm-region")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Re-enable" }));
 

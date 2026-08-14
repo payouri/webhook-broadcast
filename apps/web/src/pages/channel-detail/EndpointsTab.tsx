@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronRight,
   Inbox,
+  Info,
   Plug,
   Plus,
   Power,
@@ -66,11 +67,19 @@ function EndpointAutoDisabledNotice({
   }
 
   return (
-    <div className="confirm-region well-notice">
-      <p>
-        Auto-disabled: a failure streak, every Delivery failed with no successful Delivery in
-        between, held past the configured auto-disable window. It does not recover on its own; only
-        an operator re-enabling it resumes Deliveries.
+    // A consequence advisory, not a confirm region: auto-disable is something
+    // the operator is being told about, not a choice they are being asked to
+    // confirm. DESIGN.md §5 "Loading, empty, and error" states the treatment
+    // and the distinction. The copy's job here is to name the mechanism, its
+    // irreversibility, and the remedy.
+    <div className="advisory-region well-notice">
+      <p className="advisory">
+        <Info className="advisory-icon" size={14} strokeWidth={2} aria-hidden="true" />
+        <span>
+          Auto-disabled: a failure streak, every Delivery failed with no successful Delivery in
+          between, held past the configured auto-disable window. It does not recover on its own;
+          only an operator re-enabling it resumes Deliveries.
+        </span>
       </p>
       {error && (
         <p className="error-text" role="alert">
@@ -285,6 +294,7 @@ function EndpointRow({
           <EndpointForm
             initial={endpoint}
             submitLabel="Save changes"
+            submitTreatment="commit"
             onSubmit={onSave}
             onCancel={cancelEdit}
             onDirtyChange={onDirtyChange}

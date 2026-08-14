@@ -666,11 +666,15 @@ button {
 }
 
 /*
- * A destructive commit, at the moment it fires. Outlined rather than filled:
- * the same form-carries-meaning idiom the lamps use, which also keeps a plate
- * down to one filled control while a confirm region is open. Still anodized,
- * because it is still the operator's own action and a lamp color may never
- * land on a control (The Quarantine Rule).
+ * A committing action that is not the plate's one filled primary: a
+ * destructive commit at the moment it fires (Confirm revoke, Confirm delete),
+ * or a second committing action already sharing the screen with a filled
+ * primary elsewhere (the Endpoint edit well's Save changes, next to the
+ * always-present Add Endpoint). Outlined rather than filled, the same
+ * form-carries-meaning idiom the lamps use, so the plate never carries two
+ * filled controls at once while staying unambiguous about which control
+ * commits. Still anodized, because it is still the operator's own action and
+ * a lamp color may never land on a control (The Quarantine Rule).
  */
 .control-commit {
   color: var(--anodize);
@@ -1428,6 +1432,22 @@ a.row:active {
   flex-shrink: 0;
   margin-top: 1px;
   color: var(--ink-muted);
+}
+
+/*
+ * Wraps an `.advisory` paragraph together with whatever belongs beside it (a
+ * retry error, an inline control) for a case that is more than one sentence,
+ * without wrapping the whole thing in a second recessed box: the `.advisory`
+ * paragraph is already the well with the info glyph, so stacking another
+ * bordered surface around it would read as nested wells rather than one
+ * advisory. Deliberately not `.confirm-region`: that box carries no glyph and
+ * asks a question with two controls, where this states a consequence that
+ * has already happened.
+ */
+.advisory-region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
 }
 
 /*

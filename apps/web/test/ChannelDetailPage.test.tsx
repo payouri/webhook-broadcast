@@ -878,9 +878,19 @@ describe("ChannelDetailPage — Settings channel disable guard (issue #46)", () 
     fireEvent.click(enabledToggle);
 
     // Warning appears showing count of enabled Endpoints
-    expect(
-      await screen.findByText(/Disabling this Channel stops fan-out to 1 enabled Endpoint/),
-    ).toBeTruthy();
+    const warning = await screen.findByText(
+      /Disabling this Channel stops fan-out to 1 enabled Endpoint/,
+    );
+    expect(warning).toBeTruthy();
+
+    // It is a consequence advisory, not a failure (issue #67): no Lamp Cut and
+    // no assertive live region, since visibility tracks the switch the operator
+    // is toggling.
+    const advisory = warning.closest("p")!;
+    expect(advisory.className).toContain("advisory");
+    expect(advisory.className).not.toContain("error-text");
+    expect(advisory.getAttribute("role")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("shows correct plural when disabling Channel with multiple enabled Endpoints", async () => {

@@ -78,15 +78,12 @@ export function ChannelSettingsForm({
           required
         />
       </div>
-      {/* Only the changed case is stated here: while the slug is untouched the
+      {/* A consequence advisory; DESIGN.md §5 "Loading, empty, and error"
+          states that treatment and why it is neither a lamp nor a live region.
+          Only the changed case is stated here: while the slug is untouched the
           Channel's ingest URL is already on screen in the plate above, and
           repeating it verbatim under the field adds a third copy of the same
           string to this tab. */}
-      {/* An advisory about a consequence, not a validation error: Lamp Cut and
-          `role="alert"` are both wrong here. The Quarantine Rule reserves Lamp
-          Cut for a failure or a validation error, and a live region would
-          re-announce this whole warning on every keystroke, since its content
-          (the URL) changes with the slug field. */}
       {slug !== channel.slug && (
         <p className="advisory">
           <Info className="advisory-icon" size={14} strokeWidth={2} aria-hidden="true" />
@@ -117,14 +114,19 @@ export function ChannelSettingsForm({
 
       <div className="switch-group">
         <Switch label="Enabled" checked={enabled} onChange={setEnabled} />
+        {/* A consequence advisory (the same treatment as the two advisories
+            either side of it): nothing has failed and nothing is invalid, the
+            operator is mid-choice. */}
         {!enabled &&
           channel.enabled &&
           enabledEndpointCount !== null &&
           enabledEndpointCount > 0 && (
-            <p className="error-text" role="alert">
-              <TriangleAlert size={14} strokeWidth={2} aria-hidden="true" />
-              Disabling this Channel stops fan-out to {enabledEndpointCount} enabled{" "}
-              {enabledEndpointCount === 1 ? "Endpoint" : "Endpoints"}.
+            <p className="advisory">
+              <Info className="advisory-icon" size={14} strokeWidth={2} aria-hidden="true" />
+              <span>
+                Disabling this Channel stops fan-out to {enabledEndpointCount} enabled{" "}
+                {enabledEndpointCount === 1 ? "Endpoint" : "Endpoints"}.
+              </span>
             </p>
           )}
 
