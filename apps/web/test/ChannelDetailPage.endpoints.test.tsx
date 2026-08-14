@@ -476,6 +476,103 @@ describe("Channel Detail — Endpoints tab", () => {
     expect(screen.queryByRole("button", { name: "Re-enable" })).toBeNull();
   });
 
+  // Issue #71: the URL and Headers fields validate locally against the
+  // contract's own schemas (DESIGN.md §5's Reward-Early-Punish-Late Rule),
+  // rather than sending a malformed value the server was always going to
+  // 400 on.
+  it("is silent on a malformed URL until the field is left, then marks it in the schema's own words", async () => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    await screen.findByText("Primary");
+
+    const urlInput = screen.getByLabelText("URL", { selector: "#endpoint-url-new" });
+    fireEvent.change(urlInput, { target: { value: "not a url" } });
+    // Silent on first pass: half of a URL is not a URL either, so a field
+    // showing an error for most of the time it takes to type one would be
+    // punishing early rather than late.
+    expect(document.getElementById("endpoint-url-new-error")).toBeNull();
+    expect(urlInput.getAttribute("aria-invalid")).toBe("false");
+
+    fireEvent.blur(urlInput);
+    const error = document.getElementById("endpoint-url-new-error");
+    // The constraint in the system's own voice (DESIGN.md §5 Fields — Error),
+    // which is the schema's own message, not Zod's default "Invalid URL".
+    expect(error?.textContent).toContain(
+      "URL must be a full URL including the scheme (e.g. https://example.com/webhook)",
+    );
+    expect(urlInput.getAttribute("aria-invalid")).toBe("true");
+    expect(urlInput.getAttribute("aria-describedby")).toBe("endpoint-url-new-error");
+
+    // Live once marked: correcting it clears the error on the very keystroke
+    // that fixes it, no round trip required.
+    fireEvent.change(urlInput, { target: { value: "https://example.com/hook" } });
+    expect(document.getElementById("endpoint-url-new-error")).toBeNull();
+    expect(urlInput.getAttribute("aria-invalid")).toBe("false");
+  });
+
+  it('refuses {"a": 1} as Headers in the browser, which the old hand-rolled check let through', async () => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    await screen.findByText("Primary");
+
+    const headersInput = screen.getByLabelText("Headers (JSON)", {
+      selector: "#endpoint-headers-new",
+    });
+    fireEvent.change(headersInput, { target: { value: '{"a": 1}' } });
+    expect(document.getElementById("endpoint-headers-new-error")).toBeNull();
+
+    fireEvent.blur(headersInput);
+    const error = document.getElementById("endpoint-headers-new-error");
+    // The contract's own record<string,string> message, named in the system's
+    // own voice rather than Zod's "expected string, received number" — and,
+    // unlike the old hand-rolled check, this rejects the value at all.
+    expect(error?.textContent).toContain(
+      'Headers must be a JSON object of string values (e.g. {"x-api-key": "secret"})',
+    );
+    expect(headersInput.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("marks every invalid field at once on submit and moves focus to the first of them", async () => {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
+    await screen.findByText("Primary");
+
+    fireEvent.change(screen.getByLabelText("URL", { selector: "#endpoint-url-new" }), {
+      target: { value: "not a url" },
+    });
+    fireEvent.change(
+      screen.getByLabelText("Headers (JSON)", { selector: "#endpoint-headers-new" }),
+      { target: { value: '{"a": 1}' } },
+    );
+    // Neither field has been touched yet: both are still silent.
+    expect(document.getElementById("endpoint-url-new-error")).toBeNull();
+    expect(document.getElementById("endpoint-headers-new-error")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Endpoint" }));
+
+    expect(document.getElementById("endpoint-url-new-error")).toBeTruthy();
+    expect(document.getElementById("endpoint-headers-new-error")).toBeTruthy();
+    expect(document.activeElement).toBe(
+      screen.getByLabelText("URL", { selector: "#endpoint-url-new" }),
+    );
+    // Never sent: the request the server was certain to 400 stayed home.
+    expect(
+      fetchMock.mock.calls.some(
+        ([input, init]) =>
+          requestPath(input) === `/channels/${CHANNEL_ID}/endpoints` &&
+          requestMethod(input, init) === "POST",
+      ),
+    ).toBe(false);
+    // Not disabled to express invalidity: pressing it while invalid is what
+    // forces the messages onto the screen, rather than the control going dead.
+    expect(
+      (screen.getByRole("button", { name: "Add Endpoint" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
   it("shows a Retry control when Endpoints fail to load", async () => {
     let shouldFail = true;
 

@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Check, X } from "lucide-react";
-import type { Endpoint } from "@webhook-broadcast/contract";
+import { useEffect, useState, type FormEvent } from "react";
+import { Check, TriangleAlert, X } from "lucide-react";
+import {
+  endpointHeadersSchema,
+  endpointUrlSchema,
+  type Endpoint,
+} from "@webhook-broadcast/contract";
 import { Switch } from "../../components/Switch.js";
 import { describeApiError } from "../../lib/api.js";
+import { useFieldError } from "../../lib/useFieldError.js";
 
 export interface EndpointFormValues {
   name: string | null;
@@ -10,6 +15,66 @@ export interface EndpointFormValues {
   timeoutMs: number | null;
   headers: Record<string, string>;
   enabled: boolean;
+}
+
+/**
+ * The rule this field enforces is the contract's, stated once and read here
+ * (see ChannelDirectoryPage's `validateSlug` for the sibling of this
+ * function): DESIGN.md §5's Reward-Early-Punish-Late Rule says a field
+ * "validates locally against the contract schema", so the message a
+ * malformed URL earns here is the same sentence the admin API would have
+ * returned, not a second paraphrase of it.
+ */
+function validateUrl(value: string): string | null {
+  if (value.length === 0) {
+    return "URL is required.";
+  }
+  const result = endpointUrlSchema.safeParse(value);
+  if (result.success) {
+    return null;
+  }
+  return (
+    result.error.issues[0]?.message ??
+    "URL must be a full URL including the scheme (e.g. https://example.com/webhook)"
+  );
+}
+
+type HeadersParseResult =
+  { success: true; data: Record<string, string> } | { success: false; message: string };
+
+/**
+ * Parses the Headers textarea and validates the result against the contract's
+ * own `endpointHeadersSchema` — a `Record<string, string>` — rather than a
+ * hand-rolled object/array check. That schema is what already rejects
+ * `{"a": 1}`, which a hand-written check that only tested for "is this a
+ * plain object" let through to the server.
+ */
+function parseHeaders(text: string): HeadersParseResult {
+  const trimmed = text.trim();
+  let parsed: unknown;
+  try {
+    parsed = trimmed.length > 0 ? JSON.parse(trimmed) : {};
+  } catch {
+    return {
+      success: false,
+      message: 'Headers must be valid JSON (e.g. {"x-api-key": "secret"})',
+    };
+  }
+  const result = endpointHeadersSchema.safeParse(parsed);
+  if (!result.success) {
+    return {
+      success: false,
+      message:
+        result.error.issues[0]?.message ??
+        'Headers must be a JSON object of string values (e.g. {"x-api-key": "secret"})',
+    };
+  }
+  return { success: true, data: result.data };
+}
+
+function validateHeaders(text: string): string | null {
+  const result = parseHeaders(text);
+  return result.success ? null : result.message;
 }
 
 export function EndpointForm({
@@ -51,7 +116,8 @@ export function EndpointForm({
   const [enabled, setEnabled] = useState(initialEnabled);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const urlRef = useRef<HTMLInputElement>(null);
+  const urlField = useFieldError<string, HTMLInputElement>(url, validateUrl);
+  const headersField = useFieldError<string, HTMLTextAreaElement>(headersText, validateHeaders);
 
   // Focus contract for the Endpoint edit swap (DESIGN.md #4): editing an
   // existing Endpoint replaces the row's place in the tab order with this
@@ -61,7 +127,7 @@ export function EndpointForm({
   // `initial`.
   useEffect(() => {
     if (initial) {
-      urlRef.current?.focus();
+      urlField.ref.current?.focus();
     }
     // Deliberately mount-only: a fresh `<EndpointForm>` instance is created
     // each time `editingId` changes (see EndpointsTab.tsx, keyed by Endpoint
@@ -94,22 +160,23 @@ export function EndpointForm({
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
-    setSaving(true);
-    setError(null);
 
-    let headers: Record<string, string>;
-    try {
-      const parsed: unknown = headersText.trim().length > 0 ? JSON.parse(headersText) : {};
-      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-        throw new Error("headers must be a JSON object of string values");
-      }
-      headers = parsed as Record<string, string>;
-    } catch {
-      setError('Headers must be valid JSON (e.g. {"x-api-key": "secret"})');
-      setSaving(false);
+    // A submit attempt marks every invalid field at once and moves focus to
+    // the first of them, rather than sending input the admin API is certain
+    // to reject (DESIGN.md §5's Reward-Early-Punish-Late Rule).
+    urlField.markTouched();
+    headersField.markTouched();
+    const headersResult = parseHeaders(headersText);
+    const urlInvalid = urlField.isInvalid();
+    const headersInvalid = !headersResult.success;
+    if (urlInvalid || headersInvalid) {
+      (urlInvalid ? urlField.ref : headersField.ref).current?.focus();
       return;
     }
+    const headers = headersResult.data;
 
+    setSaving(true);
+    setError(null);
     try {
       await onSubmit({
         name: name.length > 0 ? name : null,
@@ -124,6 +191,8 @@ export function EndpointForm({
         setTimeoutMs("");
         setHeadersText("{}");
         setEnabled(true);
+        urlField.reset();
+        headersField.reset();
       }
     } catch (err) {
       setError(describeApiError(err, "Failed to save Endpoint"));
@@ -132,19 +201,36 @@ export function EndpointForm({
     }
   }
 
+  const urlFieldId = `endpoint-url-${initial?.id ?? "new"}`;
+  const urlErrorId = `${urlFieldId}-error`;
+  const headersFieldId = `endpoint-headers-${initial?.id ?? "new"}`;
+  const headersErrorId = `${headersFieldId}-error`;
+
   return (
-    <form className="field-stack" onSubmit={(event) => void handleSubmit(event)}>
+    // `noValidate`: the URL and Headers rules are stated in this form's own
+    // voice, and the browser's default bubble would pre-empt those messages and
+    // suppress the submit event this form validates on.
+    <form className="field-stack" noValidate onSubmit={(event) => void handleSubmit(event)}>
       <div className="field">
-        <label htmlFor={`endpoint-url-${initial?.id ?? "new"}`}>URL</label>
+        <label htmlFor={urlFieldId}>URL</label>
         <input
-          ref={urlRef}
-          id={`endpoint-url-${initial?.id ?? "new"}`}
+          ref={urlField.ref}
+          id={urlFieldId}
           className="data"
           value={url}
           onChange={(event) => setUrl(event.target.value)}
+          onBlur={urlField.onBlur}
           placeholder="https://example.com/webhook"
           required
+          aria-invalid={urlField.error ? "true" : "false"}
+          aria-describedby={urlField.error ? urlErrorId : undefined}
         />
+        {urlField.error && (
+          <p className="error-text" id={urlErrorId} role="alert">
+            <TriangleAlert size={13} strokeWidth={2} aria-hidden="true" />
+            {urlField.error}
+          </p>
+        )}
       </div>
 
       {/* Two short fields on one line, which is what keeps the form from
@@ -174,14 +260,24 @@ export function EndpointForm({
       </div>
 
       <div className="field">
-        <label htmlFor={`endpoint-headers-${initial?.id ?? "new"}`}>Headers (JSON)</label>
+        <label htmlFor={headersFieldId}>Headers (JSON)</label>
         <textarea
-          id={`endpoint-headers-${initial?.id ?? "new"}`}
+          ref={headersField.ref}
+          id={headersFieldId}
           className="data"
           value={headersText}
           onChange={(event) => setHeadersText(event.target.value)}
+          onBlur={headersField.onBlur}
           rows={3}
+          aria-invalid={headersField.error ? "true" : "false"}
+          aria-describedby={headersField.error ? headersErrorId : undefined}
         />
+        {headersField.error && (
+          <p className="error-text" id={headersErrorId} role="alert">
+            <TriangleAlert size={13} strokeWidth={2} aria-hidden="true" />
+            {headersField.error}
+          </p>
+        )}
       </div>
 
       <Switch label="Enabled" checked={enabled} onChange={setEnabled} />

@@ -29,6 +29,8 @@ export type {
 } from "./channel.js";
 export {
   endpointSchema,
+  endpointUrlSchema,
+  endpointHeadersSchema,
   endpointCreateSchema,
   endpointUpdateSchema,
   endpointListQuerySchema,

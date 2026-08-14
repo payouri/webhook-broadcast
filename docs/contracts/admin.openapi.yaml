@@ -499,8 +499,7 @@ components:
     __schema2:
       type: string
     __schema20:
-      format: uri
-      type: string
+      $ref: "#/components/schemas/__schema14"
     __schema21:
       anyOf:
         - maximum: 9007199254740991

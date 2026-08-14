@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { Inbox, Info, Plus, Radio, TriangleAlert } from "lucide-react";
@@ -16,6 +16,7 @@ import {
   queryErrorMessage,
   useRefetchOnVisible,
 } from "../lib/freshness.js";
+import { useFieldError } from "../lib/useFieldError.js";
 
 /**
  * The rule this field enforces is the contract's, stated once and read here —
@@ -46,11 +47,11 @@ export function ChannelDirectoryPage() {
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  const [slugTouched, setSlugTouched] = useState(false);
-  const slugRef = useRef<HTMLInputElement>(null);
   // Silent on first pass, announced once the field has been left or submitted,
-  // then live on every keystroke until it clears (DESIGN.md §5).
-  const slugValidationError = slugTouched ? validateSlug(slug) : null;
+  // then live on every keystroke until it clears (DESIGN.md §5). The timing is
+  // the shared hook's, not this form's: the rule is stated once and read here,
+  // the same way the constraint it enforces is.
+  const slugField = useFieldError<string, HTMLInputElement>(slug, validateSlug);
 
   const channelsQuery = useQuery({
     queryKey: ["channels"] as const,
@@ -66,11 +67,11 @@ export function ChannelDirectoryPage() {
 
   async function handleCreate(event: FormEvent): Promise<void> {
     event.preventDefault();
-    setSlugTouched(true);
+    slugField.markTouched();
     // A submit attempt marks the invalid field and moves focus to it rather
     // than sending input the admin API is certain to reject (DESIGN.md §5).
-    if (validateSlug(slug) !== null) {
-      slugRef.current?.focus();
+    if (slugField.isInvalid()) {
+      slugField.ref.current?.focus();
       return;
     }
     setCreating(true);
@@ -82,7 +83,7 @@ export function ChannelDirectoryPage() {
       });
       setSlug("");
       setDescription("");
-      setSlugTouched(false);
+      slugField.reset();
       await queryClient.invalidateQueries({ queryKey: ["channels"] });
     } catch (err) {
       setCreateError(describeApiError(err, "Failed to create Channel"));
@@ -158,17 +159,17 @@ export function ChannelDirectoryPage() {
           <div className="field">
             <label htmlFor="new-channel-slug">Slug</label>
             <input
-              ref={slugRef}
+              ref={slugField.ref}
               id="new-channel-slug"
               name="slug"
               value={slug}
               onChange={(event) => setSlug(event.target.value)}
-              onBlur={() => setSlugTouched(true)}
+              onBlur={slugField.onBlur}
               placeholder="unipile-dev"
               required
-              aria-invalid={slugValidationError ? "true" : "false"}
+              aria-invalid={slugField.error ? "true" : "false"}
               aria-describedby={
-                slugValidationError
+                slugField.error
                   ? "new-channel-slug-rule new-channel-slug-error"
                   : "new-channel-slug-rule"
               }
@@ -185,10 +186,10 @@ export function ChannelDirectoryPage() {
                 The slug is the ingest path: <code>POST /ingest/&lt;slug&gt;</code>.
               </span>
             </p>
-            {slugValidationError && (
+            {slugField.error && (
               <p className="error-text" id="new-channel-slug-error" role="alert">
                 <TriangleAlert size={13} strokeWidth={2} aria-hidden="true" />
-                {slugValidationError}
+                {slugField.error}
               </p>
             )}
           </div>

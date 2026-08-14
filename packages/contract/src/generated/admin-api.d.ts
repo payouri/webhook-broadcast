@@ -435,8 +435,7 @@ export interface components {
     __schema18: boolean;
     __schema19: string | null;
     __schema2: string;
-    /** Format: uri */
-    __schema20: string;
+    __schema20: components["schemas"]["__schema14"];
     __schema21: number | null;
     __schema22: components["schemas"]["__schema17"];
     __schema23: boolean;
