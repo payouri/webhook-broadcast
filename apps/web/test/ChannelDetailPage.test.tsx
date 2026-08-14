@@ -341,7 +341,7 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
     expect(channelGetCalls(fetchMock)).toBe(callsBeforeSettings);
   });
 
-  it("replays a Broadcast from its detail panel (issue #22)", async () => {
+  it("replays a Broadcast from its detail panel (issue #76): confirm before replay", async () => {
     const broadcastId = "44444444-4444-4444-4444-444444444444";
     const replayId = "55555555-5555-5555-5555-555555555555";
     let replayCalled = false;
@@ -381,6 +381,50 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
           }),
         );
       }
+      // Two enabled and one disabled: the confirmation must count the enabled
+      // ones only, since those are the Endpoints the replay will fan out to.
+      if (path === `/channels/${CHANNEL_ID}/endpoints` && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            items: [
+              {
+                id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                channelId: CHANNEL_ID,
+                name: "Endpoint 1",
+                url: "https://example.com/webhook",
+                timeoutMs: null,
+                headers: {},
+                enabled: true,
+                createdAt: "2026-08-10T00:00:00.000Z",
+                updatedAt: "2026-08-10T00:00:00.000Z",
+              },
+              {
+                id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                channelId: CHANNEL_ID,
+                name: "Endpoint 2",
+                url: "https://example.com/webhook-2",
+                timeoutMs: null,
+                headers: {},
+                enabled: true,
+                createdAt: "2026-08-10T00:00:00.000Z",
+                updatedAt: "2026-08-10T00:00:00.000Z",
+              },
+              {
+                id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+                channelId: CHANNEL_ID,
+                name: "Endpoint 3 (off)",
+                url: "https://example.com/webhook-3",
+                timeoutMs: null,
+                headers: {},
+                enabled: false,
+                createdAt: "2026-08-10T00:00:00.000Z",
+                updatedAt: "2026-08-10T00:00:00.000Z",
+              },
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
       if (
         path === `/channels/${CHANNEL_ID}/broadcasts/${broadcastId}/replay` &&
         method === "POST"
@@ -397,10 +441,92 @@ describe("ChannelDetailPage — Activity tab and ingest tokens", () => {
     fireEvent.click(await screen.findByText("hello-world"));
     fireEvent.click(await screen.findByRole("button", { name: "Replay" }));
 
+    // The guard itself: Replay poses a question, it does not fire on that click.
+    const confirmRegion = await screen.findByRole("group", { name: "Confirm replay Broadcast" });
+    await flushAsync();
+    expect(replayCalled).toBe(false);
+
+    // It names the fan-out width in enabled Endpoints (2 of the 3 configured)…
+    await waitFor(() => {
+      expect(confirmRegion.textContent).toMatch(/Replay to\s*2\s*enabled Endpoints\?/);
+    });
+    // …and says that width is read now, not from the original fan-out.
+    expect(confirmRegion.textContent).toMatch(/Endpoints enabled now, which may differ/);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm replay" }));
+
     await waitFor(() => {
       expect(replayCalled).toBe(true);
     });
     expect(await screen.findByText(/Replayed/)).toBeTruthy();
+  });
+
+  it("cancels a Replay confirmation without firing it (issue #76)", async () => {
+    const broadcastId = "44444444-4444-4444-4444-444444444444";
+    let replayCalled = false;
+
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            items: [
+              {
+                id: broadcastId,
+                channelId: CHANNEL_ID,
+                receivedAt: "2026-08-10T12:00:00.000Z",
+                bodyPreview: "hello-world",
+                fanout: { total: 0, succeeded: 0, failed: 0, deadLettered: 0, pending: 0 },
+              },
+            ],
+            nextCursor: null,
+          }),
+        );
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts/${broadcastId}` && method === "GET") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            id: broadcastId,
+            channelId: CHANNEL_ID,
+            receivedAt: "2026-08-10T12:00:00.000Z",
+            contentType: "application/json",
+            body: "hello-world",
+            deliveries: [],
+          }),
+        );
+      }
+      if (path === `/channels/${CHANNEL_ID}/endpoints` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      if (
+        path === `/channels/${CHANNEL_ID}/broadcasts/${broadcastId}/replay` &&
+        method === "POST"
+      ) {
+        replayCalled = true;
+        return Promise.resolve(jsonResponse(202, { id: "ignored" }));
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Activity" }));
+    fireEvent.click(await screen.findByText("hello-world"));
+    fireEvent.click(await screen.findByRole("button", { name: "Replay" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+
+    // Back to the bare trigger, focus returned to it, and nothing sent.
+    const trigger = await screen.findByRole("button", { name: "Replay" });
+    expect(document.activeElement).toBe(trigger);
+    await flushAsync();
+    expect(replayCalled).toBe(false);
+    expect(screen.queryByText(/Replayed/)).toBeNull();
   });
 
   it("updates the parent Broadcast's lamp in the same interaction as a Delivery retry (issue #72)", async () => {

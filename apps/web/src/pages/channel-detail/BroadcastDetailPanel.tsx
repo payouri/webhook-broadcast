@@ -194,6 +194,163 @@ function BulkRetryDeadLettered({
   );
 }
 
+/**
+ * Replay confirmation (issue #76): Replay accepts a brand-new Broadcast whose
+ * fan-out snapshots the Endpoints enabled at replay time, so it can deliver a
+ * production payload to Endpoints that were not part of the original fan-out.
+ * That earns the same confirm-region idiom the bulk retry and the Danger Zone
+ * delete already use, and the question is posed in counted terms so the
+ * operator commits against a number rather than a guess.
+ */
+function ReplayBroadcast({
+  channelId,
+  onReplay,
+}: {
+  channelId: string;
+  onReplay: () => Promise<void>;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [replaying, setReplaying] = useState(false);
+  const [replayError, setReplayError] = useState<string | null>(null);
+  const [replayed, setReplayed] = useState(false);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusOnClose = useRef(false);
+
+  // Shares the Endpoints tab's query key, so an operator who has already
+  // loaded that tab opens this confirmation against warm data.
+  const endpointsQuery = useQuery({
+    queryKey: ["endpoints", channelId] as const,
+    queryFn: () => api.listEndpoints(channelId),
+  });
+  const refetchEndpoints = endpointsQuery.refetch;
+
+  useEffect(() => {
+    if (confirming) {
+      // The count has to describe the Endpoints enabled *now*, not the ones
+      // enabled whenever this panel first mounted — an Endpoint toggled in the
+      // Endpoints tab in between would otherwise leave the question stating a
+      // fan-out width the replay will not use.
+      void refetchEndpoints();
+      confirmRef.current?.focus();
+      return;
+    }
+    if (restoreFocusOnClose.current) {
+      restoreFocusOnClose.current = false;
+      triggerRef.current?.focus();
+    }
+  }, [confirming, refetchEndpoints]);
+
+  function cancel(): void {
+    restoreFocusOnClose.current = true;
+    setConfirming(false);
+    setReplayError(null);
+  }
+
+  async function handleConfirm(): Promise<void> {
+    setReplaying(true);
+    setReplayError(null);
+    try {
+      await onReplay();
+      setReplayed(true);
+      // The confirm button unmounts with the region, so focus is handed back to
+      // the trigger deliberately rather than dropped onto the body — the same
+      // overlay-free focus contract the bulk retry above documents.
+      restoreFocusOnClose.current = true;
+      setConfirming(false);
+    } catch (err) {
+      setReplayError(describeApiError(err, "Failed to replay Broadcast"));
+    } finally {
+      setReplaying(false);
+    }
+  }
+
+  // Null while the Endpoints have not loaded or the load failed. The question is
+  // then posed without a count rather than with a wrong one: `?? 0` would assert
+  // "0 enabled Endpoints" — a fan-out width that is both false and reassuring —
+  // at exactly the moment the operator is deciding whether to send real traffic.
+  // Same rule as the Channel disable advisory, which suppresses its count rather
+  // than state one it does not have.
+  const enabledCount = endpointsQuery.data
+    ? endpointsQuery.data.items.filter((endpoint) => endpoint.enabled).length
+    : null;
+
+  return (
+    <div className="broadcast-replay">
+      {confirming ? (
+        <div
+          className="confirm-region"
+          role="group"
+          aria-label="Confirm replay Broadcast"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.stopPropagation();
+              cancel();
+            }
+          }}
+        >
+          <p>
+            {enabledCount === null ? (
+              "Replay this Broadcast?"
+            ) : (
+              <>
+                Replay to <strong>{enabledCount}</strong> enabled Endpoint
+                {enabledCount === 1 ? "" : "s"}?
+              </>
+            )}{" "}
+            The fan-out uses the Endpoints enabled now, which may differ from the ones the original
+            was fanned out to.
+          </p>
+          {replayError && (
+            <p className="error-text" role="alert">
+              {replayError}
+            </p>
+          )}
+          <div className="inline-form">
+            <button
+              ref={confirmRef}
+              type="button"
+              className="control control-commit"
+              onClick={() => void handleConfirm()}
+              disabled={replaying}
+            >
+              <RotateCcw size={13} strokeWidth={1.75} aria-hidden="true" />
+              {replaying ? "Replaying…" : "Confirm replay"}
+            </button>
+            <button type="button" className="control" onClick={cancel} disabled={replaying}>
+              <X size={13} strokeWidth={2} aria-hidden="true" />
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="inline-form">
+          <button
+            ref={triggerRef}
+            type="button"
+            className="control"
+            onClick={() => {
+              setReplayed(false);
+              setConfirming(true);
+            }}
+          >
+            <RotateCcw size={13} strokeWidth={1.75} aria-hidden="true" />
+            Replay
+          </button>
+          {/* The confirm region collapses back to this trigger on success, which
+              on its own leaves nothing to say the replay landed. Announced,
+              because focus has just been moved to the trigger beside it. */}
+          {replayed && (
+            <span className="success-text" role="status">
+              Replayed. See it in Activity.
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Broadcast detail (issue #19): inbound payload plus every fanned-out Delivery. */
 export function BroadcastDetailPanel({
   channelId,
@@ -209,10 +366,6 @@ export function BroadcastDetailPanel({
    */
   onActivityChanged?: () => void;
 }) {
-  const [replaying, setReplaying] = useState(false);
-  const [replayError, setReplayError] = useState<string | null>(null);
-  const [replayedId, setReplayedId] = useState<string | null>(null);
-
   const broadcastQuery = useQuery({
     queryKey: ["broadcast-detail", channelId, broadcastId] as const,
     queryFn: () => api.getBroadcastDetail(channelId, broadcastId),
@@ -229,17 +382,8 @@ export function BroadcastDetailPanel({
     : [];
 
   async function handleReplay(): Promise<void> {
-    setReplaying(true);
-    setReplayError(null);
-    try {
-      const { id } = await api.replayBroadcast(channelId, broadcastId);
-      setReplayedId(id);
-      onActivityChanged?.();
-    } catch (err) {
-      setReplayError(describeApiError(err, "Failed to replay Broadcast"));
-    } finally {
-      setReplaying(false);
-    }
+    await api.replayBroadcast(channelId, broadcastId);
+    onActivityChanged?.();
   }
 
   return (
@@ -255,27 +399,11 @@ export function BroadcastDetailPanel({
           <p className="muted broadcast-detail-content-type">{detail.contentType}</p>
           <pre className="payload data">{detail.body || "(empty body)"}</pre>
 
-          {/* Replay (issue #22): re-fans the stored payload out to Endpoints
-              enabled right now; no new ingest needed. */}
-          <div className="broadcast-replay">
-            <button
-              type="button"
-              className="control"
-              onClick={() => void handleReplay()}
-              disabled={replaying}
-            >
-              <RotateCcw size={13} strokeWidth={1.75} aria-hidden="true" />
-              {replaying ? "Replaying…" : "Replay"}
-            </button>
-            {replayError && (
-              <span className="error-text" role="alert">
-                {replayError}
-              </span>
-            )}
-            {replayedId && !replayError && (
-              <span className="success-text">Replayed. See it in Activity.</span>
-            )}
-          </div>
+          {/* Replay (issue #76): confirm before re-fanning the stored payload out
+              to Endpoints enabled right now; no new ingest needed. The fan-out
+              snapshots the enabled Endpoints at replay time, which may differ
+              from the original accept. */}
+          <ReplayBroadcast channelId={channelId} onReplay={handleReplay} />
 
           {detail.deliveries.length === 0 ? (
             <EmptyState icon={<Inbox size={20} strokeWidth={1.5} />}>
