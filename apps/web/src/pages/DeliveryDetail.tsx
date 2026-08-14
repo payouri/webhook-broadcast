@@ -102,6 +102,15 @@ export function DeliveryDetail({
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
   const retryingLabel = useDelayedPending(retrying);
+  // The Attempt list's own delay-and-hold (DESIGN.md §5): see
+  // ChannelActivityTab. `attempts` resets to `null` on every expand, so this
+  // recomputes cleanly each time the well opens. Gated on `expanded` because a
+  // collapsed row is not waiting for anything — its Attempts are `null` only
+  // because nobody has asked for them, and letting the delay run against that
+  // ambient `null` would arm the loading line before the first click, so an
+  // expand that resolves in 20ms would paint it and drop it on the next frame:
+  // exactly the flash this rule exists to remove.
+  const showAttemptsLoading = useDelayedPending(expanded && attempts === null && !error);
 
   async function loadAttempts(): Promise<void> {
     try {
@@ -187,20 +196,18 @@ export function DeliveryDetail({
         <div className="well well-delivery">
           <p className="muted delivery-endpoint-url">{delivery.endpointUrl}</p>
 
-          {error && (
+          {showAttemptsLoading && <p className="muted">Loading Attempts…</p>}
+          {!showAttemptsLoading && error && (
             <p className="error-text" role="alert">
               {error}
             </p>
           )}
           {summaryError && <p className="error-text delivery-error">{summaryError}</p>}
 
-          {attempts === null && !error && (
-            <p className="muted loading-delayed">Loading Attempts…</p>
-          )}
-          {attempts !== null && attempts.length === 0 && (
+          {!showAttemptsLoading && attempts !== null && attempts.length === 0 && (
             <EmptyState icon={<Inbox size={20} strokeWidth={1.5} />}>No Attempts yet.</EmptyState>
           )}
-          {attempts !== null && attempts.length > 0 && (
+          {!showAttemptsLoading && attempts !== null && attempts.length > 0 && (
             <ul className="row-list row-list-tight">
               {buildAttemptRows(attempts, summaryError).map(({ attempt, errorToShow, gapMs }) => {
                 return (

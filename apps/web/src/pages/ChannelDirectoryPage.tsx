@@ -66,6 +66,8 @@ export function ChannelDirectoryPage() {
   const error = channelsQuery.isError
     ? queryErrorMessage(channelsQuery.error, "Failed to load Channels")
     : null;
+  // The skeleton's own delay-and-hold (DESIGN.md §5): see ChannelActivityTab.
+  const showSkeleton = useDelayedPending(channels === null && !error);
 
   async function handleCreate(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -110,14 +112,16 @@ export function ChannelDirectoryPage() {
           dataUpdatedAt={channelsQuery.dataUpdatedAt}
           isError={channelsQuery.isError}
         />
-        {error && <InlineLoadError message={error} onRetry={() => void channelsQuery.refetch()} />}
-        {channels === null && !error && <SkeletonRows label="Loading Channels" />}
-        {channels !== null && channels.length === 0 && (
+        {showSkeleton && <SkeletonRows label="Loading Channels" />}
+        {!showSkeleton && error && (
+          <InlineLoadError message={error} onRetry={() => void channelsQuery.refetch()} />
+        )}
+        {!showSkeleton && channels !== null && channels.length === 0 && (
           <EmptyState icon={<Inbox size={20} strokeWidth={1.5} />}>
             No Channels yet. Create one below.
           </EmptyState>
         )}
-        {channels !== null && channels.length > 0 && (
+        {!showSkeleton && channels !== null && channels.length > 0 && (
           <ul className="row-list row-list-channel">
             {channels.map((channel) => (
               <li key={channel.id}>

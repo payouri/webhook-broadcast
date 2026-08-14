@@ -128,6 +128,8 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
   const loadError = channelQuery.isError
     ? queryErrorMessage(channelQuery.error, "Failed to load tokens")
     : null;
+  // The skeleton's own delay-and-hold (DESIGN.md §5): see ChannelActivityTab.
+  const showSkeleton = useDelayedPending(tokens === null && !loadError);
 
   async function handleMint(): Promise<void> {
     setMinting(true);
@@ -163,7 +165,7 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
   return (
     <section className="plate stack">
       <SectionTitle icon={<KeyRound size={13} strokeWidth={2} />}>Ingest tokens</SectionTitle>
-      {loadError && (
+      {!showSkeleton && loadError && (
         <InlineLoadError message={loadError} onRetry={() => void channelQuery.refetch()} />
       )}
       {actionError && (
@@ -182,13 +184,13 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
         </div>
       )}
 
-      {tokens === null && !loadError && <SkeletonRows count={2} label="Loading ingest tokens" />}
-      {tokens !== null && tokens.length === 0 && (
+      {showSkeleton && <SkeletonRows count={2} label="Loading ingest tokens" />}
+      {!showSkeleton && tokens !== null && tokens.length === 0 && (
         <EmptyState icon={<Inbox size={20} strokeWidth={1.5} />}>
           No ingest tokens yet. Mint one below.
         </EmptyState>
       )}
-      {tokens !== null && tokens.length > 0 && (
+      {!showSkeleton && tokens !== null && tokens.length > 0 && (
         <ul className="row-list">
           {tokens.map((token) => (
             <li key={token.id}>

@@ -3,6 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Link, useNavigate } from "react-router";
 import { LogOut, Radio } from "lucide-react";
 import { api } from "./lib/api.js";
+import { useDelayedPending } from "./lib/delayedPending.js";
 import { queryClient } from "./lib/queryClient.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { AppRoutes } from "./routes.js";
@@ -46,8 +47,18 @@ export function App() {
     void checkSession();
   }, [checkSession]);
 
+  // The session check's own delay-and-hold (DESIGN.md §5): a session check
+  // that resolves inside the delay never paints this text at all, and one
+  // that does paint it holds for the minimum even if the check resolves
+  // sooner.
+  const showChecking = useDelayedPending(session === "checking");
+  if (showChecking) {
+    return <main className="centered muted">Checking session…</main>;
+  }
+
   if (session === "checking") {
-    return <main className="centered muted loading-delayed">Checking session…</main>;
+    // Still checking, but not shown yet — this is the fast path.
+    return null;
   }
 
   if (session === "loggedOut") {

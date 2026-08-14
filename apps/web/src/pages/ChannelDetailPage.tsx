@@ -11,6 +11,7 @@ import {
   useChannelQuery,
   useChannelRouteId,
 } from "../lib/channelQuery.js";
+import { useDelayedPending } from "../lib/delayedPending.js";
 import { queryErrorMessage } from "../lib/freshness.js";
 import { EnabledStatusLamp } from "../components/StatusLamp.js";
 import { InlineLoadError } from "../components/InlineLoadError.js";
@@ -80,6 +81,8 @@ export function ChannelDetailPage() {
     slugLookupError ?? (channelQuery.isError && !notFound ? channelQuery.error : null);
   const error = failure ? queryErrorMessage(failure, "Failed to load Channel") : null;
   const retryLoad = slugLookupError ? retrySlugLookup : () => void channelQuery.refetch();
+  // The skeleton's own delay-and-hold (DESIGN.md §5): see ChannelActivityTab.
+  const showSkeleton = useDelayedPending(!channel && !error);
 
   // The not-found view owns its own title (NotFoundPanel).
   useEffect(() => {
@@ -151,10 +154,10 @@ export function ChannelDetailPage() {
         </Link>
       </div>
 
-      {error && <InlineLoadError message={error} onRetry={retryLoad} />}
-      {!channel && !error && <SkeletonRows count={2} label="Loading Channel" />}
+      {showSkeleton && <SkeletonRows count={2} label="Loading Channel" />}
+      {!showSkeleton && error && <InlineLoadError message={error} onRetry={retryLoad} />}
 
-      {channel && (
+      {!showSkeleton && channel && (
         <>
           <header className="channel-header">
             <EnabledStatusLamp enabled={channel.enabled} />

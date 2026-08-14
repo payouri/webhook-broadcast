@@ -506,6 +506,8 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
   const error = endpointsQuery.isError
     ? queryErrorMessage(endpointsQuery.error, "Failed to load Endpoints")
     : null;
+  // The skeleton's own delay-and-hold (DESIGN.md §5): see ChannelActivityTab.
+  const showSkeleton = useDelayedPending(endpoints === null && !error);
 
   async function refresh(): Promise<void> {
     await queryClient.invalidateQueries({ queryKey: ["endpoints", channelId] });
@@ -559,14 +561,16 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
           dataUpdatedAt={endpointsQuery.dataUpdatedAt}
           isError={endpointsQuery.isError}
         />
-        {error && <InlineLoadError message={error} onRetry={() => void endpointsQuery.refetch()} />}
-        {endpoints === null && !error && <SkeletonRows label="Loading Endpoints" />}
-        {endpoints !== null && endpoints.length === 0 && (
+        {showSkeleton && <SkeletonRows label="Loading Endpoints" />}
+        {!showSkeleton && error && (
+          <InlineLoadError message={error} onRetry={() => void endpointsQuery.refetch()} />
+        )}
+        {!showSkeleton && endpoints !== null && endpoints.length === 0 && (
           <EmptyState icon={<Inbox size={20} strokeWidth={1.5} />}>
             No Endpoints yet. Add one above.
           </EmptyState>
         )}
-        {endpoints !== null && endpoints.length > 0 && (
+        {!showSkeleton && endpoints !== null && endpoints.length > 0 && (
           <ul className="row-list row-list-endpoint" onKeyDown={handleRowListKeyDown}>
             {endpoints.map((endpoint) => (
               <EndpointRow

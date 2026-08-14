@@ -1729,30 +1729,15 @@ a.row:active {
  * Loading previews the shape of the rows that are coming, rather than parking
  * a centered "Loading…" where content will be. Opacity only, so nothing about
  * the layout moves when the real rows land.
- */
-/*
- * Held back for 225ms before it appears. Most fetches here resolve against a
- * local API well inside that, and a skeleton that paints and vanishes inside one
- * or two frames reads as a flash of jank rather than as feedback. Anything
- * slower than the delay is genuinely worth previewing.
  *
- * Done in CSS rather than with a timer: no second render, no state to keep in
- * sync with the query, and nothing to clean up if the component unmounts first.
- * The delay is not motion, so `prefers-reduced-motion` leaves it alone; only the
- * pulse below is a motion effect.
+ * The delay before appearing, and the minimum hold once shown, both come from
+ * the shared `useDelayedPending` hook (`lib/delayedPending.ts`), not from CSS:
+ * a component only ever renders `<SkeletonRows>` (or a delayed-loading line)
+ * once the hook's return value is already true, so there is nothing here left
+ * to delay. That hook is also the one place both thresholds are read from
+ * DESIGN.md §5's tokens — see that file for why a keyframe delay could only
+ * ever implement half the rule.
  */
-.skeleton-list,
-.loading-delayed {
-  opacity: 0;
-  animation: appear-after-delay 1ms linear 225ms forwards;
-}
-
-@keyframes appear-after-delay {
-  to {
-    opacity: 1;
-  }
-}
-
 .skeleton-list {
   display: flex;
   flex-direction: column;

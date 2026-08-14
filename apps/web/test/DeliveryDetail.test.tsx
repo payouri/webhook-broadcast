@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PENDING_DELAY_MS, PENDING_HOLD_MS } from "../src/lib/delayedPending.js";
 import { DeliveryDetail } from "../src/pages/DeliveryDetail.js";
 import { requestMethod, requestPath, stubFetchMock } from "./fetchMock.js";
 
@@ -311,5 +312,44 @@ describe("DeliveryDetail — Attempt timeline and Retry action (issue #21)", () 
 
     await screen.findByText("No Attempts yet.");
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+  });
+
+  it("does not paint the Attempt loading line the instant the well opens (issue #90)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let resolveAttempts: (() => void) | undefined;
+    fetchMock.mockImplementation((input: string | URL | Request) => {
+      const path = requestPath(input);
+      if (path === `/deliveries/${DELIVERY_ID}/attempts`) {
+        return new Promise<Response>((resolve) => {
+          resolveAttempts = () => resolve(jsonResponse(200, { items: [], nextCursor: null }));
+        });
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+
+    render(<DeliveryDetail delivery={baseDelivery()} onRetried={() => undefined} />);
+
+    // A collapsed row is not waiting for anything. Its Attempt list is `null`
+    // only because nobody has asked for it, so time passing here must not arm
+    // the loading line: an expand that resolves fast would otherwise flash it.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PENDING_DELAY_MS + PENDING_HOLD_MS);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Orders webhook/ }));
+    expect(screen.queryByText("Loading Attempts…")).toBeNull();
+
+    // Past the delay with the fetch still in flight, it is genuine feedback.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PENDING_DELAY_MS);
+    });
+    expect(screen.getByText("Loading Attempts…")).toBeTruthy();
+
+    resolveAttempts?.();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PENDING_HOLD_MS);
+    });
+    await screen.findByText("No Attempts yet.");
+    vi.useRealTimers();
   });
 });

@@ -154,6 +154,11 @@ export function ChannelActivityTab({
     : null;
   // Whichever failure is on screen is the one Retry must re-run.
   const error = queryError ?? loadMoreError;
+  // The skeleton's own delay-and-hold (DESIGN.md §5): shown only past the
+  // 250ms delay, and once shown, held for its 400ms minimum before whatever
+  // comes next — the loaded list, an empty state, or the error above — is
+  // allowed to replace it.
+  const showSkeleton = useDelayedPending(items === null && !error);
   const retry = queryError
     ? () => void activityQuery.refetch()
     : () => {
@@ -195,15 +200,15 @@ export function ChannelActivityTab({
       <div className="activity-controls">
         <ActivityFilterToggle filter={filter} onChange={setFilter} />
       </div>
-      {error && <InlineLoadError message={error} onRetry={retry} />}
-      {items === null && !error && <SkeletonRows count={4} label="Loading Activity" />}
-      {items !== null && items.length === 0 && (
+      {showSkeleton && <SkeletonRows count={4} label="Loading Activity" />}
+      {!showSkeleton && error && <InlineLoadError message={error} onRetry={retry} />}
+      {!showSkeleton && items !== null && items.length === 0 && (
         <EmptyState icon={<Inbox size={20} strokeWidth={1.5} />}>
           No Broadcasts yet. Send a request to <code>POST /ingest/{channelSlug}</code> with a
           Channel token.
         </EmptyState>
       )}
-      {items !== null && items.length > 0 && visibleItems !== null && (
+      {!showSkeleton && items !== null && items.length > 0 && visibleItems !== null && (
         <>
           {visibleItems.length === 0 ? (
             <EmptyState icon={<Filter size={20} strokeWidth={1.5} />}>

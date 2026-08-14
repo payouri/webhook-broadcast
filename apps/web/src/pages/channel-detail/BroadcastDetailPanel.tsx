@@ -383,6 +383,8 @@ export function BroadcastDetailPanel({
   const deadLetteredDeliveries = detail
     ? detail.deliveries.filter((delivery) => delivery.status === "dead_lettered")
     : [];
+  // The skeleton's own delay-and-hold (DESIGN.md §5): see ChannelActivityTab.
+  const showSkeleton = useDelayedPending(!detail && !error);
 
   async function handleReplay(): Promise<void> {
     await api.replayBroadcast(channelId, broadcastId);
@@ -395,9 +397,11 @@ export function BroadcastDetailPanel({
         dataUpdatedAt={broadcastQuery.dataUpdatedAt}
         isError={broadcastQuery.isError}
       />
-      {error && <InlineLoadError message={error} onRetry={() => void broadcastQuery.refetch()} />}
-      {!detail && !error && <SkeletonRows count={2} label="Loading Broadcast" />}
-      {detail && (
+      {showSkeleton && <SkeletonRows count={2} label="Loading Broadcast" />}
+      {!showSkeleton && error && (
+        <InlineLoadError message={error} onRetry={() => void broadcastQuery.refetch()} />
+      )}
+      {!showSkeleton && detail && (
         <>
           <p className="muted broadcast-detail-content-type">{detail.contentType}</p>
           <pre className="payload data">{detail.body || "(empty body)"}</pre>
