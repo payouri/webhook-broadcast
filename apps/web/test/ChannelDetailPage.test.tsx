@@ -1369,3 +1369,163 @@ describe("ChannelDetailPage — Destructive at rest (issue #80)", () => {
     }
   });
 });
+
+/*
+ * Issue #86: the Settings form's slug field joins the Channel directory's on the
+ * shared field-error hook — DESIGN.md §5's Reward-Early-Punish-Late Rule. These
+ * assert the timing and the wiring, not the styling: the message must be the
+ * contract schema's own sentence, so a constraint restated by hand in this form
+ * would fail here rather than only at the admin API.
+ */
+describe("ChannelDetailPage — Settings slug validation (issue #86)", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  function patchCalls(): unknown[][] {
+    return fetchMock.mock.calls.filter(
+      ([input, init]) =>
+        requestPath(input) === `/channels/${CHANNEL_ID}` && requestMethod(input, init) === "PATCH",
+    );
+  }
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    stubFetchMock(fetchMock);
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}` && method === "PATCH") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      if (path === `/channels/${CHANNEL_ID}/endpoints` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  async function openSettings(): Promise<HTMLInputElement> {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
+    return (await screen.findByLabelText("Slug")) as HTMLInputElement;
+  }
+
+  it("stays silent while the slug is being typed, marks it on blur, and clears when valid", async () => {
+    const slugInput = await openSettings();
+
+    fireEvent.change(slugInput, { target: { value: "Orders EU" } });
+    expect(document.getElementById("settings-slug-error")).toBeNull();
+    expect(slugInput.getAttribute("aria-invalid")).toBe("false");
+
+    fireEvent.blur(slugInput);
+    const error = document.getElementById("settings-slug-error");
+    expect(error?.textContent).toContain("slug must be lowercase kebab-case (a-z, 0-9, -)");
+    expect(error?.getAttribute("role")).toBe("alert");
+    expect(slugInput.getAttribute("aria-invalid")).toBe("true");
+    expect(slugInput.getAttribute("aria-describedby")).toBe("settings-slug-error");
+
+    // Live once marked: the message goes the moment the value becomes valid.
+    fireEvent.change(slugInput, { target: { value: "orders-eu" } });
+    expect(document.getElementById("settings-slug-error")).toBeNull();
+    expect(slugInput.getAttribute("aria-invalid")).toBe("false");
+    expect(slugInput.getAttribute("aria-describedby")).toBeNull();
+  });
+
+  it("marks the field and moves focus to it on submit rather than sending a rejectable slug", async () => {
+    const slugInput = await openSettings();
+
+    // Never blurred: a submit attempt is the other thing that marks a field,
+    // and it is the one path that forces the message onto the screen.
+    fireEvent.change(slugInput, { target: { value: "orders--eu" } });
+    expect(document.getElementById("settings-slug-error")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await flushAsync();
+    expect(patchCalls()).toHaveLength(0);
+    expect(document.getElementById("settings-slug-error")?.textContent).toContain(
+      "slug must be lowercase kebab-case (a-z, 0-9, -)",
+    );
+    expect(document.activeElement).toBe(slugInput);
+  });
+
+  it("reads the open-ingest slug length from the contract, in the contract's own words", async () => {
+    const slugInput = await openSettings();
+
+    // Valid on its own; too short only because the Channel is about to accept
+    // unauthenticated ingest, which the contract refines the slug against.
+    fireEvent.change(slugInput, { target: { value: "orders-eu" } });
+    fireEvent.blur(slugInput);
+    expect(document.getElementById("settings-slug-error")).toBeNull();
+
+    fireEvent.click(screen.getByLabelText("Accept unauthenticated ingest"));
+    expect(document.getElementById("settings-slug-error")?.textContent).toContain(
+      "slug must be at least 24 characters when allowUnauthenticatedIngest is true",
+    );
+
+    fireEvent.change(slugInput, { target: { value: "orders-eu-production-fanout" } });
+    expect(document.getElementById("settings-slug-error")).toBeNull();
+  });
+
+  it("saves a valid slug and leaves no form-level error behind", async () => {
+    const slugInput = await openSettings();
+
+    fireEvent.change(slugInput, { target: { value: "orders-eu" } });
+    fireEvent.blur(slugInput);
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(patchCalls()).toHaveLength(1);
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("surfaces a server-only rejection, naming the field it belongs to", async () => {
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}` && method === "PATCH") {
+        return Promise.resolve(
+          jsonResponse(409, {
+            error: {
+              code: "conflict",
+              message: "slug is already taken",
+            },
+          }),
+        );
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      if (path === `/channels/${CHANNEL_ID}/endpoints` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+
+    const slugInput = await openSettings();
+
+    // A slug the field itself accepts, so the request actually reaches the API:
+    // uniqueness is not a rule the browser can check.
+    fireEvent.change(slugInput, { target: { value: "invoices" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("slug is already taken");
+  });
+});

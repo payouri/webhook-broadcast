@@ -1,4 +1,4 @@
-import { useRef, useState, type RefObject } from "react";
+import { useCallback, useRef, useState, type RefObject } from "react";
 
 export interface FieldErrorController<E extends HTMLElement> {
   /** The message to render this frame, or `null` when the field has nothing to say. */
@@ -37,13 +37,21 @@ export function useFieldError<V, E extends HTMLElement = HTMLInputElement>(
   const [touched, setTouched] = useState(false);
   const ref = useRef<E>(null);
 
+  // The three marking calls keep a stable identity across renders so a caller
+  // can name one of them in an effect's dependency list (a form that re-arms
+  // its fields when the record it edits is refetched) without the effect
+  // re-running on every render — or being silenced with an eslint-disable.
+  const onBlur = useCallback(() => setTouched(true), []);
+  const markTouched = useCallback(() => setTouched(true), []);
+  const reset = useCallback(() => setTouched(false), []);
+
   return {
     error: touched ? validate(value) : null,
     ref,
-    onBlur: () => setTouched(true),
+    onBlur,
     touched,
-    markTouched: () => setTouched(true),
-    reset: () => setTouched(false),
+    markTouched,
+    reset,
     isInvalid: () => validate(value) !== null,
   };
 }
