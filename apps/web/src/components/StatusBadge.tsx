@@ -164,7 +164,7 @@ export function BroadcastFanoutBadge({ fanout }: { fanout: FanoutSummary }) {
   if (fanout.deadLettered > 0) {
     return (
       <StatusLamp
-        label={`${fanout.deadLettered} dead-lettered`}
+        label={`${fanout.deadLettered} dead-lettered, ${fanout.succeeded}/${fanout.total} succeeded`}
         tone="cut"
         form="lit"
         glyph="stopped"

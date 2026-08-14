@@ -105,13 +105,13 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
       expect(badge.className).toContain("lamp-hollow");
     });
 
-    it("reads Signal Cut, naming the dead-lettered count, when any Delivery dead-lettered", () => {
+    it("reads Signal Cut, naming the dead-lettered count and the success ratio, when any Delivery dead-lettered", () => {
       render(
         <BroadcastFanoutBadge
           fanout={{ total: 3, succeeded: 1, failed: 1, deadLettered: 1, pending: 0 }}
         />,
       );
-      const badge = screen.getByText("1 dead-lettered");
+      const badge = screen.getByText("1 dead-lettered, 1/3 succeeded");
       expect(badge.className).toContain("lamp-cut");
       expect(badge.className).toContain("lamp-lit");
     });

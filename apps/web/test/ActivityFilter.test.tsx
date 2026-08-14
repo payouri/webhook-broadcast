@@ -141,7 +141,7 @@ describe("Activity filter by failure (issue #51)", () => {
         .some((node) => node.className.includes("lamp") && node.className.includes(tone));
     expect(hasBadge("1/1 succeeded", "lamp-live")).toBe(true);
     expect(hasBadge("1 failed, 0/1 succeeded", "lamp-cut")).toBe(true);
-    expect(hasBadge("1 dead-lettered", "lamp-cut")).toBe(true);
+    expect(hasBadge("1 dead-lettered, 0/1 succeeded", "lamp-cut")).toBe(true);
 
     expect(screen.getByRole("button", { name: "All" }).getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByRole("button", { name: "Failures only" }).getAttribute("aria-pressed")).toBe(

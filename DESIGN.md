@@ -609,13 +609,13 @@ version of it collapsed everything that was not dead-lettered into Lamp Live: fi
 failures then produced a screen of green check lamps, each sitting directly above a red `FAILED`
 Delivery.
 
-| Fan-out              | Tone    | Form   | Glyph        | Legend                     |
-| -------------------- | ------- | ------ | ------------ | -------------------------- |
-| no enabled Endpoints | neutral | hollow | minus        | `No Endpoints`             |
-| any `dead_lettered`  | Cut     | lit    | slash        | `N dead-lettered`          |
-| any `failed`         | Cut     | lit    | cross        | `N failed, X/Y succeeded`  |
-| any `pending`        | neutral | lit    | turning ring | `N pending, X/Y succeeded` |
-| all `succeeded`      | Live    | lit    | check        | `X/Y succeeded`            |
+| Fan-out              | Tone    | Form   | Glyph        | Legend                           |
+| -------------------- | ------- | ------ | ------------ | -------------------------------- |
+| no enabled Endpoints | neutral | hollow | minus        | `No Endpoints`                   |
+| any `dead_lettered`  | Cut     | lit    | slash        | `N dead-lettered, X/Y succeeded` |
+| any `failed`         | Cut     | lit    | cross        | `N failed, X/Y succeeded`        |
+| any `pending`        | neutral | lit    | turning ring | `N pending, X/Y succeeded`       |
+| all `succeeded`      | Live    | lit    | check        | `X/Y succeeded`                  |
 
 `failed` and `dead_lettered` are **both terminal** (ADR 0003), which is why both are Cut. They differ
 in cause, not in finality: a non-retryable outcome finishes as `failed` and is never retried, while a
