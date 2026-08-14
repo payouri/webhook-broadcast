@@ -1883,12 +1883,22 @@ a.row:active {
 }
 
 /*
- * Discoverable shortcuts (issue #53): a native disclosure, styled to read as
- * a control at rest so it sits beside the filter toggle without announcing
- * itself as a different kind of thing. The list drops out below it — inline
- * expansion, the one detail mechanism DESIGN.md grants — rather than a
- * floating panel.
+ * Discoverable shortcuts (issue #53), a native disclosure styled to read as a
+ * control at rest. Issue #79: this used to sit beside the filter toggle inside
+ * `.activity-controls`'s `justify-content: space-between` row, so opening it
+ * (the `<ul>` below the summary is wider than the summary alone) grew that
+ * flex item's own box, and space-between re-anchored it — the trigger itself
+ * jumped roughly 400px sideways. It now renders through `.list-shortcuts`, its
+ * own block-level row placed last in the list section (after the rows and any
+ * "Load more"), so nothing shares space with it and nothing sits below it to
+ * displace: the growing `<ul>` only ever extends into empty space beneath the
+ * section. The list drops out below it — inline expansion, the one detail
+ * mechanism DESIGN.md grants — rather than a floating panel.
  */
+.list-shortcuts {
+  margin-top: var(--space-sm);
+}
+
 .shortcuts-help > summary {
   cursor: pointer;
   list-style: none;
@@ -1901,6 +1911,10 @@ a.row:active {
 .shortcuts-help[open] > summary {
   color: var(--anodize);
   border-color: var(--anodize);
+}
+
+.shortcuts-help-chevron {
+  display: inline-flex;
 }
 
 .shortcuts-help-list {

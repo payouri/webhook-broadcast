@@ -192,7 +192,6 @@ export function ChannelActivityTab({
       <PollStatusLine dataUpdatedAt={activityQuery.dataUpdatedAt} isError={activityQuery.isError} />
       <div className="activity-controls">
         <ActivityFilterToggle filter={filter} onChange={setFilter} />
-        <ShortcutsHelp items={ACTIVITY_SHORTCUTS} />
       </div>
       {error && <InlineLoadError message={error} onRetry={retry} />}
       {items === null && !error && <SkeletonRows count={4} label="Loading Activity" />}
@@ -292,6 +291,13 @@ export function ChannelActivityTab({
           )}
         </>
       )}
+      {/* Last in the section (issue #79): the trigger no longer shares a
+          `justify-content: space-between` row with the filter toggle, and
+          nothing sits below it, so opening it can never move the trigger or
+          displace the filter row or the rows above. */}
+      <div className="list-shortcuts">
+        <ShortcutsHelp items={ACTIVITY_SHORTCUTS} />
+      </div>
     </section>
   );
 }

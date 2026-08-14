@@ -17,6 +17,7 @@ import { EmptyState } from "../../components/EmptyState.js";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
 import { PollStatusLine } from "../../components/PollStatusLine.js";
 import { SectionTitle } from "../../components/SectionTitle.js";
+import { ShortcutsHelp } from "../../components/ShortcutsHelp.js";
 import { SkeletonRows } from "../../components/SkeletonRows.js";
 import { EnabledStatusBadge } from "../../components/StatusBadge.js";
 import { api, describeApiError } from "../../lib/api.js";
@@ -28,7 +29,31 @@ import {
   queryErrorMessage,
   useRefetchOnVisible,
 } from "../../lib/freshness.js";
+import { handleRowListKeyDown } from "../../lib/rowListKeyboard.js";
 import { EndpointForm, type EndpointFormValues } from "./EndpointForm.js";
+
+// Issue #79: the row-to-row keyboard model (`rowListKeyboard.ts`, issue #53)
+// was already implemented on this list's rows — a button per Endpoint,
+// `aria-expanded`, an inset well that opens in place — it was only ever missing
+// its `data-row-nav` wiring and its own discoverable disclosure. Documented
+// here rather than reusing `ACTIVITY_SHORTCUTS`: this list never nests (no
+// Delivery-style child list), and Enter/Space open the Endpoint's editor
+// rather than a read-only detail well.
+const ENDPOINT_SHORTCUTS = [
+  { keys: "↑ ↓", description: "Move between Endpoint rows" },
+  { keys: "Home / End", description: "Jump to the first or last Endpoint" },
+  // Deliberately "Open", not "Open or close": re-activating the row that is
+  // already being edited does *not* close it (`handleRowClick` returns early),
+  // because closing on a second press would silently discard whatever is
+  // half-typed in the form — the exact loss `EndpointSwitchConfirm` exists to
+  // prevent. Esc, below, is this list's close, and it runs the form's own
+  // Cancel rather than a bare discard.
+  { keys: "Enter / Space", description: "Open the focused Endpoint's editor" },
+  {
+    keys: "Esc",
+    description: "Close the open editor, or back out of a pending switch confirmation",
+  },
+] as const;
 
 /**
  * Issue #52: an auto-disabled Endpoint (ADR 0003) was the interface's one
@@ -278,11 +303,34 @@ function EndpointRow({
   }
 
   return (
-    <li>
+    // Escape is handled here on the `<li>` rather than on the well below,
+    // because the well is a *sibling* of the row's `<button>`, not its
+    // ancestor: with the handler on the well, Escape did nothing while focus
+    // sat on the row button — which is exactly where the row-to-row keyboard
+    // model (issue #53) leaves it after Enter opens the editor. The `<li>`
+    // encloses both, so Escape now closes from the row and from inside the
+    // form alike, matching the Activity list's own row-plus-well shape.
+    <li
+      onKeyDown={(event) => {
+        // The overlay focus contract (DESIGN.md #4) requires Escape to do
+        // exactly what the region's own Cancel-equivalent control does:
+        // "Keep editing" while a switch is pending, otherwise the form's own
+        // Cancel.
+        if (event.key === "Escape" && editing) {
+          event.stopPropagation();
+          if (pendingSwitchTarget) {
+            onKeepEditing();
+          } else {
+            cancelEdit();
+          }
+        }
+      }}
+    >
       <button
         ref={rowRef}
         type="button"
         className="row row-endpoint"
+        data-row-nav="true"
         aria-expanded={editing}
         onClick={() => onRowClick(endpoint.id)}
       >
@@ -346,19 +394,6 @@ function EndpointRow({
           className="well well-endpoint-edit stack"
           role="group"
           aria-label={`Edit Endpoint ${endpointLabel(endpoint)}`}
-          onKeyDown={(event) => {
-            // The overlay focus contract (DESIGN.md #4) requires Escape to do
-            // exactly what the region's own Cancel-equivalent control does:
-            // "Keep editing" while a switch is pending, otherwise the form's
-            // own Cancel.
-            if (event.key === "Escape") {
-              if (pendingSwitchTarget) {
-                onKeepEditing();
-              } else {
-                cancelEdit();
-              }
-            }
-          }}
         >
           {/*
            * The form itself stays mounted underneath the switch-confirm
@@ -467,7 +502,7 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
           </EmptyState>
         )}
         {endpoints !== null && endpoints.length > 0 && (
-          <ul className="row-list row-list-endpoint">
+          <ul className="row-list row-list-endpoint" onKeyDown={handleRowListKeyDown}>
             {endpoints.map((endpoint) => (
               <EndpointRow
                 key={endpoint.id}
@@ -499,6 +534,12 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
             ))}
           </ul>
         )}
+        {/* Last in the section (issue #79), same as Activity: nothing shares
+            space with the trigger and nothing sits below it, so opening it
+            can never move the trigger or displace the rows above. */}
+        <div className="list-shortcuts">
+          <ShortcutsHelp items={ENDPOINT_SHORTCUTS} />
+        </div>
       </section>
     </div>
   );
