@@ -109,7 +109,7 @@
      `L 0%` sRGB has no chroma at all, so a tint there renders identically. */
   --lip-light: oklch(100% 0 0 / 0.9);
   --lip-shade: oklch(60% 0.01 195 / 0.22);
-  --lip-shade-deep: oklch(40% 0.02 195 / 0.3);
+  --lip-shade-deep: oklch(40% 0.01 195 / 0.3);
 
   /* Anodized Cyan: the operator's own voice. Actions, selection, focus. Never
      system state (The One Voice Rule). */
@@ -810,7 +810,11 @@ button {
   flex-wrap: wrap;
 }
 
-.inline-form input {
+/* Keyed on the field class rather than the bare `input` element, for the same
+   reason the geometry below is: an `input` that is not a field (the Switch
+   plate's checkbox) must not be stretched into one by standing in an inline
+   form. */
+.inline-form .field-control {
   flex: 1;
   min-width: 180px;
 }
@@ -864,8 +868,18 @@ label {
   color: var(--ink-muted);
 }
 
-input,
-textarea {
+/* Field geometry lives on `.field-control`, matching the Controls pattern
+   (`.control` carries a button's whole appearance, not the bare `button`
+   element): every text `input` and `textarea` in a form carries this class,
+   so an element that is an `input` for semantic reasons but wants no field
+   appearance — the Switch plate's native checkbox — inherits nothing it must
+   undo, the same reason `.control` stays off the bare `button` element.
+
+   The type declarations here are the field's default, not its floor: a field
+   that also carries `.data` (the Endpoint URL and headers) matches at the same
+   specificity, so `.data` wins on source order alone and must stay below this
+   block. */
+.field-control {
   width: 100%;
   min-height: var(--control-height);
   padding: 8px 10px;
@@ -881,7 +895,7 @@ textarea {
     background-color 150ms var(--ease-out);
 }
 
-textarea {
+textarea.field-control {
   resize: vertical;
 }
 
@@ -889,27 +903,24 @@ textarea {
    beneath it (DESIGN.md §5 Fields — Error). Keyed on `aria-invalid` so the same
    attribute a screen reader reads is the one the border is drawn from, and there
    is no second class to keep in step with it. */
-input[aria-invalid="true"],
-textarea[aria-invalid="true"] {
+.field-control[aria-invalid="true"] {
   border-color: var(--lamp-cut);
 }
 
 /* Focus outranks the error border: the ring states where the keyboard is, and
    the message beneath still states what is wrong. */
-input:focus,
-textarea:focus {
+.field-control:focus {
   border-color: var(--anodize);
   outline: 2px solid var(--anodize);
   outline-offset: -2px;
 }
 
-input::placeholder,
-textarea::placeholder {
+.field-control::placeholder {
   color: var(--ink-muted);
   opacity: 1;
 }
 
-input[type="number"] {
+.field-control[type="number"] {
   font-variant-numeric: tabular-nums;
 }
 
@@ -1060,6 +1071,11 @@ input[type="number"] {
   line-height: 1.3;
   letter-spacing: var(--text-engraved-tracking);
   text-transform: uppercase;
+  /* Fan-out legends print numbers compared down a column (e.g. "3/4
+     SUCCEEDED"); this carries the tabular alignment on its own rather than
+     depending on an ancestor (the Activity list) to supply it, so a lamp
+     rendered anywhere else still lines its digits up. */
+  font-variant-numeric: tabular-nums;
   /* A lamp wraps inside its column rather than widening or overflowing it. Every
      lamp but the Channel health one sits in an `auto` track that resolves at
      max-content, so this only ever engages where a track is capped. The legend
@@ -1897,11 +1913,13 @@ a.row:active {
 .elapsed-time {
   position: relative;
   display: inline-block;
-  /* Several call sites are grid items of a subgrid row (`.activity-time`, the
-     token row's `.row-meta`), where the shared track is as wide as the widest
-     row's label and a stretched item would drag the dotted underline past its
-     own text. The underline states the affordance, so it may only be as wide
-     as the reading it underlines. */
+  /* Some call sites are grid items of a subgrid row (`.activity-time`), where
+     the shared track is as wide as the widest row's label and a stretched item
+     would drag the dotted underline past its own text. The underline states the
+     affordance, so it may only be as wide as the reading it underlines. Where
+     the timestamp sits inside a labelled wrapper instead — the token row's
+     "Created …" — `inline-block` alone already sizes it to its own reading and
+     this declaration is inert. */
   justify-self: start;
   border-bottom: 1px dotted var(--score-strong);
   font-variant-numeric: tabular-nums;

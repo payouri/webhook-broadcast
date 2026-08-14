@@ -12,7 +12,7 @@ import {
   useChannelRouteId,
 } from "../lib/channelQuery.js";
 import { queryErrorMessage } from "../lib/freshness.js";
-import { EnabledStatusBadge } from "../components/StatusBadge.js";
+import { EnabledStatusLamp } from "../components/StatusLamp.js";
 import { InlineLoadError } from "../components/InlineLoadError.js";
 import { NotFoundPanel } from "../components/NotFoundPanel.js";
 import { SkeletonRows } from "../components/SkeletonRows.js";
@@ -157,7 +157,7 @@ export function ChannelDetailPage() {
       {channel && (
         <>
           <header className="channel-header">
-            <EnabledStatusBadge enabled={channel.enabled} />
+            <EnabledStatusLamp enabled={channel.enabled} />
             {/* This view's one h1: the Channel slug names the view, so it must
                 not sit at the same heading level as the legends beneath it. */}
             <h1>{channel.slug}</h1>
@@ -205,6 +205,7 @@ export function ChannelDetailPage() {
           {tab === "activity" && (
             <ChannelActivityTab
               channelId={channel.id}
+              channelSlug={channel.slug}
               expandedBroadcastId={broadcastId ?? null}
               onToggleBroadcast={toggleBroadcast}
             />

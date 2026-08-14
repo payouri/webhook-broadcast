@@ -75,6 +75,7 @@ export function ChannelSettingsForm({
         <label htmlFor="settings-slug">Slug</label>
         <input
           id="settings-slug"
+          className="field-control"
           value={slug}
           onChange={(event) => setSlug(event.target.value)}
           required
@@ -108,6 +109,7 @@ export function ChannelSettingsForm({
         <label htmlFor="settings-description">Description</label>
         <textarea
           id="settings-description"
+          className="field-control"
           value={description}
           onChange={(event) => setDescription(event.target.value)}
           rows={3}
@@ -141,7 +143,7 @@ export function ChannelSettingsForm({
           <p className="advisory">
             <Info className="advisory-icon" size={14} strokeWidth={2} aria-hidden="true" />
             <span>
-              POST /ingest/{slug || "…"} will accept events without an ingest token. The slug is
+              POST /ingest/{slug || "…"} will accept Broadcasts without an ingest token. The slug is
               then the only thing gating this Channel&apos;s fan-out; use a long, unguessable slug
               (at least {MIN_OPEN_INGEST_SLUG_LENGTH} characters).
             </span>

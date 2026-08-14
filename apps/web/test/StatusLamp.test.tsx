@@ -3,12 +3,12 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DeliveryStatus } from "@webhook-broadcast/contract";
 import {
-  BroadcastFanoutBadge,
-  ChannelHealthBadge,
-  DeliveryStatusBadge,
-  EnabledStatusBadge,
+  BroadcastFanoutLamp,
+  ChannelHealthLamp,
+  DeliveryStatusLamp,
+  EnabledStatusLamp,
   StatusLamp,
-} from "../src/components/StatusBadge.js";
+} from "../src/components/StatusLamp.js";
 
 /** CONTEXT.md's Delivery lifecycle, and the label each status is shown as. */
 const DELIVERY_STATUS_LABELS: Array<[DeliveryStatus, string]> = [
@@ -43,35 +43,35 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
   });
 
   it("labels Channel/Endpoint enabled state in words, not only a color dot", () => {
-    render(<EnabledStatusBadge enabled={true} />);
+    render(<EnabledStatusLamp enabled={true} />);
     expect(screen.getByText("Enabled")).toBeTruthy();
 
     cleanup();
-    render(<EnabledStatusBadge enabled={false} />);
+    render(<EnabledStatusLamp enabled={false} />);
     expect(screen.getByText("Disabled")).toBeTruthy();
   });
 
   it("labels an auto-disabled Endpoint distinctly from a manually disabled one", () => {
-    render(<EnabledStatusBadge enabled={false} autoDisabledAt="2026-08-10T12:00:00.000Z" />);
+    render(<EnabledStatusLamp enabled={false} autoDisabledAt="2026-08-10T12:00:00.000Z" />);
     expect(screen.getByText("Auto-disabled")).toBeTruthy();
   });
 
   it("labels every Delivery status in the domain's own words", () => {
     for (const [status, label] of DELIVERY_STATUS_LABELS) {
       cleanup();
-      render(<DeliveryStatusBadge status={status} />);
+      render(<DeliveryStatusLamp status={status} />);
       expect(screen.getByText(label)).toBeTruthy();
     }
   });
 
   it("gives `pending` and `in_progress` different form classes, not just color", () => {
-    render(<DeliveryStatusBadge status="pending" />);
+    render(<DeliveryStatusLamp status="pending" />);
     const pending = screen.getByText("pending");
     expect(pending.className).toContain("lamp-hollow");
     expect(pending.className).not.toContain("lamp-lit");
     cleanup();
 
-    render(<DeliveryStatusBadge status="in_progress" />);
+    render(<DeliveryStatusLamp status="in_progress" />);
     const inProgress = screen.getByText("in progress");
     expect(inProgress.className).toContain("lamp-lit");
     expect(inProgress.className).not.toContain("lamp-hollow");
@@ -87,16 +87,16 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
     const TONES = ["lamp-live", "lamp-neutral", "lamp-cut"];
     for (const [status, label] of DELIVERY_STATUS_LABELS) {
       cleanup();
-      render(<DeliveryStatusBadge status={status} />);
+      render(<DeliveryStatusLamp status={status} />);
       const tones = [...screen.getByText(label).classList].filter((name) => TONES.includes(name));
       expect(tones).toHaveLength(1);
     }
   });
 
-  describe("BroadcastFanoutBadge — the Broadcast row's status stamp (2026-08-13 critique, issue #49)", () => {
+  describe("BroadcastFanoutLamp — the Broadcast row's status stamp (2026-08-13 critique, issue #49)", () => {
     it("reads neutral, naming 'No Endpoints', when the Channel had none enabled", () => {
       render(
-        <BroadcastFanoutBadge
+        <BroadcastFanoutLamp
           fanout={{ total: 0, succeeded: 0, failed: 0, deadLettered: 0, pending: 0 }}
         />,
       );
@@ -107,7 +107,7 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
 
     it("reads Signal Cut, naming the dead-lettered count and the success ratio, when any Delivery dead-lettered", () => {
       render(
-        <BroadcastFanoutBadge
+        <BroadcastFanoutLamp
           fanout={{ total: 3, succeeded: 1, failed: 1, deadLettered: 1, pending: 0 }}
         />,
       );
@@ -118,7 +118,7 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
 
     it("reads Signal Live, naming the succeeded count, once fan-out has Endpoints and nothing dead-lettered", () => {
       render(
-        <BroadcastFanoutBadge
+        <BroadcastFanoutLamp
           fanout={{ total: 2, succeeded: 2, failed: 0, deadLettered: 0, pending: 0 }}
         />,
       );
@@ -136,7 +136,7 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
       // count, so an operator on the failures-only filter never has to subtract
       // to find the row they came for.
       render(
-        <BroadcastFanoutBadge
+        <BroadcastFanoutLamp
           fanout={{ total: 2, succeeded: 1, failed: 1, deadLettered: 0, pending: 0 }}
         />,
       );
@@ -150,12 +150,12 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
       // Both are terminal and both are Cut, so the glyph is what separates a
       // non-retryable failure from a spent retry budget.
       const { container: failedBox } = render(
-        <BroadcastFanoutBadge
+        <BroadcastFanoutLamp
           fanout={{ total: 2, succeeded: 1, failed: 1, deadLettered: 0, pending: 0 }}
         />,
       );
       const { container: deadBox } = render(
-        <BroadcastFanoutBadge
+        <BroadcastFanoutLamp
           fanout={{ total: 2, succeeded: 1, failed: 0, deadLettered: 1, pending: 0 }}
         />,
       );
@@ -170,7 +170,7 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
       // unfinished fan-out "succeeded" would be the same lie the green
       // fallthrough told, in a quieter key.
       render(
-        <BroadcastFanoutBadge
+        <BroadcastFanoutLamp
           fanout={{ total: 3, succeeded: 1, failed: 0, deadLettered: 0, pending: 2 }}
         />,
       );
@@ -181,10 +181,10 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
     });
   });
 
-  describe("ChannelHealthBadge — issues #44 and #45 directory health signal", () => {
+  describe("ChannelHealthLamp — issues #44 and #45 directory health signal", () => {
     it("reads as 'no activity' rather than healthy for a Channel with no Broadcasts", () => {
       render(
-        <ChannelHealthBadge
+        <ChannelHealthLamp
           enabled={true}
           hasBroadcasts={false}
           recentFailedDeliveryCount={0}
@@ -198,7 +198,7 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
 
     it("labels zero recent failures as healthy, distinct in text and tone from a failing Channel", () => {
       render(
-        <ChannelHealthBadge
+        <ChannelHealthLamp
           enabled={true}
           hasBroadcasts={true}
           recentFailedDeliveryCount={0}
@@ -211,7 +211,7 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
       cleanup();
 
       render(
-        <ChannelHealthBadge
+        <ChannelHealthLamp
           enabled={true}
           hasBroadcasts={true}
           recentFailedDeliveryCount={3}
@@ -225,7 +225,7 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
 
     it("carries the failure count in its text, not only in color", () => {
       render(
-        <ChannelHealthBadge
+        <ChannelHealthLamp
           enabled={true}
           hasBroadcasts={true}
           recentFailedDeliveryCount={7}
@@ -237,7 +237,7 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
 
     it("names a non-zero auto-disabled Endpoint count using the shared vocabulary (issue #45)", () => {
       render(
-        <ChannelHealthBadge
+        <ChannelHealthLamp
           enabled={true}
           hasBroadcasts={true}
           recentFailedDeliveryCount={0}
@@ -251,7 +251,7 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
 
     it("combines both facts when a Channel has recent failures and an auto-disabled Endpoint", () => {
       render(
-        <ChannelHealthBadge
+        <ChannelHealthLamp
           enabled={true}
           hasBroadcasts={true}
           recentFailedDeliveryCount={2}
@@ -267,7 +267,7 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
       // actively failing, even while it still carries stale counts from
       // before it was disabled.
       render(
-        <ChannelHealthBadge
+        <ChannelHealthLamp
           enabled={false}
           hasBroadcasts={true}
           recentFailedDeliveryCount={2}
@@ -287,7 +287,7 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
       // auto-disabled. `listChannels` ranks that Channel first; the badge must
       // not then read "No activity" and hide the very fact issue #45 surfaces.
       render(
-        <ChannelHealthBadge
+        <ChannelHealthLamp
           enabled={true}
           hasBroadcasts={false}
           recentFailedDeliveryCount={0}

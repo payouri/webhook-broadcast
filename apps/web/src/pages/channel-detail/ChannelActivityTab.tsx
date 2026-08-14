@@ -9,7 +9,7 @@ import { InlineLoadError } from "../../components/InlineLoadError.js";
 import { PollStatusLine } from "../../components/PollStatusLine.js";
 import { ShortcutsHelp } from "../../components/ShortcutsHelp.js";
 import { SkeletonRows } from "../../components/SkeletonRows.js";
-import { BroadcastFanoutBadge } from "../../components/StatusBadge.js";
+import { BroadcastFanoutLamp } from "../../components/StatusLamp.js";
 import {
   ACTIVITY_FILTER_PARAM,
   activityFilterFromParams,
@@ -80,10 +80,12 @@ function ActivityFilterToggle({
  */
 export function ChannelActivityTab({
   channelId,
+  channelSlug,
   expandedBroadcastId,
   onToggleBroadcast,
 }: {
   channelId: string;
+  channelSlug: string;
   expandedBroadcastId: string | null;
   onToggleBroadcast: (broadcastId: string) => void;
 }) {
@@ -197,8 +199,8 @@ export function ChannelActivityTab({
       {items === null && !error && <SkeletonRows count={4} label="Loading Activity" />}
       {items !== null && items.length === 0 && (
         <EmptyState icon={<Inbox size={20} strokeWidth={1.5} />}>
-          No Broadcasts yet. Send a request to <code>POST /ingest/&lt;slug&gt;</code> with a Channel
-          token.
+          No Broadcasts yet. Send a request to <code>POST /ingest/{channelSlug}</code> with a
+          Channel token.
         </EmptyState>
       )}
       {items !== null && items.length > 0 && visibleItems !== null && (
@@ -241,7 +243,7 @@ export function ChannelActivityTab({
                           dead-lettered fan-out used to render as the same muted
                           grey as the timestamp beside it. This lamp lands in the
                           same fixed leading column as every other row's. */}
-                      <BroadcastFanoutBadge fanout={item.fanout} />
+                      <BroadcastFanoutLamp fanout={item.fanout} />
                       {/* `focusable={false}`: this row is itself the button, so the
                           exact instant is revealed from the row's own focus rather
                           than from a second tab stop nested inside it. */}

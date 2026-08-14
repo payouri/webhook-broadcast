@@ -218,7 +218,7 @@ export function EndpointForm({
         <input
           ref={urlField.ref}
           id={urlFieldId}
-          className="data"
+          className="field-control data"
           value={url}
           onChange={(event) => setUrl(event.target.value)}
           onBlur={urlField.onBlur}
@@ -242,6 +242,7 @@ export function EndpointForm({
           <label htmlFor={`endpoint-name-${initial?.id ?? "new"}`}>Name</label>
           <input
             id={`endpoint-name-${initial?.id ?? "new"}`}
+            className="field-control"
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="Optional"
@@ -252,6 +253,7 @@ export function EndpointForm({
           <label htmlFor={`endpoint-timeout-${initial?.id ?? "new"}`}>Timeout (ms)</label>
           <input
             id={`endpoint-timeout-${initial?.id ?? "new"}`}
+            className="field-control"
             type="number"
             min={1}
             value={timeoutMs}
@@ -266,7 +268,7 @@ export function EndpointForm({
         <textarea
           ref={headersField.ref}
           id={headersFieldId}
-          className="data"
+          className="field-control data"
           value={headersText}
           onChange={(event) => setHeadersText(event.target.value)}
           onBlur={headersField.onBlur}

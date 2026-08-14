@@ -8,7 +8,7 @@ import { InlineLoadError } from "../components/InlineLoadError.js";
 import { PollStatusLine } from "../components/PollStatusLine.js";
 import { SectionTitle } from "../components/SectionTitle.js";
 import { SkeletonRows } from "../components/SkeletonRows.js";
-import { ChannelHealthBadge, EnabledStatusBadge } from "../components/StatusBadge.js";
+import { ChannelHealthLamp, EnabledStatusLamp } from "../components/StatusLamp.js";
 import { channelActivityHref } from "../lib/activityFilter.js";
 import { api, describeApiError } from "../lib/api.js";
 import { useDelayedPending } from "../lib/delayedPending.js";
@@ -28,7 +28,7 @@ import { useFieldError } from "../lib/useFieldError.js";
  */
 function validateSlug(value: string): string | null {
   if (value.length === 0) {
-    return "Slug is required — it is the ingest path segment.";
+    return "Slug is required: it is the ingest path segment.";
   }
   const result = channelSlugSchema.safeParse(value);
   if (result.success) {
@@ -125,7 +125,7 @@ export function ChannelDirectoryPage() {
                     Activity view: the count this row names and the Broadcasts
                     behind it are one navigation apart. */}
                 <Link to={channelActivityHref(channel)} className="row row-channel">
-                  <EnabledStatusBadge enabled={channel.enabled} />
+                  <EnabledStatusLamp enabled={channel.enabled} />
                   <span className="row-name">{channel.slug}</span>
                   {/* A description has no length bound, so it can still outrun
                       even the widened column on some rows. DESIGN.md's rule for
@@ -136,7 +136,7 @@ export function ChannelDirectoryPage() {
                   <span className="muted row-truncate" title={channel.description ?? undefined}>
                     {channel.description ?? "No description"}
                   </span>
-                  <ChannelHealthBadge
+                  <ChannelHealthLamp
                     enabled={channel.enabled}
                     hasBroadcasts={channel.hasBroadcasts}
                     recentFailedDeliveryCount={channel.recentFailedDeliveryCount}
@@ -174,6 +174,7 @@ export function ChannelDirectoryPage() {
               <input
                 ref={slugField.ref}
                 id="new-channel-slug"
+                className="field-control"
                 name="slug"
                 value={slug}
                 onChange={(event) => setSlug(event.target.value)}
@@ -211,6 +212,7 @@ export function ChannelDirectoryPage() {
               <label htmlFor="new-channel-description">Description</label>
               <input
                 id="new-channel-description"
+                className="field-control"
                 name="description"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}

@@ -19,7 +19,7 @@ import { PollStatusLine } from "../../components/PollStatusLine.js";
 import { SectionTitle } from "../../components/SectionTitle.js";
 import { ShortcutsHelp } from "../../components/ShortcutsHelp.js";
 import { SkeletonRows } from "../../components/SkeletonRows.js";
-import { EnabledStatusBadge } from "../../components/StatusBadge.js";
+import { EnabledStatusLamp } from "../../components/StatusLamp.js";
 import { api, describeApiError } from "../../lib/api.js";
 import { useDelayedPending } from "../../lib/delayedPending.js";
 import { useNow } from "../../lib/elapsedClock.js";
@@ -334,7 +334,7 @@ function EndpointRow({
         aria-expanded={editing}
         onClick={() => onRowClick(endpoint.id)}
       >
-        <EnabledStatusBadge enabled={endpoint.enabled} autoDisabledAt={endpoint.autoDisabledAt} />
+        <EnabledStatusLamp enabled={endpoint.enabled} autoDisabledAt={endpoint.autoDisabledAt} />
         {/* The cell stays in the markup when there is no name so the grid
             lines still agree down the list. It truncates (and so carries its
             own `title`) because a long name is the other way this track could

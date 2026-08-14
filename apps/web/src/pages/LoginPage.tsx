@@ -53,6 +53,7 @@ export function LoginPage({
           <label htmlFor="apiKey">Operator API key</label>
           <input
             id="apiKey"
+            className="field-control"
             type="password"
             name="apiKey"
             value={apiKey}

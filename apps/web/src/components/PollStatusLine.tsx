@@ -38,7 +38,7 @@ export function PollStatusLine({
   if (status.state === "failing") {
     return (
       <p className="poll-status poll-status-failing">
-        <span role="status">Updates failing</span> — showing data from <ElapsedTime iso={iso} />.
+        <span role="status">Updates failing</span>, showing data from <ElapsedTime iso={iso} />.
       </p>
     );
   }

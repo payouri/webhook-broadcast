@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight, Inbox, Repeat } from "lucide-react";
 import type { Attempt, BroadcastDetail } from "@webhook-broadcast/contract";
 import { EmptyState } from "../components/EmptyState.js";
-import { DeliveryStatusBadge } from "../components/StatusBadge.js";
+import { DeliveryStatusLamp } from "../components/StatusLamp.js";
 import { api, describeApiError } from "../lib/api.js";
 import { useDelayedPending } from "../lib/delayedPending.js";
 import { formatAbsolute, formatBackoffGap } from "../lib/relativeTime.js";
@@ -166,7 +166,7 @@ export function DeliveryDetail({
         aria-expanded={expanded}
         onClick={toggle}
       >
-        <DeliveryStatusBadge status={delivery.status} />
+        <DeliveryStatusLamp status={delivery.status} />
         <span className="delivery-endpoint">{delivery.endpointName ?? delivery.endpointUrl}</span>
         <span className="muted delivery-meta">
           {delivery.lastStatusCode !== null ? (

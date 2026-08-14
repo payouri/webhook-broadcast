@@ -31,7 +31,7 @@ export function activityFilterSearch(filter: ActivityFilter): string {
  * budget finishes as `dead_lettered`, and anything still owed a retry is
  * `pending`. So this predicate means "something here is finished and broken".
  *
- * `BroadcastFanoutBadge` in `StatusBadge.tsx` is the rendering counterpart of
+ * `BroadcastFanoutLamp` in `StatusLamp.tsx` is the rendering counterpart of
  * the same fact and paints both as Lamp Cut, keeping the cross and the slash
  * apart so the two remain distinguishable without color. The invariant to hold
  * on to: a Broadcast this predicate calls a failure must never be one that

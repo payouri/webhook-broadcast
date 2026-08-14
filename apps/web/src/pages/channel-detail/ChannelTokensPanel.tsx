@@ -202,7 +202,9 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
               ) : (
                 <div className="row row-token">
                   <span className="token-prefix">{token.prefix}…</span>
-                  <ElapsedTime iso={token.createdAt} className="row-meta" />
+                  <span className="row-meta">
+                    Created <ElapsedTime iso={token.createdAt} />
+                  </span>
                   <button
                     ref={(el) => {
                       if (el) {

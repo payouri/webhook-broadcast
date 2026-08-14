@@ -74,7 +74,7 @@ export function StatusLamp({
  * from a lit `FAILED` lamp. Disabled is a choice rather than a fault, so it
  * takes the neutral power glyph, not the slash.
  */
-export function EnabledStatusBadge({
+export function EnabledStatusLamp({
   enabled,
   autoDisabledAt = null,
 }: {
@@ -114,7 +114,7 @@ const DELIVERY_STATUS_PRESENTATION: Record<
   dead_lettered: { tone: "cut", form: "lit", glyph: "stopped" },
 };
 
-export function DeliveryStatusBadge({ status }: { status: DeliveryStatus }) {
+export function DeliveryStatusLamp({ status }: { status: DeliveryStatus }) {
   const { tone, form, glyph } = DELIVERY_STATUS_PRESENTATION[status];
   return <StatusLamp label={deliveryStatusLabel(status)} tone={tone} form={form} glyph={glyph} />;
 }
@@ -157,7 +157,7 @@ export function DeliveryStatusBadge({ status }: { status: DeliveryStatus }) {
  * rows this badge paints as healthy. The count lives in the label in every
  * branch: never color alone.
  */
-export function BroadcastFanoutBadge({ fanout }: { fanout: FanoutSummary }) {
+export function BroadcastFanoutLamp({ fanout }: { fanout: FanoutSummary }) {
   if (fanout.total === 0) {
     return <StatusLamp label="No Endpoints" tone="neutral" form="hollow" glyph="none" />;
   }
@@ -216,7 +216,7 @@ export function BroadcastFanoutBadge({ fanout }: { fanout: FanoutSummary }) {
  *    lit); one the operator has already turned off is parked, not urgent
  *    (neutral, hollow). Disabled is a choice, broken is not, and this lamp must
  *    never blend the two even though the underlying counts can be identical.
- *    `EnabledStatusBadge` already names "Disabled" beside this lamp, so this
+ *    `EnabledStatusLamp` already names "Disabled" beside this lamp, so this
  *    one still leads with the counts rather than repeating that word. This
  *    mirrors the directory's ordering (`packages/db`'s `listChannels`), which
  *    parks a disabled Channel in its own tier below any enabled-but-broken one.
@@ -233,7 +233,7 @@ export function BroadcastFanoutBadge({ fanout }: { fanout: FanoutSummary }) {
  * short-circuiting on `hasBroadcasts` first would label that very row "No
  * activity" and hide the one fact this lamp exists to surface.
  */
-export function ChannelHealthBadge({
+export function ChannelHealthLamp({
   enabled,
   hasBroadcasts,
   recentFailedDeliveryCount,
