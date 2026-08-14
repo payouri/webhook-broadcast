@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FRESHNESS_POLL_MS } from "../src/lib/freshness.js";
 import { renderRoutes, requestMethod, requestPath, stubFetchMock } from "./fetchMock.js";
@@ -124,6 +124,55 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
     setDocumentVisibility("visible");
     await flushAsync();
     expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
+  });
+
+  it("states when the Channel list last refreshed, then names a failing poll and clears it on its own once the poll recovers (issue #54)", async () => {
+    // `shouldAdvanceTime: true` lets real time trickle forward alongside the
+    // virtual clock, which is what lets `findBy*`'s own internal polling
+    // (real `setTimeout`s under the hood) actually settle while a poll
+    // interval is being driven by explicit `advanceTimersByTimeAsync` calls —
+    // the same combination `App.test.tsx` already relies on for ADR 0004.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let failing = false;
+
+    fetchMock.mockImplementation((input: string | URL | Request) => {
+      const path = requestPath(input);
+      if (path === "/channels") {
+        return failing
+          ? Promise.resolve(
+              jsonResponse(500, { error: { code: "internal_error", message: "boom" } }),
+            )
+          : Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    });
+
+    renderRoutes("/");
+
+    // A quiet system: the first fetch succeeded, and the line states so —
+    // never a failure color for a Channel list that simply has nothing new.
+    await screen.findByText(/^Updated/);
+    expect(screen.queryByRole("status")).toBeNull();
+
+    // The poll starts failing. Distinct from the quiet reading above: it
+    // says so by name, through the same status vocabulary a load error
+    // elsewhere on the page already carries — no separate alarm styling.
+    failing = true;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(FRESHNESS_POLL_MS);
+    });
+    const failingStatus = await screen.findByRole("status");
+    expect(failingStatus.textContent).toMatch(/Updates failing/);
+
+    // Recovery clears it on the poll's own next tick — no manual refresh.
+    failing = false;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(FRESHNESS_POLL_MS);
+    });
+    await waitFor(() => expect(screen.queryByRole("status")).toBeNull());
+    expect(screen.getByText(/^Updated/)).toBeTruthy();
 
     vi.useRealTimers();
   });

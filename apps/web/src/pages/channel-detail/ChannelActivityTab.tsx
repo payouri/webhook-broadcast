@@ -3,8 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import { ChevronDown, ChevronRight, Filter, Inbox } from "lucide-react";
 import type { BroadcastListItem } from "@webhook-broadcast/contract";
+import { ElapsedTime } from "../../components/ElapsedTime.js";
 import { EmptyState } from "../../components/EmptyState.js";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
+import { PollStatusLine } from "../../components/PollStatusLine.js";
 import { ShortcutsHelp } from "../../components/ShortcutsHelp.js";
 import { SkeletonRows } from "../../components/SkeletonRows.js";
 import { BroadcastFanoutBadge } from "../../components/StatusBadge.js";
@@ -182,6 +184,10 @@ export function ChannelActivityTab({
           stays in the outline for assistive tech, where it is not a repeat but
           the only thing naming this region. */}
       <h2 className="visually-hidden">Activity</h2>
+      {/* The poll's own freshness reading sits directly under the region's
+          heading, as it does on the Channel directory and Endpoints lists,
+          above the controls that act on the list. */}
+      <PollStatusLine dataUpdatedAt={activityQuery.dataUpdatedAt} isError={activityQuery.isError} />
       <div className="activity-controls">
         <ActivityFilterToggle filter={filter} onChange={setFilter} />
         <ShortcutsHelp items={ACTIVITY_SHORTCUTS} />
@@ -235,9 +241,14 @@ export function ChannelActivityTab({
                           grey as the timestamp beside it. This lamp lands in the
                           same fixed leading column as every other row's. */}
                       <BroadcastFanoutBadge fanout={item.fanout} />
-                      <span className="activity-time">
-                        {new Date(item.receivedAt).toLocaleString()}
-                      </span>
+                      {/* `focusable={false}`: this row is itself the button, so the
+                          exact instant is revealed from the row's own focus rather
+                          than from a second tab stop nested inside it. */}
+                      <ElapsedTime
+                        iso={item.receivedAt}
+                        className="activity-time"
+                        focusable={false}
+                      />
                       <span className="activity-preview">{item.bodyPreview || "(empty body)"}</span>
                       {/* No trailing fan-out text: the lamp in the leading column
                           already states it, word for word ("3/4 SUCCEEDED"), and

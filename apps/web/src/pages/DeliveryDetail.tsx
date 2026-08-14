@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Inbox, Repeat } from "lucide-react";
 import type { Attempt, BroadcastDetail } from "@webhook-broadcast/contract";
+import { ElapsedTime } from "../components/ElapsedTime.js";
 import { EmptyState } from "../components/EmptyState.js";
 import { DeliveryStatusBadge } from "../components/StatusBadge.js";
 import { api, describeApiError } from "../lib/api.js";
@@ -136,7 +137,7 @@ export function DeliveryDetail({
               {attempts.map((attempt) => (
                 <li key={attempt.id} className="row-attempt">
                   <span className="attempt-n">#{attempt.n}</span>
-                  <span className="muted">{new Date(attempt.at).toLocaleString()}</span>
+                  <ElapsedTime iso={attempt.at} className="muted" />
                   <span>
                     {attempt.statusCode !== null ? (
                       `HTTP ${attempt.statusCode}`

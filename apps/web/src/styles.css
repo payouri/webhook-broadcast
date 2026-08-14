@@ -1409,6 +1409,25 @@ a.row:active {
 }
 
 /*
+ * Issue #54: states when a polled list last refreshed, or that its poll is
+ * failing. `.poll-status` alone is the quiet "Updated Ns ago" reading — the
+ * same muted ink `.muted` gives any other secondary text on the page.
+ * `.poll-status-failing` is the one place this line borrows `.error-text`'s
+ * Lamp Cut ink: the same color a load-error banner already carries elsewhere
+ * on this page, not a new failure color invented for the poll specifically
+ * (PRODUCT.md #4: information, never volume).
+ */
+.poll-status {
+  margin: 0;
+  font-size: var(--text-label-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.poll-status-failing {
+  color: var(--lamp-cut);
+}
+
+/*
  * A consequence advisory: correct to warn about, but neither a failure nor a
  * validation error, so it may not carry a lamp color. A recessed well with a
  * glyph instead.
@@ -1689,6 +1708,64 @@ a.row:active {
   color: var(--ink-muted);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Issue #54: the elapsed reading an operator sees at rest, and the exact
+ * instant it stands in for, reachable without a mouse. DESIGN.md §4 grants
+ * exactly this shape of floating surface ("a tooltip on a truncated header"),
+ * and The No Drop Shadow Rule still applies inside that grant: this bubble
+ * carries no outside shadow at all. It is scored with a line and lit with the
+ * raised control's inset top highlight (The Lip Direction Rule), which is the
+ * remedy that rule itself prescribes — so no new shadow token is invented here
+ * or at the call site.
+ *
+ * A dotted underline states the affordance at rest (DESIGN.md §5: "nothing is
+ * discovered by hovering"). Three selectors reveal the bubble, one per way of
+ * reaching it: `:hover` for a mouse, `:focus` on the `<time>` itself for a
+ * keyboard *and* a touch tap (`:focus-visible` alone would miss the tap — a
+ * pointer press does not match it), and `.row:focus-visible` for the two row
+ * families whose row is itself a `<button>`, where the timestamp deliberately
+ * owns no tab stop of its own and the row's focus reveals it instead.
+ */
+.elapsed-time {
+  position: relative;
+  display: inline-block;
+  /* Several call sites are grid items of a subgrid row (`.activity-time`, the
+     token row's `.row-meta`), where the shared track is as wide as the widest
+     row's label and a stretched item would drag the dotted underline past its
+     own text. The underline states the affordance, so it may only be as wide
+     as the reading it underlines. */
+  justify-self: start;
+  border-bottom: 1px dotted var(--score-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.elapsed-time-exact {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 4px);
+  z-index: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--score);
+  border-radius: var(--radius-control);
+  background: var(--face-raised);
+  color: var(--ink);
+  font-size: var(--text-label-size);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 var(--lip-light);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.elapsed-time:hover .elapsed-time-exact,
+.elapsed-time:focus .elapsed-time-exact,
+.row:focus-visible .elapsed-time-exact {
+  opacity: 1;
+  visibility: visible;
 }
 
 .activity-preview {

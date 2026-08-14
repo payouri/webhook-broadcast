@@ -4,6 +4,7 @@ import { Inbox, Repeat, RotateCcw, X } from "lucide-react";
 import type { BroadcastDetail } from "@webhook-broadcast/contract";
 import { EmptyState } from "../../components/EmptyState.js";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
+import { PollStatusLine } from "../../components/PollStatusLine.js";
 import { SkeletonRows } from "../../components/SkeletonRows.js";
 import { api, describeApiError } from "../../lib/api.js";
 import {
@@ -243,6 +244,10 @@ export function BroadcastDetailPanel({
 
   return (
     <div className="well well-broadcast">
+      <PollStatusLine
+        dataUpdatedAt={broadcastQuery.dataUpdatedAt}
+        isError={broadcastQuery.isError}
+      />
       {error && <InlineLoadError message={error} onRetry={() => void broadcastQuery.refetch()} />}
       {!detail && !error && <SkeletonRows count={2} label="Loading Broadcast" />}
       {detail && (

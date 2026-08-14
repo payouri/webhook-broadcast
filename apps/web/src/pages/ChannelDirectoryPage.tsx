@@ -5,6 +5,7 @@ import { Inbox, Info, Plus, Radio, TriangleAlert } from "lucide-react";
 import { channelSlugSchema, type Channel } from "@webhook-broadcast/contract";
 import { EmptyState } from "../components/EmptyState.js";
 import { InlineLoadError } from "../components/InlineLoadError.js";
+import { PollStatusLine } from "../components/PollStatusLine.js";
 import { SectionTitle } from "../components/SectionTitle.js";
 import { SkeletonRows } from "../components/SkeletonRows.js";
 import { ChannelHealthBadge, EnabledStatusBadge } from "../components/StatusBadge.js";
@@ -102,6 +103,10 @@ export function ChannelDirectoryPage() {
           tabular width the column allows. Health before detail (PRODUCT.md §1). */}
       <section className="list-section">
         <SectionTitle icon={<Radio size={13} strokeWidth={2} />}>Channels</SectionTitle>
+        <PollStatusLine
+          dataUpdatedAt={channelsQuery.dataUpdatedAt}
+          isError={channelsQuery.isError}
+        />
         {error && <InlineLoadError message={error} onRetry={() => void channelsQuery.refetch()} />}
         {channels === null && !error && <SkeletonRows label="Loading Channels" />}
         {channels !== null && channels.length === 0 && (

@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Inbox, KeyRound, Plus, ShieldOff, X } from "lucide-react";
 import type { Channel, ChannelTokenCreated } from "@webhook-broadcast/contract";
 import { CopyButton } from "../../components/CopyButton.js";
+import { ElapsedTime } from "../../components/ElapsedTime.js";
 import { EmptyState } from "../../components/EmptyState.js";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
 import { SectionTitle } from "../../components/SectionTitle.js";
@@ -198,7 +199,7 @@ export function ChannelTokensPanel({ channelId }: { channelId: string }) {
               ) : (
                 <div className="row row-token">
                   <span className="token-prefix">{token.prefix}…</span>
-                  <span className="row-meta">{new Date(token.createdAt).toLocaleString()}</span>
+                  <ElapsedTime iso={token.createdAt} className="row-meta" />
                   <button
                     ref={(el) => {
                       if (el) {

@@ -494,6 +494,29 @@ press outside dismisses; the trigger carries `aria-expanded`), its _appearance_ 
 document, and it earns exactly one shadow token added to this section first, not invented at the
 call site. ADR 0013 records why no pre-styled kit.
 
+The first surface to actually earn this is the elapsed-timestamp disclosure (issue #54): every row
+that used to print `new Date(...).toLocaleString()` reads elapsed time instead ("3m ago"), and the
+exact instant becomes a small bubble revealed above the timestamp. It is a deliberately narrower case
+than the dropdown/palette pair above — non-interactive, holds no focusable content of its own, and is
+dismissed simply by the pointer or focus leaving — so its behavior is plain CSS rather than a
+`radix-ui` primitive; `radix-ui` is not a dependency of `apps/web` today, and adding one for a single
+inert string would be the disproportionate side of ADR 0013's reasoning. Reopen that if a second,
+genuinely interactive floating surface is ever earned: two hand-rolled overlays is the point where the
+primitive is cheaper than the divergence.
+
+Three selectors reveal it, one per way of reaching it: `:hover` for a mouse, `:focus` on the
+timestamp itself for a keyboard and for a touch tap (`:focus-visible` alone would miss the tap, since
+a pointer press does not match it), and the enclosing `.row:focus-visible` for the Activity and
+Endpoint rows, whose row is itself a `<button>` — there the timestamp takes no `tabindex`, because a
+focusable descendant of a button is a nested interactive control and an extra Tab stop per row on the
+busiest lists. Where the timestamp does own its tab stop, `aria-describedby` points at the bubble so
+the exact instant is announced as well as shown.
+
+It earns **no shadow token**: The No Drop Shadow Rule holds inside this grant as well, so the bubble
+is scored with a line (`1px solid var(--score)`) and lit with the raised control's `inset 0 1px 0
+var(--lip-light)`, which is the remedy that rule prescribes. A floating surface added after it takes
+the same treatment.
+
 ## 5. Components
 
 Character across the board: **legible and unambiguous**. Every control states its affordance at

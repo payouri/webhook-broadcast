@@ -12,8 +12,10 @@ import {
   X,
 } from "lucide-react";
 import type { Endpoint } from "@webhook-broadcast/contract";
+import { ElapsedTime } from "../../components/ElapsedTime.js";
 import { EmptyState } from "../../components/EmptyState.js";
 import { InlineLoadError } from "../../components/InlineLoadError.js";
+import { PollStatusLine } from "../../components/PollStatusLine.js";
 import { SectionTitle } from "../../components/SectionTitle.js";
 import { SkeletonRows } from "../../components/SkeletonRows.js";
 import { EnabledStatusBadge } from "../../components/StatusBadge.js";
@@ -216,23 +218,33 @@ function EndpointRow({
         <span className="muted row-truncate" title={endpoint.url}>
           {endpoint.url}
         </span>
+        {/* Was a single joined string built from `Date.toLocaleString()`
+            fragments (issue #54); elapsed time is a component, not a string,
+            so the fragments that carry one render as JSX and the " · "
+            separators are only ever inserted between parts that are actually
+            present. `focusable={false}` on both: this row is itself the button,
+            so each exact instant is revealed from the row's own focus rather
+            than from tab stops nested inside it. */}
         <span className="row-meta">
-          {[
-            endpoint.autoDisabledAt
-              ? `since ${new Date(endpoint.autoDisabledAt).toLocaleString()}`
-              : endpoint.timeoutMs
-                ? `${endpoint.timeoutMs}ms`
-                : "default timeout",
-            endpoint.successRate24h != null
-              ? `${Math.round(endpoint.successRate24h * 100)}% ok (24h)`
-              : null,
-            endpoint.p95Ms != null ? `p95 ${endpoint.p95Ms}ms` : null,
-            endpoint.lastSuccessAt != null
-              ? `last ok ${new Date(endpoint.lastSuccessAt).toLocaleString()}`
-              : null,
-          ]
-            .filter((part): part is string => part !== null)
-            .join(" · ")}
+          {endpoint.autoDisabledAt != null ? (
+            <>
+              since <ElapsedTime iso={endpoint.autoDisabledAt} focusable={false} />
+            </>
+          ) : endpoint.timeoutMs ? (
+            `${endpoint.timeoutMs}ms`
+          ) : (
+            "default timeout"
+          )}
+          {endpoint.successRate24h != null && (
+            <> · {Math.round(endpoint.successRate24h * 100)}% ok (24h)</>
+          )}
+          {endpoint.p95Ms != null && <> · p95 {endpoint.p95Ms}ms</>}
+          {endpoint.lastSuccessAt != null && (
+            <>
+              {" "}
+              · last ok <ElapsedTime iso={endpoint.lastSuccessAt} focusable={false} />
+            </>
+          )}
         </span>
         {/* Whether this row opens, and whether it is open now, are shapes at
             rest rather than discoveries (DESIGN.md #5 Rows), matching the
@@ -371,6 +383,10 @@ export function EndpointsTab({ channelId }: { channelId: string }) {
       {/* A list-only region: see ChannelDirectoryPage's Channels section. */}
       <section className="list-section">
         <SectionTitle icon={<Plug size={13} strokeWidth={2} />}>Endpoints</SectionTitle>
+        <PollStatusLine
+          dataUpdatedAt={endpointsQuery.dataUpdatedAt}
+          isError={endpointsQuery.isError}
+        />
         {error && <InlineLoadError message={error} onRetry={() => void endpointsQuery.refetch()} />}
         {endpoints === null && !error && <SkeletonRows label="Loading Endpoints" />}
         {endpoints !== null && endpoints.length === 0 && (
