@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Inbox, Repeat } from "lucide-react";
 import type { Attempt, BroadcastDetail } from "@webhook-broadcast/contract";
 import { EmptyState } from "../components/EmptyState.js";
@@ -32,6 +32,48 @@ function MissingStatusCode() {
       —
     </span>
   );
+}
+
+/**
+ * Whether the worker has nothing further coming for this Delivery. `pending`
+ * and `in_progress` are the only two non-terminal states — the reasoning is
+ * spelled out on `BroadcastFanoutLamp`: a non-retryable outcome finishes a
+ * Delivery as `failed` without retrying it, a retryable one that still has
+ * budget is left `pending`, and `dead_lettered` has spent the budget.
+ */
+function isSettled(status: DeliveryItem["status"]): boolean {
+  return status !== "pending" && status !== "in_progress";
+}
+
+/**
+ * What a retry actually did, in the domain's own terms (issue #89).
+ *
+ * `POST /deliveries/{id}/retry` only re-queues: `retryDeadLetteredDelivery`
+ * flips the row back to `pending` and the route then enqueues it, so the
+ * response says nothing about how the re-delivery went — the worker has not
+ * run yet. The verdict arrives later, on the ~5s Broadcast-detail poll, as a
+ * new Attempt and a settled status. Reading an outcome out of the retry
+ * response itself would announce a success that has not happened.
+ *
+ * ADR 0003 grants no fresh budget either: `attemptCount` is deliberately left
+ * where it was (the `attempt_delivery_id_n_key` unique index forbids reusing
+ * an `n`), so a Delivery dead-lettered on its last Attempt gets exactly one
+ * more and re-dead-letters if it fails. That is the fact this message exists
+ * to state, so it names the Attempt that was spent — `attemptCount` is the `n`
+ * of the Attempt just written — phrased exactly as the timeline rows phrase
+ * it, so the announcement and the row underneath it cannot disagree.
+ */
+function describeRetryOutcome(delivery: DeliveryItem): { message: string; ok: boolean } {
+  const spent = `Retry spent Attempt ${delivery.attemptCount} of ${ATTEMPT_BUDGET}`;
+  if (delivery.status === "succeeded") {
+    return { message: `${spent}, succeeded`, ok: true };
+  }
+  const reason = delivery.lastError !== null ? `: ${delivery.lastError}` : "";
+  // `failed` and `dead_lettered` are both terminal and differ in why, exactly
+  // as the lamp beside them distinguishes them: one hit a non-retryable
+  // outcome, the other came back to the end of its budget.
+  const verdict = delivery.status === "dead_lettered" ? "re-dead-lettered" : "failed";
+  return { message: `${spent}${reason}, ${verdict}`, ok: false };
 }
 
 interface AttemptRow {
@@ -111,6 +153,17 @@ export function DeliveryDetail({
   // expand that resolves in 20ms would paint it and drop it on the next frame:
   // exactly the flash this rule exists to remove.
   const showAttemptsLoading = useDelayedPending(expanded && attempts === null && !error);
+  const [retryOutcome, setRetryOutcome] = useState<{
+    message: string;
+    ok: boolean;
+  } | null>(null);
+  // Set the moment a retry is accepted, holding the Attempt count as it stood
+  // then; cleared when the poll brings back a verdict to announce.
+  const [awaitingVerdict, setAwaitingVerdict] = useState<{ attemptCountAtRetry: number } | null>(
+    null,
+  );
+  const reportRef = useRef<HTMLParagraphElement>(null);
+  const focusReportOnRender = useRef(false);
 
   async function loadAttempts(): Promise<void> {
     try {
@@ -133,11 +186,60 @@ export function DeliveryDetail({
     });
   }
 
+  // The poll is the only witness to how a retry went, so the verdict is read
+  // off the `delivery` prop the Broadcast-detail poll keeps refreshing, not off
+  // the retry response (see `describeRetryOutcome`). Both halves of the
+  // evidence are required before anything is announced:
+  //
+  //  - a *new* Attempt, i.e. `attemptCount` past where it stood at the press.
+  //    The row still reads `dead_lettered` for as long as it takes the refetch
+  //    to land, and announcing on status alone would re-announce the failure
+  //    the operator just pressed Retry on, as though the retry had produced it.
+  //  - a settled status. A retryable Attempt with budget left leaves the
+  //    Delivery `pending` again while it waits out its backoff, which is not a
+  //    verdict — the announcement waits for the one that is.
+  useEffect(() => {
+    if (awaitingVerdict === null) {
+      return;
+    }
+    if (delivery.attemptCount <= awaitingVerdict.attemptCountAtRetry) {
+      return;
+    }
+    if (!isSettled(delivery.status)) {
+      return;
+    }
+    setAwaitingVerdict(null);
+    setRetryOutcome(describeRetryOutcome(delivery));
+    // The new Attempt belongs on the timeline the announcement is naming.
+    // `loadAttempts` is intentionally not a dependency: it is re-created on
+    // every render and the only thing it closes over is `delivery.id`, which is
+    // fixed for the life of this row.
+    void loadAttempts();
+  }, [awaitingVerdict, delivery]);
+
+  useEffect(() => {
+    if (focusReportOnRender.current && (awaitingVerdict !== null || retryOutcome !== null)) {
+      focusReportOnRender.current = false;
+      reportRef.current?.focus();
+    }
+  }, [awaitingVerdict, retryOutcome]);
+
   async function handleRetry(): Promise<void> {
     setRetrying(true);
     setError(null);
+    setRetryOutcome(null);
     try {
       await api.retryDelivery(delivery.id);
+      // Nothing has been re-delivered yet: the route re-queued the Delivery and
+      // returned. Record where the Attempt count stood so the poll can tell the
+      // Attempt this retry spends from the ones already on the timeline.
+      setAwaitingVerdict({ attemptCountAtRetry: delivery.attemptCount });
+      // Not back to the Retry button: `onRetried` moves this Delivery out of
+      // `dead_lettered`, which takes that button off screen, and focus would
+      // drop onto the body with nothing ringed. The report is what replaces the
+      // control in place and what the operator now needs to read — the same
+      // contract as the bulk retry's report in `BroadcastDetailPanel`.
+      focusReportOnRender.current = true;
       await loadAttempts();
       onRetried();
       onActivityChanged?.();
@@ -238,7 +340,32 @@ export function DeliveryDetail({
             </ul>
           )}
 
-          {delivery.status === "dead_lettered" && (
+          {/* Issue #89: a retry that re-dead-letters used to say nothing at
+              all — the row simply reverted and the Retry button came back, as
+              though nothing had been spent. The report takes the control's
+              place from the moment the retry is accepted and stays there: it
+              states that the retry is queued, then what it cost.
+
+              It is not itself routed through the delay-and-hold hook. DESIGN.md
+              §5 binds that treatment to representations of *waiting*, which is
+              what the button's own `Retrying…` label is and where the hook is
+              already applied; the No-Flicker Rule then governs what replaces a
+              held pending state, and this is that replacement. A verdict the
+              operator has earned is not withdrawn 400ms later. */}
+          {(awaitingVerdict !== null || retryOutcome !== null) && (
+            <p
+              ref={reportRef}
+              className={
+                retryOutcome === null ? "muted" : retryOutcome.ok ? "success-text" : "error-text"
+              }
+              role="status"
+              tabIndex={-1}
+            >
+              {retryOutcome?.message ?? "Retry queued, waiting for the Attempt to be spent"}
+            </p>
+          )}
+
+          {delivery.status === "dead_lettered" && awaitingVerdict === null && (
             <div className="inline-form">
               <button
                 type="button"

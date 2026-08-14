@@ -352,4 +352,114 @@ describe("DeliveryDetail — Attempt timeline and Retry action (issue #21)", () 
     await screen.findByText("No Attempts yet.");
     vi.useRealTimers();
   });
+
+  describe("retry announces its outcome (issue #89)", () => {
+    const QUEUED = "Retry queued, waiting for the Attempt to be spent";
+
+    function stubRetry(): void {
+      fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+        const path = requestPath(input);
+        const method = requestMethod(input, init);
+        if (path === `/deliveries/${DELIVERY_ID}/attempts`) {
+          return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+        }
+        if (path === `/deliveries/${DELIVERY_ID}/retry` && method === "POST") {
+          return Promise.resolve(jsonResponse(200, baseDelivery({ status: "pending" })));
+        }
+        throw new Error(`unexpected fetch: ${method} ${path}`);
+      });
+    }
+
+    async function pressRetry(): Promise<void> {
+      fireEvent.click(screen.getByRole("button", { name: /Orders webhook/ }));
+      fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+      await screen.findByText(QUEUED);
+    }
+
+    it("says so when a retry re-dead-letters, naming the Attempt it spent and its error", async () => {
+      // The retry route only re-queues; the worker runs afterwards. The verdict
+      // therefore arrives on the ~5s poll, as a fresh `delivery` prop.
+      stubRetry();
+      const { rerender } = render(
+        <DeliveryDetail delivery={baseDelivery()} onRetried={() => undefined} />,
+      );
+      await pressRetry();
+
+      // The poll's first refresh: re-queued, nothing attempted yet.
+      rerender(
+        <DeliveryDetail
+          delivery={baseDelivery({ status: "pending" })}
+          onRetried={() => undefined}
+        />,
+      );
+      expect(screen.getByText(QUEUED)).toBeTruthy();
+
+      // The worker spends Attempt 3 and the Delivery comes back to the end of
+      // its budget.
+      rerender(
+        <DeliveryDetail
+          delivery={baseDelivery({ attemptCount: 3, lastError: "connection refused" })}
+          onRetried={() => undefined}
+        />,
+      );
+
+      expect(
+        await screen.findByText("Retry spent Attempt 3 of 8: connection refused, re-dead-lettered"),
+      ).toBeTruthy();
+    });
+
+    it("announces a retry that succeeds in the same terms", async () => {
+      stubRetry();
+      const { rerender } = render(
+        <DeliveryDetail delivery={baseDelivery()} onRetried={() => undefined} />,
+      );
+      await pressRetry();
+
+      rerender(
+        <DeliveryDetail
+          delivery={baseDelivery({
+            status: "succeeded",
+            attemptCount: 3,
+            lastStatusCode: 200,
+            lastError: null,
+          })}
+          onRetried={() => undefined}
+        />,
+      );
+
+      expect(await screen.findByText("Retry spent Attempt 3 of 8, succeeded")).toBeTruthy();
+    });
+
+    it("claims no outcome before the retry has spent an Attempt", async () => {
+      // The Broadcast detail still reads `dead_lettered` between the press and
+      // the refetch that follows it. Announcing on the status alone would
+      // report the failure the operator pressed Retry on as though this retry
+      // had just produced it.
+      stubRetry();
+      const { rerender } = render(
+        <DeliveryDetail delivery={baseDelivery()} onRetried={() => undefined} />,
+      );
+      await pressRetry();
+
+      rerender(<DeliveryDetail delivery={baseDelivery()} onRetried={() => undefined} />);
+
+      expect(screen.queryByText(/Retry spent/)).toBeNull();
+      expect(screen.getByText(QUEUED)).toBeTruthy();
+    });
+
+    it("moves focus to the report when it replaces the Retry control", async () => {
+      stubRetry();
+      render(<DeliveryDetail delivery={baseDelivery()} onRetried={() => undefined} />);
+      fireEvent.click(screen.getByRole("button", { name: /Orders webhook/ }));
+
+      const retryButton = await screen.findByRole("button", { name: "Retry" });
+      retryButton.focus();
+      fireEvent.click(retryButton);
+
+      const report = await screen.findByText(QUEUED);
+      await waitFor(() => {
+        expect(document.activeElement).toBe(report);
+      });
+    });
+  });
 });
