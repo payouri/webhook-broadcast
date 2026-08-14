@@ -375,10 +375,10 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
     // The smart drill-down survives the element change: a Channel with recent
     // failures still addresses the failures-filtered Activity view, a healthy
     // one still addresses the Channel itself.
-    expect(hrefs).toContain(
-      "/channels/22222222-2222-2222-2222-222222222222/activity?filter=failed",
-    );
-    expect(hrefs).toContain("/channels/33333333-3333-3333-3333-333333333333");
+    // Issue #56: the directory links the slug form, not the id — see
+    // `channelActivityHref` and `lib/channelRef.ts` for the rule.
+    expect(hrefs).toContain("/channels/failing/activity?filter=failed");
+    expect(hrefs).toContain("/channels/healthy");
 
     // And nothing in the directory list is still a button pretending to navigate.
     expect(document.querySelectorAll("button.row-channel")).toHaveLength(0);

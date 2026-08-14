@@ -49,13 +49,19 @@ export function fanoutHasFailure(fanout: FanoutSummary): boolean {
  * apart, per PRODUCT.md's "one navigation path (not a search)" rule. A
  * Channel with nothing failing keeps today's behavior — straight to the
  * Channel, unfiltered.
+ *
+ * Links by slug, not id (issue #56): the directory is where an operator reads
+ * a Channel's human-facing name, and that is the one rule this codebase
+ * applies everywhere a new Channel link gets minted — see `channelRef.ts`.
+ * The id form still resolves (`ChannelDetailPage` accepts both), so a UUID
+ * already pasted elsewhere keeps working; this function just never mints one.
  */
 export function channelActivityHref(channel: {
-  id: string;
+  slug: string;
   recentFailedDeliveryCount: number;
 }): string {
   if (channel.recentFailedDeliveryCount > 0) {
-    return `/channels/${channel.id}/activity${activityFilterSearch("failed")}`;
+    return `/channels/${channel.slug}/activity${activityFilterSearch("failed")}`;
   }
-  return `/channels/${channel.id}`;
+  return `/channels/${channel.slug}`;
 }

@@ -131,6 +131,19 @@ export const api = {
     unwrap(
       await getAdminFetchClient().GET("/channels/{channelId}", { params: { path: { channelId } } }),
     ),
+  /**
+   * Resolves a Channel slug to its full record (issue #56), via the exact-match
+   * `?slug=` filter issue #40 added to the list route — `channel.slug` is
+   * UNIQUE, so this is at most one row. `undefined` means no Channel currently
+   * has this slug, which is indistinguishable from — and handled the same as —
+   * a slug that once matched but was since renamed away from (see channelRef.ts).
+   */
+  findChannelBySlug: async (slug: string) => {
+    const { items } = await unwrap(
+      await getAdminFetchClient().GET("/channels", { params: { query: { slug, limit: 1 } } }),
+    );
+    return items[0];
+  },
   updateChannel: async (channelId: string, patch: ChannelUpdateBody) =>
     unwrap(
       await getAdminFetchClient().PATCH("/channels/{channelId}", {

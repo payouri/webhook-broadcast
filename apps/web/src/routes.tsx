@@ -8,6 +8,12 @@ import { ChannelDirectoryPage } from "./pages/ChannelDirectoryPage.js";
  * expanded Broadcast all live in the URL, so a reload or a shared link lands on
  * the exact same view. Exported as a component rather than inlined in `App` so
  * tests exercise this table itself instead of a copy that can drift from it.
+ *
+ * The `:channelId` segment accepts either a Channel's id (UUID) or its slug
+ * (issue #56) — `ChannelDetailPage` resolves whichever one arrives via
+ * `useChannelRouteId`, and that one route table covers every nested form (a
+ * tab, `?filter=`, an expanded Broadcast) since they all nest under this same
+ * segment. See `lib/channelRef.ts` for which form each surface links.
  */
 export function AppRoutes() {
   return (

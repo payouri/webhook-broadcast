@@ -94,6 +94,13 @@ export function ChannelSettingsForm({
             Renaming the slug changes the ingest URL to <code>{ingestUrl(slug || "…")}</code>.
             Producers still posting to <code>{ingestUrl(channel.slug)}</code> will stop being
             accepted.
+            {/* Issue #56: this dashboard's own Channel URLs carry the slug too (see
+                channelRef.ts), so the same rename strands them the same way — a
+                bookmark or a link pasted before the rename shows Channel not
+                found instead of this Channel. The id-form URL is unaffected. */}{" "}
+            Any dashboard link built from the old slug (a bookmark, a link pasted into chat) stops
+            resolving too — it will show Channel not found. Links built from the Channel id are
+            unaffected.
           </span>
         </p>
       )}

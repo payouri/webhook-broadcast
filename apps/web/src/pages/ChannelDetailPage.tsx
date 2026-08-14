@@ -3,7 +3,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { Activity, ArrowLeft, Plug, SlidersHorizontal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { channelQueryKey, isChannelNotFound, useChannelQuery } from "../lib/channelQuery.js";
+import type { Channel } from "@webhook-broadcast/contract";
+import {
+  channelQueryKey,
+  channelSlugLookupKey,
+  isChannelNotFound,
+  useChannelQuery,
+  useChannelRouteId,
+} from "../lib/channelQuery.js";
 import { queryErrorMessage } from "../lib/freshness.js";
 import { EnabledStatusBadge } from "../components/StatusBadge.js";
 import { InlineLoadError } from "../components/InlineLoadError.js";
@@ -40,22 +47,39 @@ function isTab(value: string | undefined): value is Tab {
  * Channel detail (issue #42): the Channel id, active tab, and expanded Broadcast
  * all live in the URL (`/channels/:channelId/:tab?/:broadcastId?`) — a reload or
  * a shared link lands on the exact same view instead of the directory.
+ *
+ * Issue #56: that first segment is either a Channel id or its slug (see
+ * `channelRef.ts` for the rule on which form each surface uses). This page
+ * never rewrites whichever form the operator arrived with — `routeChannelId`
+ * stays in every navigation this page builds — and resolves it to the real id
+ * (`channelId`) that every nested query and mutation requires. Its one
+ * exception is `followSlugRename`, which substitutes a live slug for the dead
+ * one an operator just renamed away from; the form is still never switched.
  */
 export function ChannelDetailPage() {
-  const { channelId = "", tab: tabParam, broadcastId } = useParams();
+  const { channelId: routeChannelId = "", tab: tabParam, broadcastId } = useParams();
   const navigate = useNavigate();
   const { search } = useLocation();
   const queryClient = useQueryClient();
   const tab: Tab = isTab(tabParam) ? tabParam : "activity";
 
-  const channelQuery = useChannelQuery(channelId);
+  const {
+    channelId,
+    isSlugNotFound,
+    error: slugLookupError,
+    retry: retrySlugLookup,
+  } = useChannelRouteId(routeChannelId);
+  const channelQuery = useChannelQuery(channelId ?? "", { enabled: channelId !== undefined });
 
   const channel = channelQuery.data ?? null;
-  const notFound = channelQuery.isError && isChannelNotFound(channelQuery.error);
-  const error =
-    channelQuery.isError && !notFound
-      ? queryErrorMessage(channelQuery.error, "Failed to load Channel")
-      : null;
+  const notFound =
+    isSlugNotFound || (channelQuery.isError && isChannelNotFound(channelQuery.error));
+  // Two fetches can fail on the way to this view — resolving a slug segment to
+  // an id, then loading the Channel — and whichever failed owns the Retry.
+  const failure =
+    slugLookupError ?? (channelQuery.isError && !notFound ? channelQuery.error : null);
+  const error = failure ? queryErrorMessage(failure, "Failed to load Channel") : null;
+  const retryLoad = slugLookupError ? retrySlugLookup : () => void channelQuery.refetch();
 
   // The not-found view owns its own title (NotFoundPanel).
   useEffect(() => {
@@ -65,8 +89,34 @@ export function ChannelDetailPage() {
   }, [channel, tab]);
 
   const goToTab = useCallback(
-    (nextTab: Tab) => navigate(`/channels/${channelId}/${nextTab}`),
-    [navigate, channelId],
+    (nextTab: Tab) => navigate(`/channels/${routeChannelId}/${nextTab}`),
+    [navigate, routeChannelId],
+  );
+
+  /*
+   * A slug rename retires the slug this page may itself be addressed by. Left
+   * alone, the very page doing the renaming would flip to "Channel not found"
+   * the moment its slug lookup next ran, so the route follows the Channel to
+   * its new slug. That moves the *value* in the address bar, never the form:
+   * an id-form route holds a reference a rename cannot invalidate and is left
+   * exactly as the operator typed it (see `lib/channelRef.ts`). Links already
+   * shared under the old slug still die — that is the consequence stated at
+   * the slug field itself, and only a redirect table could undo it.
+   */
+  const followSlugRename = useCallback(
+    (previousSlug: string, updated: Channel) => {
+      if (routeChannelId !== previousSlug || updated.slug === previousSlug) {
+        return;
+      }
+      // Seed the new slug's lookup so the route change resolves from cache: an
+      // unseeded hop would blank this page back to its skeleton for one request
+      // immediately after a save. The old slug's entry is left to go inactive
+      // and expire on its own rather than removed — removing it while this page
+      // still observes it forces one last refetch under the old value.
+      queryClient.setQueryData(channelSlugLookupKey(updated.slug), updated);
+      navigate(`/channels/${updated.slug}/settings`, { replace: true });
+    },
+    [navigate, queryClient, routeChannelId],
   );
 
   // Expanding or collapsing a Broadcast stays inside the Activity view, so it
@@ -76,9 +126,9 @@ export function ChannelDetailPage() {
   const toggleBroadcast = useCallback(
     (nextBroadcastId: string) => {
       const openId = broadcastId === nextBroadcastId ? "" : `/${nextBroadcastId}`;
-      navigate(`/channels/${channelId}/activity${openId}${search}`);
+      navigate(`/channels/${routeChannelId}/activity${openId}${search}`);
     },
-    [navigate, channelId, broadcastId, search],
+    [navigate, routeChannelId, broadcastId, search],
   );
 
   if (notFound) {
@@ -101,7 +151,7 @@ export function ChannelDetailPage() {
         </Link>
       </div>
 
-      {error && <InlineLoadError message={error} onRetry={() => void channelQuery.refetch()} />}
+      {error && <InlineLoadError message={error} onRetry={retryLoad} />}
       {!channel && !error && <SkeletonRows count={2} label="Loading Channel" />}
 
       {channel && (
@@ -144,12 +194,12 @@ export function ChannelDetailPage() {
 
           {tab === "activity" && (
             <ChannelActivityTab
-              channelId={channelId}
+              channelId={channel.id}
               expandedBroadcastId={broadcastId ?? null}
               onToggleBroadcast={toggleBroadcast}
             />
           )}
-          {tab === "endpoints" && <EndpointsTab channelId={channelId} />}
+          {tab === "endpoints" && <EndpointsTab channelId={channel.id} />}
           {tab === "settings" && (
             /*
              * Two columns on a wide viewport. The plates here are prose- and
@@ -162,10 +212,13 @@ export function ChannelDetailPage() {
             <div className="settings-grid">
               <ChannelSettingsForm
                 channel={channel}
-                onSaved={(updated) => queryClient.setQueryData(channelQueryKey(channelId), updated)}
+                onSaved={(updated) => {
+                  queryClient.setQueryData(channelQueryKey(channel.id), updated);
+                  followSlugRename(channel.slug, updated);
+                }}
               />
               <div className="stack">
-                <ChannelTokensPanel channelId={channelId} />
+                <ChannelTokensPanel channelId={channel.id} />
                 <ChannelDangerZonePanel channel={channel} onDeleted={() => navigate("/")} />
               </div>
             </div>

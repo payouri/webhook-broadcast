@@ -203,8 +203,9 @@ describe("dashboard smoke flow", () => {
 
     fireEvent.click(await screen.findByText("orders"));
 
+    // Issue #56: the directory links the slug form, not the id.
     await waitFor(() => {
-      expect(window.location.pathname).toBe(`/channels/${channelId}`);
+      expect(window.location.pathname).toBe("/channels/orders");
     });
     await waitFor(() => {
       expect(document.title).toBe("orders · Activity · webhook-broadcast");
@@ -273,8 +274,10 @@ describe("dashboard smoke flow", () => {
     fireEvent.click(await screen.findByText("orders"));
     fireEvent.click(await screen.findByText("hello-world"));
 
+    // Issue #56: navigating from the directory landed on the slug form, and
+    // that form is what the nested Broadcast route carries forward.
     await waitFor(() => {
-      expect(window.location.pathname).toBe(`/channels/${channelId}/activity/${broadcastId}`);
+      expect(window.location.pathname).toBe(`/channels/orders/activity/${broadcastId}`);
     });
     expect(await screen.findByText(/hello-world/)).toBeTruthy();
 
@@ -296,40 +299,89 @@ describe("dashboard smoke flow", () => {
     render(<App />);
     expect(await screen.findByText("New Channel")).toBeTruthy();
 
+    // Issue #56: the directory links the slug form, and it is preserved
+    // through every subsequent tab navigation and Back/Forward step.
     fireEvent.click(await screen.findByText("orders"));
     await waitFor(() => {
-      expect(window.location.pathname).toBe(`/channels/${channelId}`);
+      expect(window.location.pathname).toBe("/channels/orders");
     });
 
     fireEvent.click(await screen.findByRole("button", { name: "Endpoints" }));
     await waitFor(() => {
-      expect(window.location.pathname).toBe(`/channels/${channelId}/endpoints`);
+      expect(window.location.pathname).toBe("/channels/orders/endpoints");
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     await waitFor(() => {
-      expect(window.location.pathname).toBe(`/channels/${channelId}/settings`);
+      expect(window.location.pathname).toBe("/channels/orders/settings");
     });
 
     await act(async () => {
       window.history.back();
     });
     await waitFor(() => {
-      expect(window.location.pathname).toBe(`/channels/${channelId}/endpoints`);
+      expect(window.location.pathname).toBe("/channels/orders/endpoints");
     });
 
     await act(async () => {
       window.history.back();
     });
     await waitFor(() => {
-      expect(window.location.pathname).toBe(`/channels/${channelId}`);
+      expect(window.location.pathname).toBe("/channels/orders");
     });
 
     await act(async () => {
       window.history.forward();
     });
     await waitFor(() => {
-      expect(window.location.pathname).toBe(`/channels/${channelId}/endpoints`);
+      expect(window.location.pathname).toBe("/channels/orders/endpoints");
+    });
+  });
+
+  /*
+   * Issue #56: a slug rename retires the reference the address bar may be
+   * holding. The rename follows through to the URL so the page performing it
+   * does not turn into "Channel not found" under the operator — while the id
+   * form, which no rename can invalidate, is left exactly as it was typed.
+   */
+  describe("renaming a Channel's slug", () => {
+    const channelId = "11111111-1111-1111-1111-111111111111";
+
+    function renameFetches() {
+      return channelDetailFetches(channelId, (path, method) =>
+        path === `/channels/${channelId}` && method === "PATCH"
+          ? jsonResponse(200, { ...channelSummary(channelId), slug: "orders-eu" })
+          : null,
+      );
+    }
+
+    async function renameSlugTo(nextSlug: string): Promise<void> {
+      fireEvent.change(await screen.findByLabelText("Slug"), { target: { value: nextSlug } });
+      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+      expect(await screen.findByRole("heading", { level: 1, name: nextSlug })).toBeTruthy();
+    }
+
+    it("moves a slug-form URL onto the new slug", async () => {
+      fetchMock.mockImplementation(renameFetches());
+      window.history.pushState({}, "", "/channels/orders/settings");
+      render(<App />);
+
+      await renameSlugTo("orders-eu");
+
+      await waitFor(() => {
+        expect(window.location.pathname).toBe("/channels/orders-eu/settings");
+      });
+      expect(screen.queryByRole("heading", { name: "Channel not found" })).toBeNull();
+    });
+
+    it("leaves an id-form URL untouched", async () => {
+      fetchMock.mockImplementation(renameFetches());
+      window.history.pushState({}, "", `/channels/${channelId}/settings`);
+      render(<App />);
+
+      await renameSlugTo("orders-eu");
+
+      expect(window.location.pathname).toBe(`/channels/${channelId}/settings`);
     });
   });
 

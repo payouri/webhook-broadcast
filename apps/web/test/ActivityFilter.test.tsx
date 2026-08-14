@@ -239,8 +239,9 @@ describe("Activity filter by failure (issue #51)", () => {
 
     fireEvent.click(await screen.findByText("3 failing (24h)"));
 
+    // Issue #56: the directory links the slug form, not the id.
     await waitFor(() => {
-      expect(window.location.pathname).toBe(`/channels/${CHANNEL_ID}/activity`);
+      expect(window.location.pathname).toBe("/channels/orders/activity");
     });
     expect(window.location.search).toContain("filter=failed");
     expect(await screen.findByText("one-failed")).toBeTruthy();
@@ -254,8 +255,9 @@ describe("Activity filter by failure (issue #51)", () => {
 
     fireEvent.click(await screen.findByText("No failures (24h)"));
 
+    // Issue #56: the directory links the slug form, not the id.
     await waitFor(() => {
-      expect(window.location.pathname).toBe(`/channels/${CHANNEL_ID}`);
+      expect(window.location.pathname).toBe("/channels/orders");
     });
     expect(window.location.search).toBe("");
   });
