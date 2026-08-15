@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Eye, EyeOff, Info, Radio, Timer, TriangleAlert } from "lucide-react";
+import { loginRequestSchema } from "@webhook-broadcast/contract";
 import { ApiRequestError, api, describeApiError } from "../lib/api.js";
 import { ThemeToggle } from "../components/ThemeToggle.js";
 import { useDelayedPending } from "../lib/delayedPending.js";
+import { useFieldError } from "../lib/useFieldError.js";
 
 /** Both halves of what an icon-only control owes a screen reader: the state the
  *  key is in now, and what pressing does about it. Same shape as `ThemeToggle`. */
@@ -49,6 +51,32 @@ function useCountdownSeconds(resetAtMs: number | null): number | null {
   return resetAtMs === null ? null : secondsUntil(resetAtMs);
 }
 
+/**
+ * The rule this field enforces is the contract's, stated once and read here —
+ * the same shape as `EndpointForm`'s `validateUrl` and `ChannelSettingsForm`'s
+ * `validateSlug`. PRODUCT.md Principle 7: a constraint the browser can check
+ * is checked in the browser, at the field, using the schema the contract
+ * package already holds (`loginRequestSchema`'s `apiKey: z.string().min(1)`),
+ * not hand-restated as a `.length === 0` check on the button.
+ *
+ * Because that schema's only rule is non-emptiness, a non-empty value always
+ * passes it — there is no second server-only constraint to surface, and no
+ * case where this field validates locally yet the admin API still answers
+ * `400 validation_failed` for the same reason. That is what makes the empty
+ * `validation_failed` path unreachable by construction once this runs before
+ * every submit (see `handleSubmit`), rather than merely rare.
+ */
+function validateApiKey(value: string): string | null {
+  if (value.length === 0) {
+    return "API key is required.";
+  }
+  const result = loginRequestSchema.safeParse({ apiKey: value });
+  if (result.success) {
+    return null;
+  }
+  return result.error.issues[0]?.message ?? "API key is required.";
+}
+
 function formatCountdown(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
@@ -83,7 +111,7 @@ export function LoginPage({
   const [submitting, setSubmitting] = useState(false);
   const submittingLabel = useDelayedPending(submitting);
   const Glyph = revealed ? EyeOff : Eye;
-  const apiKeyRef = useRef<HTMLInputElement>(null);
+  const apiKeyField = useFieldError<string, HTMLInputElement>(apiKey, validateApiKey);
 
   // Set only from a 429 (issue #91): the cooldown is a distinct state from an
   // invalid key, not a reworded version of the same error, so it gets its own
@@ -107,6 +135,16 @@ export function LoginPage({
     document.title = "Sign in · webhook-broadcast";
   }, []);
 
+  // One slot, two judges, in that order of precedence — the same precedence
+  // EndpointForm and ChannelSettingsForm give a field's own message over the
+  // form-level error. They can both have something to say at once: a rejected
+  // key leaves `error` standing (it is replaced by an outcome, never cleared
+  // ahead of one — #94), so clearing the field to retype puts the local rule
+  // over the top of it. The local one wins there because it describes the
+  // value the operator is holding now, where `error` describes the one they
+  // already sent.
+  const fieldMessage = apiKeyField.error ?? error;
+
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
     // `disabled` no longer flips the instant `submitting` does — it waits on
@@ -115,6 +153,17 @@ export function LoginPage({
     // endpoint. The guard belongs here rather than on `disabled`: the No-Flicker
     // Rule wants the control to look calm, not to accept the work twice (#94).
     if (submitting) return;
+
+    // A submit attempt marks the field and blocks on it, rather than sending
+    // input the admin API is certain to reject (DESIGN.md §5's
+    // Reward-Early-Punish-Late Rule; same shape as EndpointForm/
+    // ChannelSettingsForm's submit-time `markTouched`/`isInvalid` gate).
+    apiKeyField.markTouched();
+    if (apiKeyField.isInvalid()) {
+      apiKeyField.ref.current?.focus();
+      return;
+    }
+
     setSubmitting(true);
     try {
       await api.login(apiKey);
@@ -142,10 +191,13 @@ export function LoginPage({
         setError(describeApiError(err, "Failed to sign in"));
         // DESIGN.md §5's Reward-Early-Punish-Late Rule: a rejected submit marks
         // the blamed field and moves focus to it, so the operator never has to
-        // guess where the form stopped. The sibling forms reach that state by
-        // local validation; login's only judge is the admin API, and the API key
-        // is the one field this form has, so a rejection always blames it.
-        apiKeyRef.current?.focus();
+        // guess where the form stopped. Local validation already screens out
+        // an empty key before this request is sent (see `validateApiKey`), so
+        // what lands here is always a server-only judgment — a wrong key
+        // (`unauthorized`) or, defensively, a `validation_failed` this form
+        // cannot otherwise produce — and either way the one field this form
+        // has is where it belongs.
+        apiKeyField.ref.current?.focus();
       }
     } finally {
       setSubmitting(false);
@@ -154,7 +206,11 @@ export function LoginPage({
 
   return (
     <main className="centered">
-      <form className="plate login-card field-stack" onSubmit={(event) => void handleSubmit(event)}>
+      <form
+        className="plate login-card field-stack"
+        noValidate
+        onSubmit={(event) => void handleSubmit(event)}
+      >
         <div className="login-header">
           <h1>
             <Radio className="app-brand-mark" size={20} strokeWidth={2} aria-hidden="true" />
@@ -178,13 +234,14 @@ export function LoginPage({
               rate-limited attempts. */}
           <div className="field-with-action">
             <input
-              ref={apiKeyRef}
+              ref={apiKeyField.ref}
               id="apiKey"
               className="field-control masked-field"
               type="text"
               name="apiKey"
               value={apiKey}
               onChange={(event) => setApiKey(event.target.value)}
+              onBlur={apiKeyField.onBlur}
               autoFocus
               required
               autoComplete="off"
@@ -192,12 +249,12 @@ export function LoginPage({
               autoCapitalize="off"
               autoCorrect="off"
               data-revealed={revealed}
-              aria-invalid={error ? "true" : "false"}
+              aria-invalid={fieldMessage ? "true" : "false"}
               // The standing advisory always describes the field; a rejection adds the
               // error region to it rather than replacing it, so the operator keeps the
               // bootstrap-versus-minted guidance exactly when a rejected key makes it
               // most worth hearing.
-              aria-describedby={error ? "api-key-source apiKey-error" : "api-key-source"}
+              aria-describedby={fieldMessage ? "api-key-source apiKey-error" : "api-key-source"}
             />
             <button
               type="button"
@@ -239,10 +296,10 @@ export function LoginPage({
               PRODUCT.md #6 says must stay still — see
               `.login-card .error-text:empty` in styles.css (#94). */}
           <p className="error-text" id="apiKey-error" role="alert">
-            {error && (
+            {fieldMessage && (
               <>
                 <TriangleAlert size={13} strokeWidth={2} aria-hidden="true" />
-                {error}
+                {fieldMessage}
               </>
             )}
           </p>
@@ -290,7 +347,12 @@ export function LoginPage({
         <button
           type="submit"
           className="control control-primary login-submit"
-          disabled={submittingLabel || apiKey.length === 0 || activeCooldown !== null}
+          // DESIGN.md §5's Reward-Early-Punish-Late Rule: the submit control is
+          // never disabled to express invalidity, only while a request is
+          // genuinely in flight (or a 429 cooldown is running) — an empty key
+          // is rejected at the field (`apiKeyField`/`fieldMessage` above), not
+          // by a button an operator can't press to find out why.
+          disabled={submittingLabel || activeCooldown !== null}
         >
           {/*
             Both labels are always in the DOM, stacked in the same grid cell,

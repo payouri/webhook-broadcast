@@ -199,6 +199,78 @@ describe("LoginPage field error", () => {
   });
 });
 
+/**
+ * Issue #93: the submit control used to gate on `apiKey.length === 0` — a
+ * hand-restated copy of `loginRequestSchema`'s own `apiKey: z.string().min(1)`
+ * — leaving the button permanently disabled (and low-contrast) at first
+ * paint. These pin that the empty case is now caught at the field, against
+ * the contract schema, with the button left alive throughout.
+ */
+describe("LoginPage empty-key validation", () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    stubFetchMock(fetchMock);
+  });
+
+  it("leaves the submit control enabled at first paint, with an empty key", () => {
+    renderLoginPage();
+
+    const submit = screen.getByRole("button", { name: "Sign in" });
+    expect(submit.hasAttribute("disabled")).toBe(false);
+  });
+
+  it("rejects an empty submit at the field, with a message, and never calls the API", async () => {
+    renderLoginPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => {
+      expect(errorRegion().textContent).toContain("API key is required.");
+    });
+    expect(apiKeyField().getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(apiKeyField());
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("clears the field message as soon as a key is typed", async () => {
+    renderLoginPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    await waitFor(() => {
+      expect(errorRegion().textContent).toContain("API key is required.");
+    });
+
+    fireEvent.change(apiKeyField(), { target: { value: "a-real-key" } });
+    expect(errorRegion().textContent).toBe("");
+    expect(apiKeyField().getAttribute("aria-invalid")).toBe("false");
+  });
+
+  /**
+   * The two judges share one slot, so the order they speak in is behaviour,
+   * not an implementation detail: a rejected key leaves the server's message
+   * standing (#94 — it is replaced by an outcome, never cleared ahead of one),
+   * and clearing the field to retype has to put the local rule over the top of
+   * it rather than leaving the operator reading a verdict on a value that is
+   * no longer in the field.
+   */
+  it("lets the local rule speak over a standing server rejection, and hands the slot back", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(401, { error: { code: "unauthorized", message: "that key was rejected" } }),
+    );
+
+    renderLoginPage();
+    await submitRejectedKey("wrong-key", "that key was rejected");
+
+    fireEvent.change(apiKeyField(), { target: { value: "" } });
+    expect(errorRegion().textContent).toContain("API key is required.");
+
+    fireEvent.change(apiKeyField(), { target: { value: "another-key" } });
+    expect(errorRegion().textContent).toContain("that key was rejected");
+  });
+});
+
 function typeKey(value: string): void {
   fireEvent.change(apiKeyField(), { target: { value } });
 }
