@@ -924,6 +924,37 @@ textarea.field-control {
   font-variant-numeric: tabular-nums;
 }
 
+/* The operator API key field (issue #95): a `.field-control` paired with a
+   reveal toggle, laid out like `.inline-form` so the button sits beside the
+   field rather than inside it. */
+.field-with-action {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-start;
+}
+
+.field-with-action .field-control {
+  flex: 1;
+  /* A field's intrinsic width is not a floor here: the toggle keeps its plate
+     and the field gives up the rest, rather than the row overflowing its card. */
+  min-width: 0;
+}
+
+.field-reveal-toggle {
+  flex-shrink: 0;
+}
+
+/* Recreates password-style masking on a plain `type="text"` field, so the
+   field is never structurally a password (see LoginPage.tsx for why).
+   `-webkit-text-security` is prefixed but not WebKit-only: Blink and WebKit
+   have always had it and Firefox shipped it in 118. Anything older falls back
+   to plain text, an acceptable trade for a field that must not be treated as a
+   login credential in the first place — and the reveal toggle means the
+   operator can see the value on purpose either way. */
+.masked-field[data-revealed="false"] {
+  -webkit-text-security: disc;
+}
+
 /*
  * A switch plate, replacing the native checkbox. The native control was the
  * one element on the surface rendered entirely by the platform: a saturated

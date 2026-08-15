@@ -1,8 +1,15 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Info, Radio } from "lucide-react";
+import { Eye, EyeOff, Info, Radio } from "lucide-react";
 import { api, describeApiError } from "../lib/api.js";
 import { ThemeToggle } from "../components/ThemeToggle.js";
 import { useDelayedPending } from "../lib/delayedPending.js";
+
+/** Both halves of what an icon-only control owes a screen reader: the state the
+ *  key is in now, and what pressing does about it. Same shape as `ThemeToggle`. */
+const REVEAL_LABEL = {
+  hidden: "API key hidden. Show it.",
+  shown: "API key shown. Hide it.",
+} as const;
 
 export function LoginPage({
   onLoggedIn,
@@ -14,9 +21,11 @@ export function LoginPage({
   onCycleTheme: () => void;
 }) {
   const [apiKey, setApiKey] = useState("");
+  const [revealed, setRevealed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const submittingLabel = useDelayedPending(submitting);
+  const Glyph = revealed ? EyeOff : Eye;
 
   useEffect(() => {
     document.title = "Sign in · webhook-broadcast";
@@ -50,18 +59,49 @@ export function LoginPage({
         </div>
         <div className="field">
           <label htmlFor="apiKey">Operator API key</label>
-          <input
-            id="apiKey"
-            className="field-control"
-            type="password"
-            name="apiKey"
-            value={apiKey}
-            onChange={(event) => setApiKey(event.target.value)}
-            autoFocus
-            required
-            autoComplete="current-password"
-            aria-describedby="api-key-source"
-          />
+          {/* This is a shared bootstrap secret, not a per-person password: `type="password"`
+              with no username field is exactly the pattern Chrome's own DevTools flags
+              ("Password forms should have (optionally hidden) username fields for
+              accessibility"), and it invites a password manager to file the one shared
+              key under an empty identity as if it were someone's personal login. Staying
+              off `type="password"` (and its `autocomplete` family) keeps this from being
+              filed as a login credential at all; masking is recreated with
+              `-webkit-text-security` (see `.masked-field` in styles.css) and lifted by the
+              reveal toggle so a pasted key can be checked before it spends one of the five
+              rate-limited attempts. */}
+          <div className="field-with-action">
+            <input
+              id="apiKey"
+              className="field-control masked-field"
+              type="text"
+              name="apiKey"
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+              autoFocus
+              required
+              autoComplete="off"
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+              data-revealed={revealed}
+              aria-describedby="api-key-source"
+            />
+            <button
+              type="button"
+              className="control control-icon field-reveal-toggle"
+              aria-pressed={revealed}
+              aria-label={revealed ? REVEAL_LABEL.shown : REVEAL_LABEL.hidden}
+              title={revealed ? REVEAL_LABEL.shown : REVEAL_LABEL.hidden}
+              onClick={() => setRevealed((value) => !value)}
+            >
+              <Glyph
+                className="control-icon-glyph"
+                size={13}
+                strokeWidth={1.75}
+                aria-hidden="true"
+              />
+            </button>
+          </div>
           {/* Standing guidance, not a validation result, so the input points at it
               with `aria-describedby` the way the new-Channel slug rule does: the
               bootstrap-versus-minted distinction is the whole reason the advisory

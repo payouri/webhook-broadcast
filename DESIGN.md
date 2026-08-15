@@ -619,9 +619,10 @@ while `.channel-row` inherited the primary button's hover fill and turned an ent
 
 One family: **`lucide-react`**, imported per glyph. 1.5 to 2 stroke, sized 13px in controls and tabs,
 14px in inline text, 11px inside a lamp glass (where the stroke steps up to 2.25 to hold its shape),
-20px in an empty state. Every decorative glyph carries `aria-hidden="true"`; no control is
-icon-only except the theme toggle, which carries a full `aria-label` naming both the current state
-and the consequence of pressing.
+20px in an empty state. Every decorative glyph carries `aria-hidden="true"`. Two controls are
+icon-only — the theme toggle and the login field's reveal toggle — and each carries a full
+`aria-label` (repeated as `title`) naming both the current state and the consequence of pressing.
+Nothing else may go icon-only without earning that same pair.
 
 Glyphs are semantic, never decorative. The vocabulary: `Check` / `X` / `Ban` / `LoaderCircle` /
 `Clock` / `Power` / `Minus` for lamp states; `RotateCcw` Replay, `Repeat` Retry, `Copy`, `Power`
@@ -629,7 +630,7 @@ Re-enable, `ShieldOff` Revoke, `KeyRound` Mint, `Trash2` Delete, `Check` Save, `
 actions; `Radio` Channel, `Activity`, `Plug` Endpoint, `SlidersHorizontal` Settings, `KeyRound`
 Tokens, `Link2` Ingest URL, `Plus` New, `Filter`, `ArrowLeft` Back, `ChevronRight`/`ChevronDown`
 disclosure, `Inbox` empty, `SearchX` not found, `Info` advisory, `TriangleAlert` warning,
-`Sun`/`Moon`/`Monitor` theme.
+`Sun`/`Moon`/`Monitor` theme, `Eye`/`EyeOff` reveal.
 
 **Do not introduce a second icon set.** Mixing families is visible immediately at this size.
 
@@ -833,6 +834,12 @@ already delimited row by row in a second layer of chrome.
   `aria-describedby` pointing at the message. Timing is governed by the Reward-Early-Punish-Late Rule
   below.
 - **Textarea:** identical treatment, `resize: vertical` only.
+- **Secret field:** a shared operator secret is masked but is **not** `type="password"`. A password
+  input with no username field is what makes a browser file one shared bootstrap key as somebody's
+  personal login, so masking comes from `-webkit-text-security` on a plain text field instead, with
+  `autocomplete="off"` and `spellcheck`/`autocapitalize`/`autocorrect` off. It is paired with an
+  icon-only reveal toggle, because a pasted 40-character key has to be checkable before it spends one
+  of five rate-limited attempts.
 
 ### Switch plates
 
