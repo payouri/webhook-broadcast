@@ -133,9 +133,22 @@ describe("Admin auth + Channel CRUD (HTTP seam)", () => {
           body: JSON.stringify({ apiKey: "wrong-key" }),
         });
         expect(blocked.status).toBe(429);
-        await expect(blocked.json()).resolves.toMatchObject({
-          error: { code: "rate_limited" },
-        });
+
+        // Issue #91: the operator needs both how long the browser standard
+        // way (Retry-After) and the exact epoch the dashboard can count down
+        // to, not silence on both.
+        const retryAfter = blocked.headers.get("retry-after");
+        expect(retryAfter).not.toBeNull();
+        expect(Number(retryAfter)).toBeGreaterThan(0);
+        expect(Number(retryAfter)).toBeLessThanOrEqual(60);
+
+        const blockedBody = (await blocked.json()) as {
+          error: { code: string };
+          resetAt: number;
+        };
+        expect(blockedBody.error.code).toBe("rate_limited");
+        expect(blockedBody.resetAt).toBeGreaterThan(Date.now());
+        expect(blockedBody.resetAt).toBeLessThanOrEqual(Date.now() + 60_000);
       } finally {
         await new Promise<void>((resolve) => rateLimitedServer.close(() => resolve()));
       }

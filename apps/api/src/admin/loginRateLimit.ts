@@ -8,6 +8,12 @@ interface Window {
   resetAt: number;
 }
 
+export interface LoginRateLimitResult {
+  allowed: boolean;
+  /** Epoch ms when this IP's window resets and a fresh attempt count begins. */
+  resetAt: number;
+}
+
 /**
  * Simple in-memory per-IP limiter for `/auth/login`. Resets windows lazily
  * and is sufficient for a single-process MVP deployment.
@@ -17,23 +23,26 @@ export class LoginRateLimiter {
 
   constructor(private readonly config: LoginRateLimitConfig) {}
 
-  /** Returns true when the attempt is allowed, false when rate-limited. */
-  tryConsume(clientIp: string): boolean {
+  /**
+   * Reports whether the attempt is allowed and, either way, the `resetAt`
+   * the caller needs to tell the operator how long the cooldown lasts (issue
+   * #91) — the limiter already tracked this internally, it just never left
+   * the process before.
+   */
+  tryConsume(clientIp: string): LoginRateLimitResult {
     const now = Date.now();
     const existing = this.windows.get(clientIp);
     if (!existing || now >= existing.resetAt) {
-      this.windows.set(clientIp, {
-        count: 1,
-        resetAt: now + this.config.windowMs,
-      });
-      return true;
+      const resetAt = now + this.config.windowMs;
+      this.windows.set(clientIp, { count: 1, resetAt });
+      return { allowed: true, resetAt };
     }
 
     if (existing.count >= this.config.maxAttempts) {
-      return false;
+      return { allowed: false, resetAt: existing.resetAt };
     }
 
     existing.count += 1;
-    return true;
+    return { allowed: true, resetAt: existing.resetAt };
   }
 }

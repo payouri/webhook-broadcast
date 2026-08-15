@@ -1701,6 +1701,43 @@ a.row:active {
 }
 
 /*
+ * Login's rate-limited cooldown (issue #91). An invalid key and a cooldown are
+ * different facts — one is wrong, the other is a timer already running down —
+ * so they differ by ink and glyph, not only by wording. Deliberately not
+ * `.error-text`'s Lamp Cut and warning glyph: The Quarantine Rule binds Lamp
+ * Cut to a failed or dead-lettered Delivery, an auto-disabled Endpoint, a
+ * failing Channel, a validation error, and an errored Attempt — never to a
+ * consequence the operator is merely being told to wait out. So this line
+ * stays in Ink with a `Timer` glyph, standing above the `.advisory` well that
+ * states the per-network consequence, inside the `.advisory-region` that
+ * already exists for exactly that pairing. Deliberately not a second recessed
+ * well of its own either: stacked on the advisory it would read as nested
+ * wells, which is the case `.advisory-region` was written to avoid.
+ */
+.rate-limit-notice {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-label-size);
+  font-weight: 500;
+}
+
+.rate-limit-notice-icon {
+  flex-shrink: 0;
+  color: var(--ink-muted);
+}
+
+/* The digits turn over once a second; tabular figures keep the sentence around
+   them from shifting sideways as they do. */
+.rate-limit-countdown {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/*
  * Confirmation that an operator action landed. Not Lamp Live: the lamps are
  * bound to Delivery status, Attempt outcome, and enabled state, and none of
  * these messages reports system state. Anodized is the operator's own voice,

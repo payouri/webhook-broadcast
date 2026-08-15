@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Eye, EyeOff, Info, Radio, TriangleAlert } from "lucide-react";
-import { api, describeApiError } from "../lib/api.js";
+import { Eye, EyeOff, Info, Radio, Timer, TriangleAlert } from "lucide-react";
+import { ApiRequestError, api, describeApiError } from "../lib/api.js";
 import { ThemeToggle } from "../components/ThemeToggle.js";
 import { useDelayedPending } from "../lib/delayedPending.js";
 
@@ -10,6 +10,63 @@ const REVEAL_LABEL = {
   hidden: "API key hidden. Show it.",
   shown: "API key shown. Hide it.",
 } as const;
+
+function secondsUntil(resetAtMs: number): number {
+  return Math.max(0, Math.ceil((resetAtMs - Date.now()) / 1000));
+}
+
+/**
+ * Seconds remaining until `resetAtMs`, so the rate-limited cooldown counts
+ * down live (issue #91) rather than showing a single frozen estimate. `null`
+ * when there is nothing to count down to.
+ *
+ * The returned value is derived during render rather than read back out of
+ * state: an effect first runs after the browser has painted, so seeding the
+ * count from the effect alone would render one frame of an enabled "Sign in"
+ * button immediately after the 429 that disabled it. The state exists only to
+ * schedule re-renders, and it holds whole seconds so React's bail-out on an
+ * unchanged value keeps the 250ms poll from re-rendering four times a second
+ * for a reading that changes once (PRODUCT.md #6: an instrument does not
+ * twitch). The poll is finer than the reading so the displayed second turns
+ * over close to when it actually elapses.
+ */
+function useCountdownSeconds(resetAtMs: number | null): number | null {
+  const [, setTickedSeconds] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (resetAtMs === null) {
+      return;
+    }
+
+    const tick = (): void => {
+      setTickedSeconds(secondsUntil(resetAtMs));
+    };
+    tick();
+    const interval = setInterval(tick, 250);
+    return () => clearInterval(interval);
+  }, [resetAtMs]);
+
+  return resetAtMs === null ? null : secondsUntil(resetAtMs);
+}
+
+function formatCountdown(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+interface Cooldown {
+  /** Epoch ms the 429 reported its cooldown ends. */
+  readonly resetAt: number;
+  /**
+   * Seconds left when the 429 arrived. Announced once and never recomputed:
+   * the visible countdown ticks, and an assertive live region re-reads its
+   * whole content on every mutation, so announcing the ticking figure would
+   * make a screen reader recite the notice once a second for the entire
+   * cooldown. DESIGN.md names that failure mode under the advisory rule.
+   */
+  readonly announcedSeconds: number;
+}
 
 export function LoginPage({
   onLoggedIn,
@@ -27,6 +84,24 @@ export function LoginPage({
   const submittingLabel = useDelayedPending(submitting);
   const Glyph = revealed ? EyeOff : Eye;
   const apiKeyRef = useRef<HTMLInputElement>(null);
+
+  // Set only from a 429 (issue #91): the cooldown is a distinct state from an
+  // invalid key, not a reworded version of the same error, so it gets its own
+  // piece of state rather than living inside `error`.
+  const [cooldown, setCooldown] = useState<Cooldown | null>(null);
+  const cooldownSeconds = useCountdownSeconds(cooldown?.resetAt ?? null);
+  const activeCooldown =
+    cooldown !== null && cooldownSeconds !== null && cooldownSeconds > 0
+      ? { ...cooldown, remainingSeconds: cooldownSeconds }
+      : null;
+
+  // The window has actually elapsed: clear it so the form re-enables on its
+  // own, without waiting for another submit attempt.
+  useEffect(() => {
+    if (cooldown !== null && cooldownSeconds === 0) {
+      setCooldown(null);
+    }
+  }, [cooldown, cooldownSeconds]);
 
   useEffect(() => {
     document.title = "Sign in · webhook-broadcast";
@@ -51,13 +126,27 @@ export function LoginPage({
       setError(null);
       onLoggedIn();
     } catch (err) {
-      setError(describeApiError(err, "Failed to sign in"));
-      // DESIGN.md §5's Reward-Early-Punish-Late Rule: a rejected submit marks
-      // the blamed field and moves focus to it, so the operator never has to
-      // guess where the form stopped. The sibling forms reach that state by
-      // local validation; login's only judge is the admin API, and the API key
-      // is the one field this form has, so a rejection always blames it.
-      apiKeyRef.current?.focus();
+      if (
+        err instanceof ApiRequestError &&
+        err.code === "rate_limited" &&
+        err.resetAt !== undefined
+      ) {
+        // A cooldown blames nobody's key, so it takes neither the error line
+        // nor the invalid-field marking below: the window is already running
+        // and there is nothing for the operator to correct in the field (#91).
+        setCooldown({
+          resetAt: err.resetAt,
+          announcedSeconds: Math.max(1, secondsUntil(err.resetAt)),
+        });
+      } else {
+        setError(describeApiError(err, "Failed to sign in"));
+        // DESIGN.md §5's Reward-Early-Punish-Late Rule: a rejected submit marks
+        // the blamed field and moves focus to it, so the operator never has to
+        // guess where the form stopped. The sibling forms reach that state by
+        // local validation; login's only judge is the admin API, and the API key
+        // is the one field this form has, so a rejection always blames it.
+        apiKeyRef.current?.focus();
+      }
     } finally {
       setSubmitting(false);
     }
@@ -158,10 +247,50 @@ export function LoginPage({
             )}
           </p>
         </div>
+        {/* Deliberately not `.error-text`: PRODUCT.md's emotional goal for this
+            moment is "I am in a cooldown", not "the login is broken", and
+            reusing the invalid-key error's exact ink, glyph, and position would
+            say the latter no matter what the copy read. It sits outside the
+            field for the same reason — the key is not what is wrong, so the
+            notice does not hang off it (#91). The wrapper is the existing
+            `.advisory-region`, already the shape for a line standing beside an
+            advisory well. */}
+        {activeCooldown !== null && (
+          <div className="advisory-region">
+            {/* Announced once, on mount, with the figure frozen — see `Cooldown`.
+                Its own region rather than the field's standing `.error-text`
+                alert (#92): that one is bound to `error`, which a cooldown never
+                sets, and routing the countdown through it would put a wait in
+                the place reserved for a rejected key. */}
+            <p className="visually-hidden" role="alert">
+              Too many attempts. Try again in {activeCooldown.announcedSeconds} seconds.
+            </p>
+            <p className="rate-limit-notice" aria-hidden="true">
+              <Timer
+                className="rate-limit-notice-icon"
+                size={14}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+              <span>
+                Too many attempts. Try again in{" "}
+                <span className="rate-limit-countdown">
+                  {formatCountdown(activeCooldown.remainingSeconds)}
+                </span>
+                .
+              </span>
+            </p>
+            <p className="advisory">
+              <Info className="advisory-icon" size={14} strokeWidth={2} aria-hidden="true" />
+              This cooldown is shared by everyone signing in from this network, not just this
+              attempt.
+            </p>
+          </div>
+        )}
         <button
           type="submit"
           className="control control-primary login-submit"
-          disabled={submittingLabel || apiKey.length === 0}
+          disabled={submittingLabel || apiKey.length === 0 || activeCooldown !== null}
         >
           {/*
             Both labels are always in the DOM, stacked in the same grid cell,
@@ -173,18 +302,29 @@ export function LoginPage({
           */}
           <span
             className="login-submit-label"
-            aria-hidden={submittingLabel}
-            data-visible={!submittingLabel}
+            aria-hidden={submittingLabel || activeCooldown !== null}
+            data-visible={!submittingLabel && activeCooldown === null}
           >
             Sign in
           </span>
           <span
             className="login-submit-label"
-            aria-hidden={!submittingLabel}
-            data-visible={submittingLabel}
+            aria-hidden={!submittingLabel || activeCooldown !== null}
+            data-visible={submittingLabel && activeCooldown === null}
           >
             Signing in…
           </span>
+          {/* Mounted only for the cooldown, unlike its two siblings. They are
+              permanent because they trade places inside one round trip and the
+              button may not resize mid-flight; this one arrives once, on a 429,
+              and only ever widens the stack while the control is disabled — so
+              carrying its width at rest would cost the resting button the space
+              of a countdown it is not showing (#94). */}
+          {activeCooldown !== null && (
+            <span className="login-submit-label" data-visible={true}>
+              Try again in {formatCountdown(activeCooldown.remainingSeconds)}
+            </span>
+          )}
         </button>
       </form>
     </main>

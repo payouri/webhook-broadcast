@@ -27,6 +27,8 @@ export class ApiRequestError extends Error {
     readonly code: string,
     message: string,
     readonly details: ApiErrorDetail[] = [],
+    /** Epoch ms a `rate_limited` response reports its cooldown ends (issue #91). */
+    readonly resetAt?: number,
   ) {
     super(message);
     this.name = "ApiRequestError";
@@ -39,6 +41,7 @@ interface ErrorResponseBody {
     message?: string;
     details?: ApiErrorDetail[];
   };
+  resetAt?: number;
 }
 
 /** Prefer Zod field details over the generic envelope message when present. */
@@ -73,6 +76,7 @@ function throwApiError(
     body?.error?.code ?? "unknown",
     formatApiErrorMessage(body?.error?.message, body?.error?.details, fallback),
     body?.error?.details ?? [],
+    body?.resetAt,
   );
 }
 

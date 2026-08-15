@@ -31,9 +31,19 @@ export function registerAuthRoutes(router: Router, config: AuthRouteConfig): voi
   });
 
   router.post("/auth/login", async (ctx) => {
-    if (!loginRateLimiter.tryConsume(ctx.ip)) {
+    const rateLimit = loginRateLimiter.tryConsume(ctx.ip);
+    if (!rateLimit.allowed) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000));
       ctx.status = 429;
-      ctx.body = errorBody("rate_limited", "too many login attempts");
+      ctx.set("Retry-After", String(retryAfterSeconds));
+      // `resetAt` rides alongside the standard envelope rather than joining
+      // it (issue #91): this route is deliberately outside the published
+      // admin OpenAPI contract already, and the dashboard needs the epoch to
+      // drive a countdown, not another sentence to render verbatim.
+      ctx.body = {
+        ...errorBody("rate_limited", "Too many attempts. Try again once the cooldown ends."),
+        resetAt: rateLimit.resetAt,
+      };
       return;
     }
 
