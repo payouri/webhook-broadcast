@@ -24,7 +24,7 @@ function LogoutButton({ onLoggedOut }: { onLoggedOut: () => void }) {
   return (
     <button type="button" className="control" onClick={() => void handleLogout()}>
       <LogOut size={14} strokeWidth={1.75} aria-hidden="true" />
-      Log out
+      Sign out
     </button>
   );
 }

@@ -87,6 +87,23 @@ describe("dashboard smoke flow", () => {
     expect(await screen.findByLabelText("Operator API key")).toBeTruthy();
   });
 
+  it("describes the API key field as the bootstrap credential, not a minted operator token", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(401, { error: { code: "unauthorized", message: "no session" } }),
+    );
+
+    render(<App />);
+
+    const apiKeyInput = await screen.findByLabelText("Operator API key");
+    const advisoryId = apiKeyInput.getAttribute("aria-describedby");
+    expect(advisoryId).toBeTruthy();
+
+    const advisory = document.getElementById(advisoryId ?? "");
+    expect(advisory?.textContent).toContain("bootstrap credential");
+    expect(advisory?.textContent).toContain("OPERATOR_API_KEY");
+    expect(advisory?.textContent).toContain("not an operator token created in Settings");
+  });
+
   it("logs in, then shows the Channel directory populated from the API", async () => {
     fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
       const path = requestPath(input);
@@ -457,7 +474,7 @@ describe("dashboard smoke flow", () => {
     window.history.pushState({}, "", `/channels/${channelId}`);
     render(<App />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Log out" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Sign out" }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(

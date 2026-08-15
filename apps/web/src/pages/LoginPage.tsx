@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Radio } from "lucide-react";
+import { Info, Radio } from "lucide-react";
 import { api, describeApiError } from "../lib/api.js";
 import { ThemeToggle } from "../components/ThemeToggle.js";
 import { useDelayedPending } from "../lib/delayedPending.js";
@@ -19,7 +19,7 @@ export function LoginPage({
   const submittingLabel = useDelayedPending(submitting);
 
   useEffect(() => {
-    document.title = "Log in · webhook-broadcast";
+    document.title = "Sign in · webhook-broadcast";
   }, []);
 
   async function handleSubmit(event: FormEvent): Promise<void> {
@@ -30,7 +30,7 @@ export function LoginPage({
       await api.login(apiKey);
       onLoggedIn();
     } catch (err) {
-      setError(describeApiError(err, "Login failed"));
+      setError(describeApiError(err, "Failed to sign in"));
     } finally {
       setSubmitting(false);
     }
@@ -48,7 +48,6 @@ export function LoginPage({
               a session to attach it to. */}
           <ThemeToggle theme={theme} onCycle={onCycleTheme} />
         </div>
-        <p className="prose">Find your key in the OPERATOR_API_KEY environment variable.</p>
         <div className="field">
           <label htmlFor="apiKey">Operator API key</label>
           <input
@@ -61,7 +60,20 @@ export function LoginPage({
             autoFocus
             required
             autoComplete="current-password"
+            aria-describedby="api-key-source"
           />
+          {/* Standing guidance, not a validation result, so the input points at it
+              with `aria-describedby` the way the new-Channel slug rule does: the
+              bootstrap-versus-minted distinction is the whole reason the advisory
+              exists, and a keyboard operator lands on the autofocused field without
+              ever passing the paragraph beneath it. */}
+          <p className="advisory" id="api-key-source">
+            <Info className="advisory-icon" size={14} strokeWidth={2} aria-hidden="true" />
+            <span>
+              This is the bootstrap credential <code>OPERATOR_API_KEY</code> from your deployment,
+              not an operator token created in Settings.
+            </span>
+          </p>
         </div>
         {error && (
           <p className="error-text" role="alert">

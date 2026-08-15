@@ -855,7 +855,7 @@ scale a sidebar would be chrome standing in for structure.
   content it sat above.
 - **Header:** Face, 1px Score bottom border, with the content column aligned inside it by
   `.app-header-inner` so the brand sits over the content and not over the ground beside it. Brand
-  (glyph plus wordmark) at Title size on the left; theme toggle and Log out on the right.
+  (glyph plus wordmark) at Title size on the left; theme toggle and Sign out on the right.
 - **Content column:** 1080px. Narrowed from 1180px, which was wide enough that the roughly 620px
   plates left a third of the column as dead ground. Narrowing the column only ever closed half of
   that gap: a plate capped at a reading measure leaves dead ground at any column width, which is why
