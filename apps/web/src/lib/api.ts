@@ -228,13 +228,34 @@ export const api = {
         params: { path: { channelId, endpointId } },
       }),
     ),
-  listBroadcasts: async (channelId: string, cursor?: string) =>
+  /**
+   * `endpointId` + `status: "failed"` (issue #84/#98) narrow this Channel's
+   * Activity to one Endpoint's failing Broadcasts, on the same keyset cursor
+   * the unfiltered call uses — the two arrive together or not at all, per the
+   * contract's `superRefine`.
+   */
+  listBroadcasts: async (
+    channelId: string,
+    options: { cursor?: string; endpointId?: string; status?: "failed" } = {},
+  ) =>
     unwrap(
       await getAdminFetchClient().GET("/channels/{channelId}/broadcasts", {
         params: {
           path: { channelId },
-          query: cursor ? { cursor } : {},
+          query: {
+            ...(options.cursor ? { cursor: options.cursor } : {}),
+            ...(options.endpointId
+              ? { endpointId: options.endpointId, status: options.status ?? "failed" }
+              : {}),
+          },
         },
+      }),
+    ),
+  /** `GET /channels/{id}/failures` (issue #84/#98): the ranked roll-up behind the reactive Activity view. */
+  listChannelFailures: async (channelId: string) =>
+    unwrap(
+      await getAdminFetchClient().GET("/channels/{channelId}/failures", {
+        params: { path: { channelId } },
       }),
     ),
   getBroadcastDetail: async (channelId: string, broadcastId: string) =>

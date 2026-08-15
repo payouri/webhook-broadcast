@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 import { Ban, Check, Clock, LoaderCircle, Minus, Power, X } from "lucide-react";
-import type { DeliveryStatus, FanoutSummary } from "@webhook-broadcast/contract";
+import type { DeliveryStatus, EndpointFailure, FanoutSummary } from "@webhook-broadcast/contract";
 
 /**
  * Single status vocabulary: every place the dashboard shows state — Channel
@@ -259,11 +259,13 @@ export function DeliveryStatusLamp({ status }: { status: DeliveryStatus }) {
  *    finished, so calling it succeeded would be the same lie in a quieter key.
  *  - otherwise every Delivery succeeded, which is what Lamp Live means.
  *
- * This is the badge counterpart of `fanoutHasFailure` in `activityFilter.ts`,
- * which the failures-only filter uses to decide row membership. The two must
- * keep agreeing on what counts as a failure, or the filtered view can show
- * rows this badge paints as healthy. The count lives in the label in every
- * branch: never color alone.
+ * This lamp's failure branches (`deadLettered > 0`, `failed > 0`) share their
+ * predicate with the reactive Activity view (issue #98): a Broadcast this
+ * badge paints as broken is exactly one whose fan-out produced a Delivery the
+ * `GET /channels/{id}/failures` roll-up counts against its Endpoint. The two
+ * must keep agreeing on what counts as a failure, or the grouped view could
+ * surface a Broadcast this badge paints as healthy. The count lives in the
+ * label in every branch: never color alone.
  */
 export function BroadcastFanoutLamp({ fanout }: { fanout: FanoutSummary }) {
   if (fanout.total === 0) {
@@ -371,4 +373,60 @@ export function ChannelHealthLamp({
     return <StatusLamp label="No activity" tone="neutral" form="hollow" glyph="none" />;
   }
   return <StatusLamp label="No failures (24h)" tone="live" form="lit" glyph="ok" />;
+}
+
+/**
+ * An Endpoint failure group's header lamp (issue #98): one Endpoint from
+ * `GET /channels/{id}/failures`, composed the way `ChannelHealthLamp` above
+ * composes its parts — `" · "`-joined, omitting whichever legs are empty —
+ * except the composed string here *is* the lamp's own label, since this row
+ * carries no separate legend beside it the way the Channel directory's
+ * `Enabled`/`Disabled` lamp does.
+ *
+ * Tone and glyph follow the same severity precedence `getFailureRollupForChannel`
+ * ranks groups by: auto-disabled outranks every count (ADR 0003 — the Endpoint
+ * has stopped delivering entirely, so its counts have stopped growing), then a
+ * dead-lettered Delivery (a retryable outcome that spent its whole budget)
+ * outranks a merely failed one for the glyph, mirroring `BroadcastFanoutLamp`.
+ *
+ * `cleared` is issue #98's one exception to "the server's roll-up is the
+ * whole truth": once an operator has expanded a group, it is never removed
+ * from view just because its in-window count reached zero — it renders here
+ * as the same healthy lamp `ChannelHealthLamp`'s "no failures" branch uses,
+ * with its last-known counts dropped rather than left stale on screen.
+ */
+export function EndpointFailureLamp({
+  item,
+  cleared = false,
+}: {
+  item: EndpointFailure;
+  cleared?: boolean;
+}) {
+  if (cleared) {
+    return <StatusLamp label="No failures (24h)" tone="live" form="lit" glyph="ok" />;
+  }
+  const autoDisabled = item.autoDisabledAt != null;
+  const parts: string[] = [];
+  if (autoDisabled) {
+    parts.push("auto-disabled");
+  }
+  if (item.deadLettered > 0) {
+    parts.push(`${item.deadLettered} dead-lettered`);
+  }
+  if (item.failed > 0) {
+    parts.push(`${item.failed} failed`);
+  }
+  const label = parts.length > 0 ? parts.join(" · ") : "No failures (24h)";
+  // Auto-disabled stays hollow, the same bezel `EnabledStatusLamp` and
+  // `EndpointHealthLamp` render it with everywhere else in the app — an
+  // Endpoint that has stopped attempting deliveries reads as quiet, not lit,
+  // even while this header still names the counts it left behind.
+  return (
+    <StatusLamp
+      label={label}
+      tone="cut"
+      form={autoDisabled ? "hollow" : "lit"}
+      glyph={autoDisabled || item.deadLettered > 0 ? "stopped" : "failed"}
+    />
+  );
 }

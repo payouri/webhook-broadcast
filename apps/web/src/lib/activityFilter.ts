@@ -1,13 +1,15 @@
-import type { FanoutSummary } from "@webhook-broadcast/contract";
-
 /**
- * Client-side Activity filter (issue #51): the fan-out aggregate already on
- * `BroadcastListItem` is enough to tell whether a Broadcast's fan-out produced
- * a failed or dead-lettered Delivery, so filtering by that fact needs no new
- * endpoint. PRODUCT.md ranks tracing a failure as the second most frequent job
- * and requires "one navigation path (not a search)" to the underlying error; a
- * server-side filter would scale better but is a contract change left for
- * later — this is the client-side version the fan-out summary already allows.
+ * The Activity view's two structures (issue #98, ADR 0004 amended): "all" is
+ * the proactive path, a flat newest-first Broadcast log; "failed" is the
+ * reactive path, the same Channel's Deliveries re-shaped into one collapsible
+ * group per broken Endpoint (`GET /channels/{id}/failures`, issue #84). The
+ * toggle used to read "All" / "Failures only" over a client-side filter on
+ * the loaded page (issue #51's `fanoutHasFailure`, which filtered row
+ * membership without changing the list's shape) — 44 identical
+ * `1 failed, 3/4 succeeded` rows are one broken Endpoint, and the reactive
+ * path now says so instead of listing each occurrence. The URL param and its
+ * values are unchanged (`?filter=failed`) so every existing link, including
+ * the Channel directory's badge, still lands on the reactive path.
  */
 export type ActivityFilter = "all" | "failed";
 
@@ -25,21 +27,42 @@ export function activityFilterSearch(filter: ActivityFilter): string {
 }
 
 /**
- * True when a Broadcast's fan-out produced at least one failed or
- * dead-lettered Delivery. Both are terminal states (ADR 0003): a non-retryable
- * outcome finishes as `failed` without a retry, a retryable one that spends its
- * budget finishes as `dead_lettered`, and anything still owed a retry is
- * `pending`. So this predicate means "something here is finished and broken".
+ * `?endpoint=<id>,<id>` (issue #98): which Endpoint groups are expanded on the
+ * reactive path, multi-open and URL-owned like every other expansion state on
+ * this page (#42, #56). Three states, not two:
  *
- * `BroadcastFanoutLamp` in `StatusLamp.tsx` is the rendering counterpart of
- * the same fact and paints both as Lamp Cut, keeping the cross and the slash
- * apart so the two remain distinguishable without color. The invariant to hold
- * on to: a Broadcast this predicate calls a failure must never be one that
- * badge paints as healthy. They drifted apart once, and the filtered view
- * filled with green check lamps sitting above red Deliveries.
+ * - the param is absent from the URL entirely → `null`, meaning "no explicit
+ *   choice yet" — the caller defaults this to the top-ranked group, since the
+ *   common case is a single broken Endpoint and it should read with zero
+ *   clicks.
+ * - the param is present but empty (`?endpoint=`) → an empty `Set`, meaning
+ *   the operator collapsed everything. This must never fall back to the
+ *   top-ranked default, or a deliberate collapse-all would spring back open
+ *   on the very next render.
+ * - the param carries one or more ids → exactly that `Set`.
  */
-export function fanoutHasFailure(fanout: FanoutSummary): boolean {
-  return fanout.failed > 0 || fanout.deadLettered > 0;
+export const ACTIVITY_ENDPOINT_PARAM = "endpoint";
+
+export function expandedEndpointIdsFromParams(searchParams: URLSearchParams): Set<string> | null {
+  if (!searchParams.has(ACTIVITY_ENDPOINT_PARAM)) {
+    return null;
+  }
+  const raw = searchParams.get(ACTIVITY_ENDPOINT_PARAM) ?? "";
+  const ids = raw
+    .split(",")
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0);
+  return new Set(ids);
+}
+
+/**
+ * Writes an explicit (possibly empty) expanded-group set into the URL. Once an
+ * operator has toggled any group, the state is always written explicitly —
+ * never left absent again — so a shared link reproduces exactly what they saw
+ * rather than re-deriving a "top-ranked" default that may no longer be top.
+ */
+export function expandedEndpointIdsToSearchValue(ids: ReadonlySet<string>): string {
+  return [...ids].join(",");
 }
 
 /**

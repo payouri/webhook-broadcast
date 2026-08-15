@@ -8,6 +8,7 @@ import { renderRoutes, requestMethod, requestPath, stubFetchMock } from "./fetch
 
 const CHANNEL_ID = "11111111-1111-1111-1111-111111111111";
 const BROADCAST_ID = "22222222-2222-2222-2222-222222222222";
+const ENDPOINT_ID = "33333333-3333-3333-3333-333333333333";
 const SLUG = "stripe-prod";
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -56,7 +57,25 @@ function slugCapableFetches(): (
     if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
       return Promise.resolve(jsonResponse(200, baseChannel()));
     }
+    if (path === `/channels/${CHANNEL_ID}/failures` && method === "GET") {
+      return Promise.resolve(
+        jsonResponse(200, {
+          items: [
+            {
+              endpointId: ENDPOINT_ID,
+              endpointName: null,
+              endpointUrl: "https://example.com/hook",
+              failed: 1,
+              deadLettered: 0,
+              autoDisabledAt: null,
+              lastFailureAt: "2026-08-10T12:00:00.000Z",
+            },
+          ],
+        }),
+      );
+    }
     if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+      const endpointFilter = url.searchParams.get("endpointId");
       return Promise.resolve(
         jsonResponse(200, {
           items: [
@@ -66,6 +85,18 @@ function slugCapableFetches(): (
               receivedAt: "2026-08-10T12:00:00.000Z",
               bodyPreview: "hello-world",
               fanout: { total: 1, succeeded: 0, failed: 1, deadLettered: 0, pending: 0 },
+              ...(endpointFilter
+                ? {
+                    delivery: {
+                      deliveryId: "44444444-4444-4444-4444-444444444444",
+                      status: "failed",
+                      lastStatusCode: 503,
+                      lastDurationMs: 4200,
+                      lastError: null,
+                      attemptCount: 1,
+                    },
+                  }
+                : {}),
             },
           ],
           nextCursor: null,

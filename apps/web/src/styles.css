@@ -2138,6 +2138,102 @@ a.row:active {
 }
 
 /*
+ * Issue #98: the reactive Activity view's failure roll-up, in two row families
+ * — the Endpoint group header, and its child Broadcast rows.
+ *
+ * Neither family joins `.row-list-activity`'s tracks: the columns they carry
+ * (a composed lamp legend, the per-Delivery cause text) do not line up with
+ * the flat log's, the same way `.row-list-endpoint` earned its own tracks from
+ * the Channel directory's. But each family still defines those tracks on its
+ * *list* and has the rows take them via subgrid, exactly as the `.row-list-*`
+ * comment above requires: DESIGN.md #5 Rows promises "a constant leading lamp
+ * column shared by every row family", and a per-row grid resolves
+ * `minmax(var(--status-lamp-column), auto)` once per row rather than once per
+ * list. These headers are precisely where that goes wrong — a composed legend
+ * runs from "1 failed" to "auto-disabled · 12 dead-lettered · 340 failed"
+ * down one list, so per-row tracks would land each Endpoint's name at a
+ * different x and undo the column the eye is meant to run.
+ *
+ * The two lists nest (a group's children sit inside its well), but each is its
+ * own grid, so a child row's subgrid resolves against the children list and
+ * never leaks into the header tracks.
+ */
+.activity-window-note {
+  margin: 0 0 var(--space-sm);
+}
+
+.row-list-failure-groups,
+.row-list-failure-children {
+  display: grid;
+  row-gap: var(--space-sm);
+  column-gap: var(--space-md);
+}
+
+.row-list-failure-groups {
+  grid-template-columns: minmax(var(--status-lamp-column), auto) 1fr auto auto;
+}
+
+/* One more column than a flat Activity row: the per-Delivery cause text
+   (`503 after 4.2s`, `timeout 15000ms`) that lets the reason a child row
+   failed read without expanding it. */
+.row-list-failure-children {
+  grid-template-columns: minmax(var(--status-lamp-column), auto) auto 1fr auto auto;
+}
+
+/* The `<li>` carries no visual role of its own here, so it is promoted out of
+   the way and its children become items of the list's grid directly — the same
+   treatment `.row-list-activity > li` gets above. */
+.row-list-failure-groups > li,
+.row-list-failure-children > li {
+  display: contents;
+}
+
+/* Both row families keep the shared `.row` plate (background, border, padding,
+   hover/focus) and take only their column math from the list above. */
+.row-list-failure-groups .row-failure-group,
+.row-list-failure-children .row-failure-child {
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+/* A promoted `<li>`'s non-row children — an expanded group's well of children,
+   its cleared message, an expanded Broadcast's detail panel — become grid items
+   of the list too, and span it whole. */
+.row-list-failure-groups > li > .well,
+.row-list-failure-groups > li > .group-cleared,
+.row-list-failure-children > li > .well {
+  grid-column: 1 / -1;
+}
+
+.failure-group-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.failure-child-cause {
+  font-size: var(--text-label-size);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* An expanded group nests its children one step darker, the same Inward Depth
+   Rule an expanded Broadcast's own well already follows — which is `.well`'s
+   job, already on the element; only the offset below the header it opens from
+   is this class's, exactly as `.well-broadcast` does it. */
+.well-failure-group {
+  margin-top: var(--space-2xs);
+}
+
+/* Issue #98: an expanded group whose in-window count reached zero stays on
+   screen — this replaces its children rather than the group disappearing. */
+.group-cleared {
+  margin: var(--space-2xs) 0 0;
+}
+
+/*
  * Discoverable shortcuts (issue #53), a native disclosure styled to read as a
  * control at rest. Issue #79: this used to sit beside the filter toggle inside
  * `.activity-controls`'s `justify-content: space-between` row, so opening it
