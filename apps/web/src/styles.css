@@ -1605,6 +1605,15 @@ a.row:active {
   color: var(--lamp-cut);
   font-size: var(--text-label-size);
   margin: 0;
+  /* `describeApiError` passes the server's own message through verbatim, so a
+     URL or an echoed identifier can arrive as one unbroken token — and the
+     login card is pinned to `min(400px, 100%)`, the narrowest plate in the
+     product. `anywhere` rather than `break-word` because this rule is also a
+     flex container: its text is an anonymous flex item at `min-width: auto`,
+     and only `anywhere` shrinks the min-content contribution that minimum
+     resolves to. `break-word` leaves the item wide and the plate still spills.
+     The same value `.copy-row code` and `.delivery-endpoint-url` carry. */
+  overflow-wrap: anywhere;
 }
 
 /*
