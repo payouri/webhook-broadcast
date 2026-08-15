@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LoginPage } from "../src/pages/LoginPage.js";
-import { stubFetchMock } from "./fetchMock.js";
+import { requestPath, stubFetchMock } from "./fetchMock.js";
 
 afterEach(() => {
   cleanup();
@@ -121,8 +121,9 @@ describe("LoginPage field error", () => {
     // Only the standing advisory describes an untouched field; the empty error
     // region is not yet worth pointing the screen reader at.
     expect(apiKeyField().getAttribute("aria-describedby")).toBe("api-key-source");
-    // Present from first paint, empty: `.error-text:empty` collapses it, so an
-    // untouched form reserves no space for a message it may never show.
+    // Present from first paint, empty. It is the standing region #92 needs;
+    // #94 is what keeps it occupying its line while empty rather than
+    // collapsing the way `.error-text:empty` does on every other form.
     expect(errorRegion().getAttribute("role")).toBe("alert");
     expect(errorRegion().textContent).toBe("");
   });
@@ -195,5 +196,123 @@ describe("LoginPage field error", () => {
     });
     expect(apiKeyField().getAttribute("aria-describedby")).toBe("api-key-source");
     expect(errorRegion().textContent).toBe("");
+  });
+});
+
+function typeKey(value: string): void {
+  fireEvent.change(apiKeyField(), { target: { value } });
+}
+
+function clickSubmit(): void {
+  fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+}
+
+/**
+ * Issue #94, PRODUCT.md #6: the login card may not move while it reports a
+ * failure. The bounce came from the error paragraph mounting and unmounting
+ * inside `.centered`, so what these assert is element *identity* and *presence*
+ * across attempts — jsdom has no layout, but a paragraph that is never
+ * unmounted, paired with `.login-card .error-text:empty` holding its line
+ * while it has nothing to say, is a card whose height never changes.
+ */
+describe("LoginPage — the card stops moving when it reports a failure (issue #94)", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    stubFetchMock(fetchMock);
+  });
+
+  it("keeps the error line mounted before, during and after a failed attempt", async () => {
+    fetchMock.mockImplementation((input: string | URL | Request) => {
+      expect(requestPath(input)).toBe("/auth/login");
+      return Promise.resolve(
+        jsonResponse(401, { error: { code: "unauthorized", message: "Invalid operator API key" } }),
+      );
+    });
+
+    renderLoginPage();
+    // Present with nothing to say. `.login-card .error-text:empty` (styles.css)
+    // holds it at `1lh` while it is empty, so the message costs the card no
+    // vertical space later; jsdom loads no stylesheet, so what is asserted here
+    // is the node the rule hangs off being mounted and empty.
+    const line = screen.getByRole("alert");
+    expect(line.textContent?.trim()).toBe("");
+
+    typeKey("wrong");
+    clickSubmit();
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain("Invalid operator API key"),
+    );
+    // The same node, not a replacement: React never unmounted the paragraph.
+    expect(screen.getByRole("alert")).toBe(line);
+  });
+
+  it("replaces the message when the next outcome arrives instead of clearing it on submit", async () => {
+    const pending: ((response: Response) => void)[] = [];
+    fetchMock.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          pending.push(resolve);
+        }),
+    );
+
+    renderLoginPage();
+    typeKey("wrong");
+    clickSubmit();
+    pending.shift()?.(
+      jsonResponse(401, { error: { code: "unauthorized", message: "Invalid operator API key" } }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain("Invalid operator API key"),
+    );
+
+    // Second attempt: the previous message stays on screen for the whole
+    // round trip rather than being cleared at submit time, which is what made
+    // the card bounce once per attempt on the rate-limited path.
+    clickSubmit();
+    expect(screen.getByRole("alert").textContent).toContain("Invalid operator API key");
+
+    pending.shift()?.(
+      jsonResponse(429, { error: { code: "rate_limited", message: "Too many attempts" } }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain("Too many attempts"),
+    );
+  });
+
+  it("does not dim the control for a fast round trip, and still admits only one login", async () => {
+    const pending: ((response: Response) => void)[] = [];
+    fetchMock.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          pending.push(resolve);
+        }),
+    );
+
+    renderLoginPage();
+    typeKey("secret");
+    const button = screen.getByRole("button", { name: "Sign in" });
+    clickSubmit();
+
+    // DESIGN.md §5: nothing about waiting is rendered inside the delay window,
+    // and `disabled` is part of "rendered" — it dims the primary control.
+    expect(button.hasAttribute("disabled")).toBe(false);
+
+    // …which means the guard against a second request has to live in the
+    // handler, not in `disabled`.
+    clickSubmit();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    pending.shift()?.(jsonResponse(200, { ok: true }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  });
+
+  it("keeps both submit labels mounted so the button cannot resize between them", () => {
+    renderLoginPage();
+    // Only the wider one is ever measured: both share a grid cell, so the
+    // button's width is fixed regardless of which is visible.
+    expect(screen.getByText("Sign in")).toBeTruthy();
+    expect(screen.getByText("Signing in…")).toBeTruthy();
   });
 });

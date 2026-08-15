@@ -34,10 +34,21 @@ export function LoginPage({
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
+    // `disabled` no longer flips the instant `submitting` does — it waits on
+    // `useDelayedPending`, so for the first 250ms the control is still live and
+    // a second click would fire a second `api.login` against a rate-limited
+    // endpoint. The guard belongs here rather than on `disabled`: the No-Flicker
+    // Rule wants the control to look calm, not to accept the work twice (#94).
+    if (submitting) return;
     setSubmitting(true);
-    setError(null);
     try {
       await api.login(apiKey);
+      // `error` is replaced by whichever outcome actually arrives, never
+      // cleared ahead of it — clearing here would unmount `.error-text` for
+      // one frame on every attempt, and `.centered`'s `align-items: center`
+      // turns that into the card bouncing on the very axis PRODUCT.md #6
+      // says must stay still (#94).
+      setError(null);
       onLoggedIn();
     } catch (err) {
       setError(describeApiError(err, "Failed to sign in"));
@@ -132,9 +143,12 @@ export function LoginPage({
               mounted depends on the AT noticing its insertion, where a text
               change inside a region that already exists is announced
               reliably on every failed submit, not only the first one (Issue
-              #92). `.error-text:empty` (styles.css) collapses this to zero
-              footprint so an unused login form never reserves space for a
-              message it may never show. */}
+              #92). Empty, it still holds one line's height here rather than
+              collapsing the way `.error-text:empty` does on every other form:
+              this card sits inside `.centered`, so a line that appears and
+              disappears re-centers the whole plate on the very axis
+              PRODUCT.md #6 says must stay still — see
+              `.login-card .error-text:empty` in styles.css (#94). */}
           <p className="error-text" id="apiKey-error" role="alert">
             {error && (
               <>
@@ -146,10 +160,31 @@ export function LoginPage({
         </div>
         <button
           type="submit"
-          className="control control-primary"
-          disabled={submitting || apiKey.length === 0}
+          className="control control-primary login-submit"
+          disabled={submittingLabel || apiKey.length === 0}
         >
-          {submittingLabel ? "Signing in…" : "Sign in"}
+          {/*
+            Both labels are always in the DOM, stacked in the same grid cell,
+            so the button's width is the wider label's width regardless of
+            which is visible — it does not resize when the pending label
+            appears (#94). `disabled` and the label share the same
+            `useDelayedPending` output, so the control only dims once it is
+            genuinely slow, exactly when it starts saying so.
+          */}
+          <span
+            className="login-submit-label"
+            aria-hidden={submittingLabel}
+            data-visible={!submittingLabel}
+          >
+            Sign in
+          </span>
+          <span
+            className="login-submit-label"
+            aria-hidden={!submittingLabel}
+            data-visible={submittingLabel}
+          >
+            Signing in…
+          </span>
         </button>
       </form>
     </main>

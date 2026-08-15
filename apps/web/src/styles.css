@@ -615,6 +615,33 @@ svg {
   gap: var(--space-md);
 }
 
+/*
+ * Issue #94: "Sign in" and "Signing in…" are stacked in the same grid cell
+ * rather than swapped as a single text node, so the implicit column sizes to
+ * the wider label's max-content width and the button never resizes when the
+ * pending label appears. `.control`'s own `align-items`/`justify-content`
+ * still centers whichever label is visible inside that cell.
+ *
+ * Qualified by `.control` on purpose: `.control` sets `display: inline-flex`
+ * further down this file, and a bare `.login-submit` carries the same
+ * specificity, so the later rule would win and lay the two labels out side by
+ * side instead of stacking them.
+ */
+.control.login-submit {
+  display: inline-grid;
+}
+
+.login-submit-label {
+  grid-row: 1;
+  grid-column: 1;
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+.login-submit-label[data-visible="true"] {
+  visibility: visible;
+}
+
 .login-card h1 {
   display: inline-flex;
   align-items: center;
@@ -1654,6 +1681,23 @@ a.row:active {
    a message's worth of space no error has filled. */
 .error-text:empty {
   display: none;
+}
+
+/*
+ * …except on the login card, which needs the opposite (Issue #94). `.centered`
+ * centers the plate on its own height, so a line that is absent at rest and
+ * present once a key is rejected re-centers the entire card — the login form
+ * is the one place where collapsing the empty line costs more than it saves,
+ * because there is nothing else on screen to absorb the shift and the card
+ * moves on the very axis PRODUCT.md #6 says must stay still.
+ *
+ * `1lh` rather than a hand-copied pixel value: the reserved height is this
+ * element's own line box, so it tracks `--text-label-size` and the inherited
+ * line-height instead of drifting away from them.
+ */
+.login-card .error-text:empty {
+  display: flex;
+  min-height: 1lh;
 }
 
 /*
