@@ -61,6 +61,7 @@ export type {
 } from "./operatorToken.js";
 export {
   fanoutSummarySchema,
+  broadcastEndpointDeliverySchema,
   broadcastListItemSchema,
   broadcastListSchema,
   broadcastListQuerySchema,
@@ -71,6 +72,7 @@ export {
 } from "./broadcast.js";
 export type {
   FanoutSummary,
+  BroadcastEndpointDelivery,
   BroadcastListItem,
   BroadcastList,
   BroadcastListQuery,
@@ -83,5 +85,7 @@ export { ingestAcceptedSchema } from "./ingest.js";
 export type { IngestAccepted } from "./ingest.js";
 export { deliveryDetailSchema, attemptSchema, attemptListSchema } from "./delivery.js";
 export type { DeliveryDetail, Attempt, AttemptList } from "./delivery.js";
+export { endpointFailureSchema, channelFailureRollupSchema } from "./channelFailureRollup.js";
+export type { EndpointFailure, ChannelFailureRollup } from "./channelFailureRollup.js";
 export { emitAdminOpenApiDocument, adminOpenApiPaths } from "./admin/openapi.js";
 export { toCanonicalAdminOpenApiYaml, parseAdminOpenApiYaml } from "./admin/yaml.js";

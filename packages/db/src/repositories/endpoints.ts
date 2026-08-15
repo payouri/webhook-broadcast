@@ -1,7 +1,9 @@
-import { and, asc, eq, gt, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import type { Database } from "../client.js";
 import { isUniqueViolation } from "../pgErrors.js";
+import { qualified } from "../qualifiedColumn.js";
 import { attempts, deliveries, endpoints } from "../schema.js";
+import { CHANNEL_RECENT_FAILURE_WINDOW_MS } from "./deliveries.js";
 
 export interface EndpointRow {
   id: string;
@@ -230,6 +232,89 @@ export async function getAutoDisabledEndpointCountsByChannelIds(
     .where(and(inArray(endpoints.channelId, channelIds), isNotNull(endpoints.autoDisabledAt)))
     .groupBy(endpoints.channelId);
   return new Map(rows.map((row) => [row.channelId, row.count]));
+}
+
+export interface EndpointFailureRollupRow {
+  endpointId: string;
+  endpointName: string | null;
+  endpointUrl: string;
+  failed: number;
+  deadLettered: number;
+  autoDisabledAt: Date | null;
+  lastFailureAt: Date;
+}
+
+/**
+ * Issue #84: the ranked failure roll-up behind the Channel Activity's
+ * "group failures by Endpoint" view — one row per Endpoint of `channelId`
+ * with at least one `failed`/`dead_lettered` Delivery inside
+ * `CHANNEL_RECENT_FAILURE_WINDOW_MS`, the exact same window and predicate
+ * `getRecentFailureCountsByChannelIds` uses for the Channel directory badge
+ * (packages/db/src/repositories/deliveries.ts), so the badge's count and
+ * this roll-up's `failed + deadLettered` sums can never disagree.
+ *
+ * Unpaginated (ADR 0001: an Endpoint belongs to exactly one Channel, so this
+ * set is bounded by the Channel's own Endpoint count) — every failing
+ * Endpoint comes back, and every count is complete.
+ *
+ * Ranked severity-first, computed in SQL and built once per leg so `SELECT`
+ * and `ORDER BY` can never disagree about a given Endpoint's rank (the same
+ * discipline as `channelHealthRankSql` in `channels.ts`):
+ *
+ *   1. auto-disabled first — an auto-disabled Endpoint has *stopped*
+ *      delivering, so its counts stop growing and would otherwise sink
+ *      beneath a noisier but still-live Endpoint while being the worst
+ *      problem on the Channel. (Deliberately the opposite of
+ *      `channelHealthRankSql`, where a *disabled Channel* — a choice — ranks
+ *      last: an auto-disabled Endpoint is a failure outcome, not a choice.)
+ *   2. `deadLettered` desc
+ *   3. `failed` desc
+ *   4. `lastFailureAt` desc
+ *   5. name (falling back to url when unnamed), then id, for determinism.
+ */
+export async function getFailureRollupForChannel(
+  db: Database,
+  channelId: string,
+  now: Date,
+): Promise<EndpointFailureRollupRow[]> {
+  const since = new Date(now.getTime() - CHANNEL_RECENT_FAILURE_WINDOW_MS);
+
+  const autoDisabledRank = sql<number>`case when ${qualified(endpoints.autoDisabledAt)} is not null then 0 else 1 end`;
+  const deadLetteredCount = sql<number>`count(*) filter (where ${qualified(deliveries.status)} = 'dead_lettered')`;
+  const failedCount = sql<number>`count(*) filter (where ${qualified(deliveries.status)} = 'failed')`;
+  const lastFailureAt = sql<Date>`max(${qualified(deliveries.updatedAt)})`;
+  const nameOrUrl = sql`coalesce(${qualified(endpoints.name)}, ${qualified(endpoints.url)})`;
+
+  const rows = await db
+    .select({
+      endpointId: endpoints.id,
+      endpointName: endpoints.name,
+      endpointUrl: endpoints.url,
+      autoDisabledAt: endpoints.autoDisabledAt,
+      deadLettered: deadLetteredCount.mapWith(Number),
+      failed: failedCount.mapWith(Number),
+      lastFailureAt: lastFailureAt.mapWith((value) => new Date(value as string | Date)),
+    })
+    .from(endpoints)
+    .innerJoin(deliveries, eq(deliveries.endpointId, endpoints.id))
+    .where(
+      and(
+        eq(endpoints.channelId, channelId),
+        inArray(deliveries.status, ["failed", "dead_lettered"]),
+        gte(deliveries.updatedAt, since),
+      ),
+    )
+    .groupBy(endpoints.id)
+    .orderBy(
+      sql`${autoDisabledRank} asc`,
+      sql`${deadLetteredCount} desc`,
+      sql`${failedCount} desc`,
+      sql`${lastFailureAt} desc`,
+      sql`${nameOrUrl} asc`,
+      asc(endpoints.id),
+    );
+
+  return rows;
 }
 
 /** Endpoint health aggregates for the admin list (ADR 0007 — computed in SQL). */

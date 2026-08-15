@@ -1,5 +1,6 @@
 import { createDocument } from "zod-openapi";
 import { broadcastsPaths } from "./paths/broadcasts.js";
+import { channelFailuresPaths } from "./paths/channelFailures.js";
 import { channelsPaths } from "./paths/channels.js";
 import { deliveriesPaths } from "./paths/deliveries.js";
 import { endpointsPaths } from "./paths/endpoints.js";
@@ -13,6 +14,7 @@ import { tokensPaths } from "./paths/tokens.js";
  */
 export const adminOpenApiPaths = {
   ...channelsPaths,
+  ...channelFailuresPaths,
   ...endpointsPaths,
   ...tokensPaths,
   ...operatorTokensPaths,

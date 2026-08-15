@@ -1,18 +1,7 @@
-import {
-  and,
-  asc,
-  eq,
-  getTableName,
-  gt,
-  inArray,
-  isNull,
-  or,
-  sql,
-  type Column,
-  type SQL,
-} from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import type { Database } from "../client.js";
 import { isCheckViolation, isUniqueViolation } from "../pgErrors.js";
+import { qualified } from "../qualifiedColumn.js";
 import {
   channels,
   channelTokens,
@@ -185,24 +174,6 @@ export function decodeChannelCursor(cursor: string): ChannelCursor | undefined {
   } catch {
     return undefined;
   }
-}
-
-/**
- * A `"table"."column"` reference that renders the same in every clause.
- *
- * Interpolating a Drizzle column object into a raw `sql` fragment qualifies it
- * in `WHERE` and `ORDER BY` but leaves it *bare* in a `SELECT` list. Each
- * ordering fragment below — the health rank and, since #66, the two severity
- * counts — is deliberately the same fragment in all three clauses and contains
- * a correlated subquery, so a bare `"channel_id" = "id"` would rebind to the
- * subquery's own table (`endpoint.channel_id = endpoint.id`), making the
- * subquery match everything or nothing in the `SELECT` list alone. `ORDER BY`
- * would then rank correctly while the value handed to the cursor said
- * otherwise, and Channels would vanish or repeat at the first page boundary.
- * Qualifying explicitly removes the clause-dependence rather than relying on it.
- */
-function qualified(column: Column): SQL {
-  return sql`${sql.identifier(getTableName(column.table))}.${sql.identifier(column.name)}`;
 }
 
 /**

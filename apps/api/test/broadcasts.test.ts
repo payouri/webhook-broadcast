@@ -1,5 +1,6 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { randomUUID } from "node:crypto";
 import type {
   BroadcastDetail,
   BroadcastList,
@@ -7,6 +8,11 @@ import type {
   ChannelTokenCreated,
   Endpoint,
 } from "@webhook-broadcast/contract";
+import {
+  completeDelivery,
+  createDeliveriesForBroadcast,
+  insertBroadcast,
+} from "@webhook-broadcast/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { FakeDeliveryQueue } from "./fakeDeliveryQueue.js";
@@ -458,5 +464,224 @@ describe("Broadcast replay — POST .../broadcasts/:broadcastId/replay (admin HT
     expect(firstDetail.deliveries[0]?.endpointId).toBe(endpoint.id);
     expect(secondDetail.deliveries[0]?.endpointId).toBe(endpoint.id);
     expect(firstDetail.deliveries[0]?.id).not.toBe(secondDetail.deliveries[0]?.id);
+  });
+});
+
+/**
+ * Issue #84: the Endpoint-scoped half of the failure roll-up —
+ * `GET /channels/:channelId/broadcasts?endpointId=&status=failed`, additive
+ * to the existing unfiltered call.
+ */
+describe("Channel Activity — Endpoint-scoped failures (GET .../broadcasts?endpointId=&status=failed)", () => {
+  let testDb: TestDb;
+  let server: Server;
+  let baseUrl: string;
+
+  function authed(init: RequestInit = {}): RequestInit {
+    return { ...init, headers: { authorization: `Bearer ${OPERATOR_API_KEY}`, ...init.headers } };
+  }
+
+  beforeAll(async () => {
+    testDb = await startTestDb();
+    const app = createApp({
+      db: testDb.db,
+      deliveryQueue: new FakeDeliveryQueue(),
+      operatorApiKey: OPERATOR_API_KEY,
+      cookieName: COOKIE_NAME,
+    });
+    server = createServer(app.callback());
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const { port } = server.address() as AddressInfo;
+    baseUrl = `http://127.0.0.1:${port}`;
+  }, 60_000);
+
+  afterEach(async () => {
+    await testDb.reset();
+  });
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await testDb.stop();
+  }, 30_000);
+
+  async function createChannel(slug: string): Promise<Channel> {
+    const response = await fetch(
+      `${baseUrl}/channels`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ slug }),
+      }),
+    );
+    return (await response.json()) as Channel;
+  }
+
+  async function createEndpoint(channelId: string, url: string): Promise<Endpoint> {
+    const response = await fetch(
+      `${baseUrl}/channels/${channelId}/endpoints`,
+      authed({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url }),
+      }),
+    );
+    return (await response.json()) as Endpoint;
+  }
+
+  async function deliverOne(
+    channelId: string,
+    endpointId: string,
+    status: "succeeded" | "failed" | "dead_lettered",
+    now: Date,
+  ): Promise<{ broadcastId: string; deliveryId: string }> {
+    const broadcast = await insertBroadcast(testDb.db, {
+      id: randomUUID(),
+      channelId,
+      receivedAt: now,
+      contentType: "application/json",
+      body: Buffer.from("{}"),
+      headers: {},
+    });
+    const [delivery] = await createDeliveriesForBroadcast(testDb.db, {
+      broadcastId: broadcast.id,
+      channelId,
+      endpointIds: [endpointId],
+      now,
+    });
+    if (!delivery) {
+      throw new Error("expected Delivery");
+    }
+    await completeDelivery(testDb.db, {
+      deliveryId: delivery.id,
+      n: 3,
+      statusCode: status === "succeeded" ? 200 : 503,
+      durationMs: 42,
+      error: status === "succeeded" ? null : "boom",
+      status,
+      at: now,
+    });
+    return { broadcastId: broadcast.id, deliveryId: delivery.id };
+  }
+
+  it("400s when endpointId is given without status", async () => {
+    const channel = await createChannel("orders");
+    const endpoint = await createEndpoint(channel.id, "https://example.com/hook");
+    const response = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts?endpointId=${endpoint.id}`,
+      authed(),
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("400s when status is given without endpointId", async () => {
+    const channel = await createChannel("orders");
+    const response = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts?status=failed`,
+      authed(),
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("returns only Broadcasts whose Delivery to that Endpoint failed or dead-lettered, with the Delivery facts inlined", async () => {
+    const now = new Date();
+    const channel = await createChannel("orders");
+    const target = await createEndpoint(channel.id, "https://example.com/target");
+    const other = await createEndpoint(channel.id, "https://example.com/other");
+
+    const { broadcastId: succeededId } = await deliverOne(channel.id, target.id, "succeeded", now);
+    const { broadcastId: failedId, deliveryId: failedDeliveryId } = await deliverOne(
+      channel.id,
+      target.id,
+      "failed",
+      now,
+    );
+    const { broadcastId: deadLetteredId } = await deliverOne(
+      channel.id,
+      target.id,
+      "dead_lettered",
+      now,
+    );
+    // A failure on a different Endpoint must never leak into this Endpoint's view.
+    await deliverOne(channel.id, other.id, "failed", now);
+
+    const response = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts?endpointId=${target.id}&status=failed`,
+      authed(),
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as BroadcastList;
+
+    const ids = body.items.map((item) => item.id);
+    expect(ids).toContain(failedId);
+    expect(ids).toContain(deadLetteredId);
+    expect(ids).not.toContain(succeededId);
+
+    const failedItem = body.items.find((item) => item.id === failedId);
+    expect(failedItem?.delivery).toMatchObject({
+      deliveryId: failedDeliveryId,
+      status: "failed",
+      lastStatusCode: 503,
+      lastDurationMs: 42,
+      lastError: "boom",
+      attemptCount: 3,
+    });
+  });
+
+  it("orders newest first and paginates with the existing keyset cursor", async () => {
+    const now = new Date();
+    const channel = await createChannel("orders");
+    const endpoint = await createEndpoint(channel.id, "https://example.com/target");
+
+    const first = await deliverOne(channel.id, endpoint.id, "failed", now);
+    const second = await deliverOne(
+      channel.id,
+      endpoint.id,
+      "dead_lettered",
+      new Date(now.getTime() + 1_000),
+    );
+    const third = await deliverOne(
+      channel.id,
+      endpoint.id,
+      "failed",
+      new Date(now.getTime() + 2_000),
+    );
+
+    const firstPage = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts?endpointId=${endpoint.id}&status=failed&limit=2`,
+      authed(),
+    );
+    const firstBody = (await firstPage.json()) as BroadcastList;
+    expect(firstBody.items.map((item) => item.id)).toEqual([third.broadcastId, second.broadcastId]);
+    expect(firstBody.nextCursor).toEqual(expect.any(String));
+
+    const secondPage = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts?endpointId=${endpoint.id}&status=failed&limit=2&cursor=${encodeURIComponent(firstBody.nextCursor ?? "")}`,
+      authed(),
+    );
+    const secondBody = (await secondPage.json()) as BroadcastList;
+    expect(secondBody.items.map((item) => item.id)).toEqual([first.broadcastId]);
+    expect(secondBody.nextCursor).toBeNull();
+  });
+
+  it("leaves the unfiltered call's response shape unchanged (no delivery field)", async () => {
+    const now = new Date();
+    const channel = await createChannel("orders");
+    const endpoint = await createEndpoint(channel.id, "https://example.com/target");
+    await deliverOne(channel.id, endpoint.id, "failed", now);
+
+    const response = await fetch(`${baseUrl}/channels/${channel.id}/broadcasts`, authed());
+    const body = (await response.json()) as BroadcastList;
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0]).not.toHaveProperty("delivery");
+  });
+
+  it("400s on a malformed cursor with endpointId+status set", async () => {
+    const channel = await createChannel("orders");
+    const endpoint = await createEndpoint(channel.id, "https://example.com/target");
+    const response = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts?endpointId=${endpoint.id}&status=failed&cursor=not-base64url-json`,
+      authed(),
+    );
+    expect(response.status).toBe(400);
   });
 });

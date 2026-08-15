@@ -6,6 +6,7 @@ import {
   errorBody,
   type BroadcastDetail,
   type BroadcastList,
+  type BroadcastListItem,
 } from "@webhook-broadcast/contract";
 import {
   decodeBroadcastCursor,
@@ -13,8 +14,11 @@ import {
   getBroadcastById,
   getFanoutSummariesByBroadcastIds,
   listBroadcastsByChannel,
+  listBroadcastsForEndpointFailures,
   listDeliveriesForBroadcast,
   EMPTY_FANOUT_SUMMARY,
+  type BroadcastRow,
+  type BroadcastWithEndpointDeliveryRow,
   type Database,
 } from "@webhook-broadcast/db";
 import type { DeliveryQueue } from "../deliveryQueue.js";
@@ -34,6 +38,39 @@ function toBodyPreview(body: Buffer): string {
   return text.length > BODY_PREVIEW_MAX_LENGTH
     ? `${text.slice(0, BODY_PREVIEW_MAX_LENGTH)}…`
     : text;
+}
+
+/**
+ * The one place a `BroadcastRow` becomes a list item, so the filtered and
+ * unfiltered branches below can never drift apart on the shared fields. The
+ * optional `delivery` block (issue #84) is present only for rows that carry
+ * one Endpoint's Delivery facts.
+ */
+function toBroadcastListItem(
+  row: BroadcastRow | BroadcastWithEndpointDeliveryRow,
+  fanout: BroadcastListItem["fanout"],
+): BroadcastListItem {
+  const item: BroadcastListItem = {
+    id: row.id,
+    channelId: row.channelId,
+    receivedAt: row.receivedAt.toISOString(),
+    bodyPreview: toBodyPreview(row.body),
+    fanout,
+  };
+  if (!("deliveryId" in row)) {
+    return item;
+  }
+  return {
+    ...item,
+    delivery: {
+      deliveryId: row.deliveryId,
+      status: row.deliveryStatus,
+      lastStatusCode: row.lastStatusCode,
+      lastDurationMs: row.lastDurationMs,
+      lastError: row.lastError,
+      attemptCount: row.attemptCount,
+    },
+  };
 }
 
 /** Channel Activity: newest-first Broadcasts with cursor pages (issue #17). */
@@ -61,6 +98,33 @@ export function registerBroadcastRoutes(router: Router, config: BroadcastRouteCo
       return;
     }
 
+    // Issue #84: `endpointId` + `status=failed` (validated as arriving
+    // together by the contract schema's superRefine) narrow this call to the
+    // Broadcasts whose Delivery to that one Endpoint failed or
+    // dead-lettered — additive, so the unfiltered branch below is untouched.
+    if (parsedQuery.data.endpointId !== undefined) {
+      const { items, nextCursor } = await listBroadcastsForEndpointFailures(db, {
+        channelId,
+        endpointId: parsedQuery.data.endpointId,
+        cursor,
+        limit: parsedQuery.data.limit,
+      });
+      const fanoutByBroadcastId = await getFanoutSummariesByBroadcastIds(
+        db,
+        items.map((item) => item.id),
+      );
+
+      const body: BroadcastList = {
+        items: items.map((item) =>
+          toBroadcastListItem(item, fanoutByBroadcastId.get(item.id) ?? EMPTY_FANOUT_SUMMARY),
+        ),
+        nextCursor: nextCursor ? encodeBroadcastCursor(nextCursor) : null,
+      };
+      ctx.status = 200;
+      ctx.body = body;
+      return;
+    }
+
     const { items, nextCursor } = await listBroadcastsByChannel(db, {
       channelId,
       cursor,
@@ -72,13 +136,9 @@ export function registerBroadcastRoutes(router: Router, config: BroadcastRouteCo
     );
 
     const body: BroadcastList = {
-      items: items.map((item) => ({
-        id: item.id,
-        channelId: item.channelId,
-        receivedAt: item.receivedAt.toISOString(),
-        bodyPreview: toBodyPreview(item.body),
-        fanout: fanoutByBroadcastId.get(item.id) ?? EMPTY_FANOUT_SUMMARY,
-      })),
+      items: items.map((item) =>
+        toBroadcastListItem(item, fanoutByBroadcastId.get(item.id) ?? EMPTY_FANOUT_SUMMARY),
+      ),
       nextCursor: nextCursor ? encodeBroadcastCursor(nextCursor) : null,
     };
     ctx.status = 200;

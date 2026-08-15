@@ -7,6 +7,7 @@ import type { Database } from "@webhook-broadcast/db";
 import type { Pool } from "pg";
 import { createOperatorAuthMiddleware, operatorLabelOf } from "./admin/auth.js";
 import { registerAuthRoutes } from "./admin/authRoutes.js";
+import { registerChannelFailureRoutes } from "./admin/channelFailures.js";
 import { registerChannelRoutes } from "./admin/channels.js";
 import { registerEndpointRoutes } from "./admin/endpoints.js";
 import { registerChannelTokenRoutes } from "./admin/tokens.js";
@@ -121,6 +122,7 @@ export function createApp(deps: AppDeps): Koa {
     ctx.body = { ok: true };
   });
   registerChannelRoutes(adminRouter, deps.db);
+  registerChannelFailureRoutes(adminRouter, deps.db);
   registerEndpointRoutes(adminRouter, deps.db);
   registerChannelTokenRoutes(adminRouter, deps.db);
   registerOperatorTokenRoutes(adminRouter, deps.db);

@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import type { Database } from "../client.js";
 import { broadcasts, deliveries } from "../schema.js";
+import type { DeliveryStatus } from "./deliveries.js";
 
 export interface BroadcastRow {
   id: string;
@@ -75,6 +76,83 @@ export async function listBroadcastsByChannel(
     .where(
       and(
         eq(broadcasts.channelId, channelId),
+        cursor && cursorReceivedAt
+          ? or(
+              lt(broadcasts.receivedAt, cursorReceivedAt),
+              and(eq(broadcasts.receivedAt, cursorReceivedAt), lt(broadcasts.id, cursor.id)),
+            )
+          : undefined,
+      ),
+    )
+    .orderBy(desc(broadcasts.receivedAt), desc(broadcasts.id))
+    .limit(limit + 1);
+
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  const last = items[items.length - 1];
+  const nextCursor =
+    hasMore && last ? { receivedAt: last.receivedAt.toISOString(), id: last.id } : null;
+  return { items, nextCursor };
+}
+
+export interface BroadcastWithEndpointDeliveryRow extends BroadcastRow {
+  deliveryId: string;
+  deliveryStatus: DeliveryStatus;
+  attemptCount: number;
+  lastStatusCode: number | null;
+  lastDurationMs: number | null;
+  lastError: string | null;
+}
+
+/**
+ * Issue #84: the Endpoint-scoped half of the failure roll-up — the same
+ * newest-first `(receivedAt, id)` keyset pagination as `listBroadcastsByChannel`
+ * (the cursor shape is unchanged, so a client's existing cursor decoding
+ * needs no new case), narrowed to Broadcasts whose Delivery *to this one
+ * Endpoint* is `failed` or `dead_lettered` — the same predicate
+ * `getRecentFailureCountsByChannelIds` and `getFailureRollupForChannel` use.
+ *
+ * The join is on `(broadcastId, endpointId)`, which
+ * `delivery_broadcast_endpoint_key` (ADR 0007) guarantees is unique — so this
+ * can never fan a Broadcast out into duplicate rows the way joining on
+ * `channelId` alone would.
+ */
+export async function listBroadcastsForEndpointFailures(
+  db: Database,
+  options: {
+    channelId: string;
+    endpointId: string;
+    cursor?: BroadcastCursor | undefined;
+    limit: number;
+  },
+): Promise<{ items: BroadcastWithEndpointDeliveryRow[]; nextCursor: BroadcastCursor | null }> {
+  const { channelId, endpointId, cursor, limit } = options;
+  const cursorReceivedAt = cursor ? new Date(cursor.receivedAt) : undefined;
+
+  const rows = await db
+    .select({
+      id: broadcasts.id,
+      channelId: broadcasts.channelId,
+      receivedAt: broadcasts.receivedAt,
+      contentType: broadcasts.contentType,
+      body: broadcasts.body,
+      headers: broadcasts.headers,
+      deliveryId: deliveries.id,
+      deliveryStatus: deliveries.status,
+      attemptCount: deliveries.attemptCount,
+      lastStatusCode: deliveries.lastStatusCode,
+      lastDurationMs: deliveries.lastDurationMs,
+      lastError: deliveries.lastError,
+    })
+    .from(broadcasts)
+    .innerJoin(
+      deliveries,
+      and(eq(deliveries.broadcastId, broadcasts.id), eq(deliveries.endpointId, endpointId)),
+    )
+    .where(
+      and(
+        eq(broadcasts.channelId, channelId),
+        inArray(deliveries.status, ["failed", "dead_lettered"]),
         cursor && cursorReceivedAt
           ? or(
               lt(broadcasts.receivedAt, cursorReceivedAt),

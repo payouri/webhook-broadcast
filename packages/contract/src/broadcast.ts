@@ -21,6 +21,35 @@ export const fanoutSummarySchema = z
 
 export type FanoutSummary = z.infer<typeof fanoutSummarySchema>;
 
+/** Mirrors ADR 0007's `delivery_status` Postgres enum. */
+export const deliveryStatusSchema = z.enum([
+  "pending",
+  "in_progress",
+  "succeeded",
+  "failed",
+  "dead_lettered",
+]);
+
+export type DeliveryStatus = z.infer<typeof deliveryStatusSchema>;
+
+/**
+ * Issue #84: that Endpoint's Delivery facts, present only when the list is
+ * filtered by `endpointId` + `status=failed` — lets the UI render the cause
+ * of a grouped failure without a second call per Broadcast.
+ */
+export const broadcastEndpointDeliverySchema = z
+  .object({
+    deliveryId: idSchema,
+    status: deliveryStatusSchema,
+    lastStatusCode: z.number().int().nullable(),
+    lastDurationMs: z.number().int().nullable(),
+    lastError: z.string().nullable(),
+    attemptCount: z.number().int().min(0),
+  })
+  .meta({ id: "BroadcastEndpointDelivery" });
+
+export type BroadcastEndpointDelivery = z.infer<typeof broadcastEndpointDeliverySchema>;
+
 export const broadcastListItemSchema = z
   .object({
     id: idSchema,
@@ -28,6 +57,7 @@ export const broadcastListItemSchema = z
     receivedAt: dateTimeSchema,
     bodyPreview: z.string(),
     fanout: fanoutSummarySchema,
+    delivery: broadcastEndpointDeliverySchema.optional(),
   })
   .meta({ id: "BroadcastListItem" });
 
@@ -42,23 +72,31 @@ export const broadcastListSchema = z
 
 export type BroadcastList = z.infer<typeof broadcastListSchema>;
 
-export const broadcastListQuerySchema = z.object({
-  cursor: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-});
+/**
+ * Issue #84: `endpointId` + `status=failed` are additive and must arrive
+ * together — narrows this Channel's Activity to the Broadcasts whose
+ * Delivery to that one Endpoint failed or dead-lettered (`status: "failed"`
+ * means both terminal failure states, matching `fanoutHasFailure`). Omitting
+ * both leaves the existing unfiltered call's response unchanged.
+ */
+export const broadcastListQuerySchema = z
+  .object({
+    cursor: z.string().optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+    endpointId: idSchema.optional(),
+    status: z.enum(["failed"]).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if ((value.endpointId !== undefined) !== (value.status !== undefined)) {
+      ctx.addIssue({
+        code: "custom",
+        path: value.endpointId !== undefined ? ["status"] : ["endpointId"],
+        message: "endpointId and status must be provided together",
+      });
+    }
+  });
 
 export type BroadcastListQuery = z.infer<typeof broadcastListQuerySchema>;
-
-/** Mirrors ADR 0007's `delivery_status` Postgres enum. */
-export const deliveryStatusSchema = z.enum([
-  "pending",
-  "in_progress",
-  "succeeded",
-  "failed",
-  "dead_lettered",
-]);
-
-export type DeliveryStatus = z.infer<typeof deliveryStatusSchema>;
 
 export const deliveryItemSchema = z
   .object({

@@ -47,11 +47,13 @@ export {
   maybeAutoDisableEndpoint,
   getEndpointHealthByIds,
   getAutoDisabledEndpointCountsByChannelIds,
+  getFailureRollupForChannel,
   encodeEndpointCursor,
   decodeEndpointCursor,
   type EndpointRow,
   type EndpointHealthRow,
   type EndpointCursor,
+  type EndpointFailureRollupRow,
 } from "./repositories/endpoints.js";
 export {
   insertChannelToken,
@@ -73,6 +75,7 @@ export {
   deleteBroadcastById,
   deleteBroadcastsReceivedBefore,
   listBroadcastsByChannel,
+  listBroadcastsForEndpointFailures,
   getFanoutSummariesByBroadcastIds,
   getChannelIdsWithAnyBroadcast,
   encodeBroadcastCursor,
@@ -81,6 +84,7 @@ export {
   type BroadcastRow,
   type BroadcastCursor,
   type FanoutSummaryRow,
+  type BroadcastWithEndpointDeliveryRow,
 } from "./repositories/broadcasts.js";
 export {
   createDeliveriesForBroadcast,
