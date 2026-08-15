@@ -1647,6 +1647,15 @@ a.row:active {
   overflow-wrap: anywhere;
 }
 
+/* A `.error-text` mounted for the life of its form (LoginPage, Issue #92) so
+   its `role="alert"` is a standing region rather than one a screen reader must
+   notice being inserted — reliable on every failed submit, not only the
+   first. Empty, it collapses out of `.field`'s flex gap rather than reserving
+   a message's worth of space no error has filled. */
+.error-text:empty {
+  display: none;
+}
+
 /*
  * Confirmation that an operator action landed. Not Lamp Live: the lamps are
  * bound to Delivery status, Attempt outcome, and enabled state, and none of

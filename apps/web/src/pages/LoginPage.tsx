@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Eye, EyeOff, Info, Radio } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Eye, EyeOff, Info, Radio, TriangleAlert } from "lucide-react";
 import { api, describeApiError } from "../lib/api.js";
 import { ThemeToggle } from "../components/ThemeToggle.js";
 import { useDelayedPending } from "../lib/delayedPending.js";
@@ -26,6 +26,7 @@ export function LoginPage({
   const [submitting, setSubmitting] = useState(false);
   const submittingLabel = useDelayedPending(submitting);
   const Glyph = revealed ? EyeOff : Eye;
+  const apiKeyRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     document.title = "Sign in · webhook-broadcast";
@@ -40,6 +41,12 @@ export function LoginPage({
       onLoggedIn();
     } catch (err) {
       setError(describeApiError(err, "Failed to sign in"));
+      // DESIGN.md §5's Reward-Early-Punish-Late Rule: a rejected submit marks
+      // the blamed field and moves focus to it, so the operator never has to
+      // guess where the form stopped. The sibling forms reach that state by
+      // local validation; login's only judge is the admin API, and the API key
+      // is the one field this form has, so a rejection always blames it.
+      apiKeyRef.current?.focus();
     } finally {
       setSubmitting(false);
     }
@@ -71,6 +78,7 @@ export function LoginPage({
               rate-limited attempts. */}
           <div className="field-with-action">
             <input
+              ref={apiKeyRef}
               id="apiKey"
               className="field-control masked-field"
               type="text"
@@ -84,7 +92,12 @@ export function LoginPage({
               autoCapitalize="off"
               autoCorrect="off"
               data-revealed={revealed}
-              aria-describedby="api-key-source"
+              aria-invalid={error ? "true" : "false"}
+              // The standing advisory always describes the field; a rejection adds the
+              // error region to it rather than replacing it, so the operator keeps the
+              // bootstrap-versus-minted guidance exactly when a rejected key makes it
+              // most worth hearing.
+              aria-describedby={error ? "api-key-source apiKey-error" : "api-key-source"}
             />
             <button
               type="button"
@@ -114,12 +127,23 @@ export function LoginPage({
               not an operator token created in Settings.
             </span>
           </p>
-        </div>
-        {error && (
-          <p className="error-text" role="alert">
-            {error}
+          {/* Mounted for the life of the form, not only from the moment `error`
+              is first set: a `role="alert"` region that is conditionally
+              mounted depends on the AT noticing its insertion, where a text
+              change inside a region that already exists is announced
+              reliably on every failed submit, not only the first one (Issue
+              #92). `.error-text:empty` (styles.css) collapses this to zero
+              footprint so an unused login form never reserves space for a
+              message it may never show. */}
+          <p className="error-text" id="apiKey-error" role="alert">
+            {error && (
+              <>
+                <TriangleAlert size={13} strokeWidth={2} aria-hidden="true" />
+                {error}
+              </>
+            )}
           </p>
-        )}
+        </div>
         <button
           type="submit"
           className="control control-primary"
