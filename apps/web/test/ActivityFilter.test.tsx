@@ -23,6 +23,7 @@ function baseChannel(overrides: Partial<{ recentFailedDeliveryCount: number }> =
     description: "Order events",
     enabled: true,
     endpointCount: 1,
+    ingestSuccessStatus: null,
     hasBroadcasts: true,
     recentFailedDeliveryCount: overrides.recentFailedDeliveryCount ?? 0,
     tokens: [],

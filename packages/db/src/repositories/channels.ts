@@ -25,6 +25,7 @@ export interface ChannelRow {
   enabled: boolean;
   forwardHeaders: string[];
   allowUnauthenticatedIngest: boolean;
+  ingestSuccessStatus: number | null;
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -68,6 +69,7 @@ export async function insertChannel(
     enabled: boolean;
     forwardHeaders?: string[] | undefined;
     allowUnauthenticatedIngest: boolean;
+    ingestSuccessStatus?: number | null | undefined;
     createdAt: Date;
     updatedAt: Date;
   },
@@ -254,6 +256,7 @@ export async function listChannels(
       enabled: channels.enabled,
       forwardHeaders: channels.forwardHeaders,
       allowUnauthenticatedIngest: channels.allowUnauthenticatedIngest,
+      ingestSuccessStatus: channels.ingestSuccessStatus,
       deletedAt: channels.deletedAt,
       createdAt: channels.createdAt,
       updatedAt: channels.updatedAt,
@@ -338,6 +341,7 @@ export async function updateChannel(
     enabled?: boolean | undefined;
     forwardHeaders?: string[] | undefined;
     allowUnauthenticatedIngest?: boolean | undefined;
+    ingestSuccessStatus?: number | null | undefined;
     updatedAt: Date;
   },
 ): Promise<ChannelRow | undefined> {

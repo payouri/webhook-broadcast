@@ -56,6 +56,7 @@ function baseChannel() {
     description: "Order events",
     enabled: true,
     endpointCount: 2,
+    ingestSuccessStatus: null,
     hasBroadcasts: true,
     recentFailedDeliveryCount: 8,
     tokens: [],

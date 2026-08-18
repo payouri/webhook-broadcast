@@ -1,0 +1,2 @@
+ALTER TABLE "channel" ADD COLUMN "ingest_success_status" integer;--> statement-breakpoint
+ALTER TABLE "channel" ADD CONSTRAINT "channel_ingest_success_status_2xx_chk" CHECK ("channel"."ingest_success_status" IS NULL OR ("channel"."ingest_success_status" BETWEEN 200 AND 299));

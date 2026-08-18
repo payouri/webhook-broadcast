@@ -23,6 +23,7 @@ const app = createApp({
   ingestMaxBodyBytes: env.INGEST_MAX_BODY_BYTES,
   ingestHeaderAllowlist: parseHeaderList(env.INGEST_HEADER_ALLOWLIST),
   ingestHeaderDenylist: parseHeaderList(env.INGEST_HEADER_DENYLIST),
+  ingestSuccessStatus: env.INGEST_SUCCESS_STATUS,
   metrics,
   renderMetrics: () => metrics.render(deliveryQueue.bullQueue),
 });

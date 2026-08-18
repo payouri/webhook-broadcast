@@ -21,6 +21,12 @@ export interface IngestRouteConfig {
   maxBodyBytes: number;
   headerAllowlist: string[];
   headerDenylist: string[];
+  /**
+   * Issue #99: status answered on the accepted path when the Channel has no
+   * `ingestSuccessStatus` of its own. Service-wide `INGEST_SUCCESS_STATUS`,
+   * `202` by default.
+   */
+  successStatus: number;
   metrics?: MetricsCollector;
 }
 
@@ -32,6 +38,13 @@ export interface IngestRouteConfig {
  * Issue #38: a Channel with `allowUnauthenticatedIngest` set skips the
  * token check entirely — the slug is then the only thing gating its
  * fan-out. Off by default; opt-in per Channel via the admin API.
+ *
+ * Issue #99: the accepted response's status is configurable — the Channel's
+ * own `ingestSuccessStatus` when set, else the service-wide default — because
+ * a producer whose success condition is literally `200` retries an event this
+ * service already accepted, and every retry becomes another Broadcast fanned
+ * out to every Endpoint. Only the accepted path moves; the 401/413 answers
+ * above are unaffected.
  */
 export function registerIngestRoutes(router: Router, config: IngestRouteConfig): void {
   router.post("/ingest/:slug", async (ctx) => {
@@ -107,7 +120,7 @@ export function registerIngestRoutes(router: Router, config: IngestRouteConfig):
       deliveryCount,
     });
 
-    ctx.status = 202;
+    ctx.status = channel.ingestSuccessStatus ?? config.successStatus;
     ctx.body = ingestAcceptedSchema.parse({ id: broadcast.id });
   });
 }

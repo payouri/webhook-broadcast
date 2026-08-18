@@ -8,6 +8,8 @@ export { errorEnvelopeSchema, errorBody } from "./errors.js";
 export type { ErrorEnvelope, ErrorCode } from "./errors.js";
 export {
   MIN_OPEN_INGEST_SLUG_LENGTH,
+  DEFAULT_INGEST_SUCCESS_STATUS,
+  ingestSuccessStatusSchema,
   idSchema,
   dateTimeSchema,
   channelTokenSummarySchema,

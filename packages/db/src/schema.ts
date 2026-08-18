@@ -57,6 +57,15 @@ export const channels = pgTable(
      * requiring its token. When on, the slug alone gates the fan-out.
      */
     allowUnauthenticatedIngest: boolean("allow_unauthenticated_ingest").notNull().default(false),
+    /**
+     * Issue #99: per-Channel override of the status `POST /ingest/:slug`
+     * answers on the accepted path. NULL = inherit the service-wide
+     * `INGEST_SUCCESS_STATUS` (default 202), which is what every existing
+     * row keeps. Only ever a 2xx (see the check constraint below): a
+     * non-2xx "success" would make every well-behaved producer retry an
+     * event the broadcaster already accepted.
+     */
+    ingestSuccessStatus: integer("ingest_success_status"),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
@@ -68,6 +77,13 @@ export const channels = pgTable(
     check(
       "channel_open_ingest_slug_length_chk",
       sql`NOT ${t.allowUnauthenticatedIngest} OR length(${t.slug}) >= ${sql.raw(String(MIN_OPEN_INGEST_SLUG_LENGTH))}`,
+    ),
+    // Enforced in the DB rather than only in the admin validator so the
+    // range holds across every write path, the same discipline the open-ingest
+    // slug length follows above.
+    check(
+      "channel_ingest_success_status_2xx_chk",
+      sql`${t.ingestSuccessStatus} IS NULL OR (${t.ingestSuccessStatus} BETWEEN 200 AND 299)`,
     ),
     /**
      * Issue #35: uniqueness is scoped to live Channels only, so a slug is

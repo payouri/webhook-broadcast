@@ -1,4 +1,8 @@
 import { z } from "zod";
+// Issue #99: this one default lives in `channel.js` rather than here because
+// `apps/web` renders it (the per-Channel override's "inherit" placeholder) and
+// must not import this module — `env.ts` is Node-only (`process`, `NodeJS`).
+import { DEFAULT_INGEST_SUCCESS_STATUS } from "./channel.js";
 
 /** Canonical defaults — keep env.ts Zod schema and runtime fallbacks in sync. */
 export const DEFAULT_INGEST_MAX_BODY_BYTES = 1_048_576;
@@ -22,6 +26,23 @@ export const envSchema = z.object({
   INGEST_MAX_BODY_BYTES: z.coerce.number().int().positive().default(DEFAULT_INGEST_MAX_BODY_BYTES),
   INGEST_HEADER_ALLOWLIST: z.string().default(""),
   INGEST_HEADER_DENYLIST: z.string().default(""),
+  /**
+   * Issue #99: the status `POST /ingest/:slug` answers on the accepted
+   * path. `202` is the correct REST answer and stays the default, but at
+   * least one real producer (Unipile) treats anything other than `200` as a
+   * failure and retries a request the broadcaster already accepted — which
+   * turns every event into six Broadcasts, permanently. Constrained to 2xx:
+   * a non-2xx "success" would break the retry logic of every *other*
+   * producer pointed at the same deployment. Per-Channel overrides live on
+   * `channel.ingestSuccessStatus`; this is the service-wide default they
+   * inherit when unset.
+   */
+  INGEST_SUCCESS_STATUS: z.coerce
+    .number()
+    .int()
+    .min(200)
+    .max(299)
+    .default(DEFAULT_INGEST_SUCCESS_STATUS),
   HISTORY_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   DELIVERY_TIMEOUT_MS: z.coerce.number().int().positive().default(DEFAULT_DELIVERY_TIMEOUT_MS),
   DELIVERY_MAX_ATTEMPTS: z.coerce.number().int().positive().default(DEFAULT_DELIVERY_MAX_ATTEMPTS),
@@ -53,6 +74,8 @@ export type Env = z.infer<typeof envSchema>;
  * misconfig (e.g. a missing OPERATOR_API_KEY) that has nothing to do with
  * running migrations.
  */
+export { DEFAULT_INGEST_SUCCESS_STATUS };
+
 export const migrateEnvSchema = z.object({
   DATABASE_URL: z.url(),
 });

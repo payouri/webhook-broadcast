@@ -44,6 +44,7 @@ function toWireChannel(
     enabled: row.enabled,
     forwardHeaders: row.forwardHeaders,
     allowUnauthenticatedIngest: row.allowUnauthenticatedIngest,
+    ingestSuccessStatus: row.ingestSuccessStatus,
     endpointCount,
     hasBroadcasts,
     recentFailedDeliveryCount:
@@ -147,6 +148,7 @@ export function registerChannelRoutes(router: Router, db: Database): void {
         enabled: parsedBody.data.enabled,
         forwardHeaders: parsedBody.data.forwardHeaders,
         allowUnauthenticatedIngest: parsedBody.data.allowUnauthenticatedIngest,
+        ingestSuccessStatus: parsedBody.data.ingestSuccessStatus,
         createdAt: now,
         updatedAt: now,
       });

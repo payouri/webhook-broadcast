@@ -156,6 +156,7 @@ describe("packages/db <-> packages/contract field alignment (issue #32)", () => 
         enabled: true,
         forwardHeaders: ["x-request-id"],
         allowUnauthenticatedIngest: false,
+        ingestSuccessStatus: 200,
         deletedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),

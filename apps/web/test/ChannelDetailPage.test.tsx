@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FRESHNESS_POLL_MS } from "../src/lib/freshness.js";
 import {
+  readJsonBody,
   renderRoutes,
   requestMethod,
   requestPath,
@@ -26,6 +27,7 @@ function baseChannel(tokens: { id: string; prefix: string; createdAt: string }[]
     description: "Order events",
     enabled: true,
     endpointCount: 0,
+    ingestSuccessStatus: null,
     hasBroadcasts: true,
     recentFailedDeliveryCount: 0,
     autoDisabledEndpointCount: 0,
@@ -1223,6 +1225,7 @@ describe("ChannelDetailPage — Settings channel disable guard (issue #46)", () 
       description: "Order events",
       enabled: false,
       endpointCount: 1,
+      ingestSuccessStatus: null,
       hasBroadcasts: true,
       recentFailedDeliveryCount: 0,
       autoDisabledEndpointCount: 0,
@@ -1527,5 +1530,106 @@ describe("ChannelDetailPage — Settings slug validation (issue #86)", () => {
 
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("slug is already taken");
+  });
+});
+
+/**
+ * Issue #99: the per-Channel ingest success status. Blank means "inherit the
+ * deployment's default", which is the common case, so the field carries the
+ * default only as a placeholder and sends `null` rather than a number. The 2xx
+ * rule is the contract's — the field reads `channelUpdateSchema`'s own message
+ * instead of restating the range, per DESIGN.md §5.
+ */
+describe("ChannelDetailPage — Settings ingest success status (issue #99)", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  function patchCalls(): [string | URL | Request, RequestInit | undefined][] {
+    return fetchMock.mock.calls.filter(
+      ([input, init]) =>
+        requestPath(input) === `/channels/${CHANNEL_ID}` && requestMethod(input, init) === "PATCH",
+    ) as [string | URL | Request, RequestInit | undefined][];
+  }
+
+  async function patchBody(index: number): Promise<Record<string, unknown>> {
+    const call = patchCalls()[index]!;
+    return (await readJsonBody(call[0], call[1])) as Record<string, unknown>;
+  }
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    stubFetchMock(fetchMock);
+    fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
+      const path = requestPath(input);
+      const method = requestMethod(input, init);
+
+      if (path === `/channels/${CHANNEL_ID}` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}` && method === "PATCH") {
+        return Promise.resolve(jsonResponse(200, baseChannel()));
+      }
+      if (path === `/channels/${CHANNEL_ID}/broadcasts` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      if (path === `/channels/${CHANNEL_ID}/endpoints` && method === "GET") {
+        return Promise.resolve(jsonResponse(200, { items: [], nextCursor: null }));
+      }
+      throw new Error(`unexpected fetch: ${method} ${path}`);
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  async function openSettings(): Promise<HTMLInputElement> {
+    renderRoutes(`/channels/${CHANNEL_ID}`);
+    fireEvent.click(await screen.findByRole("link", { name: "Settings" }));
+    return (await screen.findByLabelText("Ingest success status")) as HTMLInputElement;
+  }
+
+  it("starts blank for a Channel that inherits, showing the default as a placeholder", async () => {
+    const input = await openSettings();
+    expect(input.value).toBe("");
+    expect(input.getAttribute("placeholder")).toBe("Inherit (202)");
+  });
+
+  it("sends the typed status, and sends null again when the field is cleared", async () => {
+    const input = await openSettings();
+
+    fireEvent.change(input, { target: { value: "200" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => {
+      expect(patchCalls()).toHaveLength(1);
+    });
+    await expect(patchBody(0)).resolves.toMatchObject({ ingestSuccessStatus: 200 });
+
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => {
+      expect(patchCalls()).toHaveLength(2);
+    });
+    await expect(patchBody(1)).resolves.toMatchObject({ ingestSuccessStatus: null });
+  });
+
+  it("refuses a non-2xx status in the contract's own words rather than sending it", async () => {
+    const input = await openSettings();
+
+    fireEvent.change(input, { target: { value: "404" } });
+    expect(document.getElementById("settings-ingest-success-status-error")).toBeNull();
+
+    fireEvent.blur(input);
+    expect(document.getElementById("settings-ingest-success-status-error")?.textContent).toContain(
+      "ingest success status must be a 2xx code",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await flushAsync();
+    expect(patchCalls()).toHaveLength(0);
+    expect(document.activeElement).toBe(input);
+
+    fireEvent.change(input, { target: { value: "200" } });
+    expect(document.getElementById("settings-ingest-success-status-error")).toBeNull();
   });
 });

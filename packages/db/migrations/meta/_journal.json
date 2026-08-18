@@ -50,6 +50,13 @@
       "when": 1786634143589,
       "tag": "0006_curious_thena",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787062716689,
+      "tag": "0007_gifted_moira_mactaggert",
+      "breakpoints": true
     }
   ]
 }

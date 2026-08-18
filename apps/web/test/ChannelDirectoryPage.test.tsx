@@ -23,6 +23,7 @@ function channelItem(
     description: string | null;
     enabled: boolean;
     endpointCount: number;
+    ingestSuccessStatus: null;
     hasBroadcasts: boolean;
     recentFailedDeliveryCount: number;
     autoDisabledEndpointCount: number;
@@ -32,6 +33,7 @@ function channelItem(
     description: null,
     enabled: true,
     endpointCount: 1,
+    ingestSuccessStatus: null,
     hasBroadcasts: true,
     recentFailedDeliveryCount: 0,
     autoDisabledEndpointCount: 0,
@@ -426,6 +428,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
                 description: null,
                 enabled: true,
                 endpointCount: 1,
+                ingestSuccessStatus: null,
                 hasBroadcasts: true,
                 recentFailedDeliveryCount: 0,
                 autoDisabledEndpointCount: 0,
@@ -440,6 +443,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
                 description: null,
                 enabled: true,
                 endpointCount: 1,
+                ingestSuccessStatus: null,
                 hasBroadcasts: true,
                 recentFailedDeliveryCount: 4,
                 autoDisabledEndpointCount: 0,
@@ -454,6 +458,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
                 description: null,
                 enabled: true,
                 endpointCount: 0,
+                ingestSuccessStatus: null,
                 hasBroadcasts: false,
                 recentFailedDeliveryCount: 0,
                 autoDisabledEndpointCount: 0,

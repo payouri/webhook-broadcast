@@ -28,6 +28,7 @@ function channelBody() {
     description: null,
     enabled: true,
     endpointCount: 1,
+    ingestSuccessStatus: null,
     hasBroadcasts: true,
     recentFailedDeliveryCount: 0,
     autoDisabledEndpointCount: 0,

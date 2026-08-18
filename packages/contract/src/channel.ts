@@ -41,6 +41,27 @@ const forwardHeaderNameSchema = z
 
 const forwardHeadersSchema = z.array(forwardHeaderNameSchema);
 
+/**
+ * Issue #99: the accepted-ingest status a Channel inherits when it has no
+ * override of its own — the fallback behind `INGEST_SUCCESS_STATUS` (declared
+ * in `env.ts`, which reads this). It lives here, not there, because `apps/web`
+ * shows it as the per-Channel field's inherited value and cannot import the
+ * Node-only `env.ts`.
+ */
+export const DEFAULT_INGEST_SUCCESS_STATUS = 202;
+
+/**
+ * Issue #99: a per-Channel override of the status `POST /ingest/:slug`
+ * answers when it accepts a Broadcast. Constrained to 2xx — a non-2xx
+ * "success" would read as a failure to every well-behaved producer and put
+ * the deployment right back in the retry storm this field exists to stop.
+ */
+export const ingestSuccessStatusSchema = z
+  .number()
+  .int()
+  .min(200, "ingest success status must be a 2xx code")
+  .max(299, "ingest success status must be a 2xx code");
+
 export const channelSchema = z
   .object({
     id: idSchema,
@@ -55,6 +76,14 @@ export const channelSchema = z
       description:
         "Issue #38: when true, POST /ingest/:slug accepts this Channel's events without an " +
         "ingest token — the slug is the only thing gating its fan-out. Off by default.",
+    }),
+    ingestSuccessStatus: ingestSuccessStatusSchema.nullable().meta({
+      description:
+        "Issue #99: status returned by POST /ingest/:slug when this Channel accepts a " +
+        "Broadcast. null means inherit the service-wide INGEST_SUCCESS_STATUS (default 202); " +
+        "set it only for a producer whose success condition disagrees, so it does not retry an " +
+        "event that was already accepted. 204/205 are accepted but carry no body by HTTP rule, " +
+        "so the Broadcast id is not returned to the producer.",
     }),
     endpointCount: z.number().int().min(0),
     hasBroadcasts: z.boolean().meta({
@@ -145,6 +174,7 @@ export const channelCreateSchema = z
     enabled: z.boolean().default(true),
     forwardHeaders: forwardHeadersSchema.default([]),
     allowUnauthenticatedIngest: z.boolean().default(false),
+    ingestSuccessStatus: ingestSuccessStatusSchema.nullable().default(null),
   })
   .superRefine(refineOpenIngestSlugLength)
   .meta({ id: "ChannelCreate" });
@@ -158,6 +188,7 @@ export const channelUpdateSchema = z
     enabled: z.boolean().optional(),
     forwardHeaders: forwardHeadersSchema.optional(),
     allowUnauthenticatedIngest: z.boolean().optional(),
+    ingestSuccessStatus: ingestSuccessStatusSchema.nullable().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "at least one field must be provided",

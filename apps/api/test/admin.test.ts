@@ -591,4 +591,95 @@ describe("Admin auth + Channel CRUD (HTTP seam)", () => {
       });
     });
   });
+
+  // Issue #99: the per-Channel override of the accepted-ingest status. Unset
+  // means inherit the service-wide default, so an operator that never touches
+  // this field keeps today's behaviour; the value is constrained to 2xx
+  // because a non-2xx "success" would make every well-behaved producer retry
+  // an event that was already accepted.
+  describe("Channel ingestSuccessStatus", () => {
+    function authed(init: RequestInit = {}): RequestInit {
+      return { ...init, headers: { authorization: `Bearer ${OPERATOR_API_KEY}`, ...init.headers } };
+    }
+
+    async function createChannel(body: Record<string, unknown>): Promise<Response> {
+      return fetch(
+        `${baseUrl}/channels`,
+        authed({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        }),
+      );
+    }
+
+    it("defaults to null (inherit) when the field is omitted", async () => {
+      const response = await createChannel({ slug: "orders" });
+      expect(response.status).toBe(201);
+      await expect(response.json()).resolves.toMatchObject({ ingestSuccessStatus: null });
+    });
+
+    it("creates a Channel with an explicit 2xx override and reads it back", async () => {
+      const response = await createChannel({ slug: "orders", ingestSuccessStatus: 200 });
+      expect(response.status).toBe(201);
+      const created = (await response.json()) as Channel;
+      expect(created.ingestSuccessStatus).toBe(200);
+
+      const getResponse = await fetch(`${baseUrl}/channels/${created.id}`, authed());
+      await expect(getResponse.json()).resolves.toMatchObject({ ingestSuccessStatus: 200 });
+    });
+
+    it("patches the override and clears it back to inherit with null", async () => {
+      const created = (await (await createChannel({ slug: "orders" })).json()) as Channel;
+
+      const patchResponse = await fetch(
+        `${baseUrl}/channels/${created.id}`,
+        authed({
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ ingestSuccessStatus: 204 }),
+        }),
+      );
+      expect(patchResponse.status).toBe(200);
+      await expect(patchResponse.json()).resolves.toMatchObject({ ingestSuccessStatus: 204 });
+
+      const clearResponse = await fetch(
+        `${baseUrl}/channels/${created.id}`,
+        authed({
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ ingestSuccessStatus: null }),
+        }),
+      );
+      expect(clearResponse.status).toBe(200);
+      await expect(clearResponse.json()).resolves.toMatchObject({ ingestSuccessStatus: null });
+    });
+
+    it.each([199, 300, 404, 500])("rejects a non-2xx status (%i) on create", async (status) => {
+      const response = await createChannel({ slug: "orders", ingestSuccessStatus: status });
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        error: { code: "validation_failed" },
+      });
+    });
+
+    it("rejects a non-2xx status on patch and leaves the stored value untouched", async () => {
+      const created = (await (
+        await createChannel({ slug: "orders", ingestSuccessStatus: 200 })
+      ).json()) as Channel;
+
+      const patchResponse = await fetch(
+        `${baseUrl}/channels/${created.id}`,
+        authed({
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ ingestSuccessStatus: 500 }),
+        }),
+      );
+      expect(patchResponse.status).toBe(400);
+
+      const getResponse = await fetch(`${baseUrl}/channels/${created.id}`, authed());
+      await expect(getResponse.json()).resolves.toMatchObject({ ingestSuccessStatus: 200 });
+    });
+  });
 });

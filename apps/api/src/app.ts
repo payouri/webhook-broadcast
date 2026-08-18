@@ -2,7 +2,10 @@ import Koa from "koa";
 import Router from "@koa/router";
 import { bodyParser } from "@koa/bodyparser";
 import { errorBody, healthResponseSchema, readyResponseSchema } from "@webhook-broadcast/contract";
-import { DEFAULT_INGEST_MAX_BODY_BYTES } from "@webhook-broadcast/contract/env";
+import {
+  DEFAULT_INGEST_MAX_BODY_BYTES,
+  DEFAULT_INGEST_SUCCESS_STATUS,
+} from "@webhook-broadcast/contract/env";
 import type { Database } from "@webhook-broadcast/db";
 import type { Pool } from "pg";
 import { createOperatorAuthMiddleware, operatorLabelOf } from "./admin/auth.js";
@@ -35,6 +38,7 @@ export interface AppDeps {
   ingestMaxBodyBytes?: number;
   ingestHeaderAllowlist?: string[];
   ingestHeaderDenylist?: string[];
+  ingestSuccessStatus?: number;
   metrics?: MetricsCollector;
   renderMetrics?: () => Promise<string>;
 }
@@ -50,6 +54,7 @@ export function createApp(deps: AppDeps): Koa {
     maxBodyBytes: deps.ingestMaxBodyBytes ?? DEFAULT_INGEST_MAX_BODY_BYTES,
     headerAllowlist: deps.ingestHeaderAllowlist ?? [],
     headerDenylist: mergeIngestHeaderDenylist(deps.ingestHeaderDenylist ?? []),
+    successStatus: deps.ingestSuccessStatus ?? DEFAULT_INGEST_SUCCESS_STATUS,
     ...(deps.metrics ? { metrics: deps.metrics } : {}),
   });
 

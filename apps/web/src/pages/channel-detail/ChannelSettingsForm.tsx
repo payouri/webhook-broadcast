@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Check, Info, SlidersHorizontal, TriangleAlert } from "lucide-react";
 import {
+  DEFAULT_INGEST_SUCCESS_STATUS,
   MIN_OPEN_INGEST_SLUG_LENGTH,
   channelUpdateSchema,
   type Channel,
@@ -27,6 +28,27 @@ import { useFieldError } from "../../lib/useFieldError.js";
  * is what keeps that length and its wording out of this file, per DESIGN.md's
  * "Don't restate a contract constraint as a hand-written check in `apps/web`".
  */
+/**
+ * Issue #99: blank means "inherit the service-wide default", which is the
+ * common case — so the field is empty, not pre-filled with 202, and only a
+ * deployment whose producer disagrees ever types here. The 2xx rule is the
+ * contract's, read from `channelUpdateSchema` rather than restated, the same
+ * way the slug field reads its own.
+ */
+function validateIngestSuccessStatus(value: string): string | null {
+  if (value.trim().length === 0) {
+    return null;
+  }
+  const result = channelUpdateSchema.safeParse({ ingestSuccessStatus: Number(value) });
+  if (result.success) {
+    return null;
+  }
+  const issue = result.error.issues.find(
+    (candidate) => candidate.path[0] === "ingestSuccessStatus",
+  );
+  return issue?.message ?? "Enter a 2xx status code.";
+}
+
 function makeValidateSlug(allowUnauthenticatedIngest: boolean) {
   return (value: string): string | null => {
     if (value.length === 0) {
@@ -54,6 +76,9 @@ export function ChannelSettingsForm({
   const [allowUnauthenticatedIngest, setAllowUnauthenticatedIngest] = useState(
     channel.allowUnauthenticatedIngest,
   );
+  const [ingestSuccessStatus, setIngestSuccessStatus] = useState(
+    channel.ingestSuccessStatus === null ? "" : String(channel.ingestSuccessStatus),
+  );
   const [saving, setSaving] = useState(false);
   const savingLabel = useDelayedPending(saving);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +94,11 @@ export function ChannelSettingsForm({
     makeValidateSlug(allowUnauthenticatedIngest),
   );
 
+  const ingestSuccessStatusField = useFieldError<string, HTMLInputElement>(
+    ingestSuccessStatus,
+    validateIngestSuccessStatus,
+  );
+
   const loadEnabledEndpointCount = useCallback(async () => {
     try {
       const endpoints = await api.listEndpoints(channel.id);
@@ -81,16 +111,21 @@ export function ChannelSettingsForm({
   }, [channel.id]);
 
   const resetSlugField = slugField.reset;
+  const resetIngestSuccessStatusField = ingestSuccessStatusField.reset;
 
   useEffect(() => {
     setSlug(channel.slug);
     setDescription(channel.description ?? "");
     setEnabled(channel.enabled);
     setAllowUnauthenticatedIngest(channel.allowUnauthenticatedIngest);
+    setIngestSuccessStatus(
+      channel.ingestSuccessStatus === null ? "" : String(channel.ingestSuccessStatus),
+    );
     setSaved(false);
     resetSlugField();
+    resetIngestSuccessStatusField();
     void loadEnabledEndpointCount();
-  }, [channel, loadEnabledEndpointCount, resetSlugField]);
+  }, [channel, loadEnabledEndpointCount, resetSlugField, resetIngestSuccessStatusField]);
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -99,8 +134,13 @@ export function ChannelSettingsForm({
     // the first of them, rather than sending input the admin API is certain
     // to reject (DESIGN.md §5's Reward-Early-Punish-Late Rule).
     slugField.markTouched();
+    ingestSuccessStatusField.markTouched();
     if (slugField.isInvalid()) {
       slugField.ref.current?.focus();
+      return;
+    }
+    if (ingestSuccessStatusField.isInvalid()) {
+      ingestSuccessStatusField.ref.current?.focus();
       return;
     }
 
@@ -113,6 +153,8 @@ export function ChannelSettingsForm({
         description: description.length > 0 ? description : null,
         enabled,
         allowUnauthenticatedIngest,
+        ingestSuccessStatus:
+          ingestSuccessStatus.trim().length > 0 ? Number(ingestSuccessStatus) : null,
       });
       onSaved(updated);
       setSaved(true);
@@ -180,6 +222,43 @@ export function ChannelSettingsForm({
           onChange={(event) => setDescription(event.target.value)}
           rows={3}
         />
+      </div>
+
+      <div className="field">
+        <label htmlFor="settings-ingest-success-status">Ingest success status</label>
+        <input
+          ref={ingestSuccessStatusField.ref}
+          id="settings-ingest-success-status"
+          className="field-control"
+          type="number"
+          inputMode="numeric"
+          min={200}
+          max={299}
+          placeholder={`Inherit (${DEFAULT_INGEST_SUCCESS_STATUS})`}
+          value={ingestSuccessStatus}
+          onChange={(event) => setIngestSuccessStatus(event.target.value)}
+          onBlur={ingestSuccessStatusField.onBlur}
+          aria-invalid={ingestSuccessStatusField.error ? "true" : "false"}
+          aria-describedby={
+            ingestSuccessStatusField.error ? "settings-ingest-success-status-error" : undefined
+          }
+        />
+        {ingestSuccessStatusField.error ? (
+          <p className="error-text" id="settings-ingest-success-status-error" role="alert">
+            <TriangleAlert size={13} strokeWidth={2} aria-hidden="true" />
+            {ingestSuccessStatusField.error}
+          </p>
+        ) : (
+          <p className="advisory">
+            <Info className="advisory-icon" size={14} strokeWidth={2} aria-hidden="true" />
+            <span>
+              What POST /ingest/{slug || "…"} answers when it accepts a Broadcast. Leave blank to
+              inherit this deployment&apos;s default. Set it only for a producer that treats another
+              2xx as a failure and retries an event that was already accepted — every retry becomes
+              another Broadcast, fanned out to every Endpoint.
+            </span>
+          </p>
+        )}
       </div>
 
       <div className="switch-group">

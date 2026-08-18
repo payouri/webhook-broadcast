@@ -15,6 +15,7 @@ API and Delivery worker run as **separate processes** from one image (`server` |
 | `INGEST_MAX_BODY_BYTES` | `1048576` | |
 | `INGEST_HEADER_ALLOWLIST` | empty | empty = all |
 | `INGEST_HEADER_DENYLIST` | empty | |
+| `INGEST_SUCCESS_STATUS` | `202` | must be 2xx; accepted-ingest response status, overridable per Channel via `channel.ingestSuccessStatus` |
 | `HISTORY_RETENTION_DAYS` | `30` | |
 | `DELIVERY_TIMEOUT_MS` | `10000` | |
 | `DELIVERY_MAX_ATTEMPTS` | `8` | |

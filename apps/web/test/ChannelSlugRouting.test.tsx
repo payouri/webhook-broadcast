@@ -25,6 +25,7 @@ function baseChannel() {
     description: "Stripe events",
     enabled: true,
     endpointCount: 0,
+    ingestSuccessStatus: null,
     hasBroadcasts: true,
     recentFailedDeliveryCount: 2,
     autoDisabledEndpointCount: 0,

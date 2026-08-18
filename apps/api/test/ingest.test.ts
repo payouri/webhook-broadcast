@@ -15,6 +15,11 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
   let server: Server;
   let baseUrl: string;
   let deliveryQueue: FakeDeliveryQueue;
+  // Issue #99: a second API process on the same database, configured with a
+  // service-wide INGEST_SUCCESS_STATUS of 200 — the only way to observe the
+  // env-level default, since `createApp` reads it once at boot.
+  let configuredServer: Server;
+  let configuredBaseUrl: string;
 
   beforeAll(async () => {
     testDb = await startTestDb();
@@ -32,6 +37,21 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const { port } = server.address() as AddressInfo;
     baseUrl = `http://127.0.0.1:${port}`;
+
+    const configuredApp = createApp({
+      db: testDb.db,
+      deliveryQueue,
+      operatorApiKey: OPERATOR_API_KEY,
+      cookieName: COOKIE_NAME,
+      ingestMaxBodyBytes: MAX_BODY_BYTES,
+      ingestHeaderAllowlist: [],
+      ingestHeaderDenylist: ["x-secret"],
+      ingestSuccessStatus: 200,
+    });
+    configuredServer = createServer(configuredApp.callback());
+    await new Promise<void>((resolve) => configuredServer.listen(0, resolve));
+    const configuredPort = (configuredServer.address() as AddressInfo).port;
+    configuredBaseUrl = `http://127.0.0.1:${configuredPort}`;
   }, 60_000);
 
   afterEach(async () => {
@@ -41,6 +61,7 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
 
   afterAll(async () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
+    await new Promise<void>((resolve) => configuredServer.close(() => resolve()));
     await testDb.stop();
   }, 30_000);
 
@@ -48,7 +69,11 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
     return { ...init, headers: { authorization: `Bearer ${OPERATOR_API_KEY}`, ...init.headers } };
   }
 
-  async function createChannel(input: { slug: string; enabled?: boolean }): Promise<Channel> {
+  async function createChannel(input: {
+    slug: string;
+    enabled?: boolean;
+    ingestSuccessStatus?: number | null;
+  }): Promise<Channel> {
     const response = await fetch(
       `${baseUrl}/channels`,
       authed({
@@ -111,6 +136,95 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
     expect(activityBody.items).toHaveLength(1);
     expect(activityBody.items[0]?.id).toEqual(body.id);
     expect(activityBody.items[0]?.bodyPreview).toContain("hello");
+  });
+
+  // Issue #99: the accepted status is configurable because a producer whose
+  // success condition is literally `200` retries an event this service already
+  // accepted, and each retry becomes another Broadcast fanned out to every
+  // Endpoint. Nothing else about the response moves, and the error paths are
+  // untouched (covered by the 401/413 cases in this file).
+  describe("accepted-response status (issue #99)", () => {
+    it("answers the Channel's ingestSuccessStatus when it has one", async () => {
+      const channel = await createChannel({ slug: "orders", ingestSuccessStatus: 200 });
+      const token = await mintToken(channel.id);
+
+      const response = await fetch(`${baseUrl}/ingest/orders`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}` },
+        body: "hi",
+      });
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({ id: expect.any(String) });
+    });
+
+    it("answers the service-wide default when the Channel sets no override", async () => {
+      const channel = await createChannel({ slug: "orders" });
+      const token = await mintToken(channel.id);
+
+      const response = await fetch(`${configuredBaseUrl}/ingest/orders`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}` },
+        body: "hi",
+      });
+
+      expect(response.status).toBe(200);
+    });
+
+    it("lets the Channel's override win over the service-wide default", async () => {
+      const channel = await createChannel({ slug: "orders", ingestSuccessStatus: 201 });
+      const token = await mintToken(channel.id);
+
+      const response = await fetch(`${configuredBaseUrl}/ingest/orders`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}` },
+        body: "hi",
+      });
+
+      expect(response.status).toBe(201);
+    });
+
+    // 204 and 205 carry no body by HTTP rule, so the Broadcast id an ordinary
+    // accepted response returns is simply absent. Allowed (the contract's rule
+    // is "2xx"), documented here so the trade is visible rather than surprising.
+    it("returns no Broadcast id when the Channel picks a bodyless 2xx", async () => {
+      const channel = await createChannel({ slug: "orders", ingestSuccessStatus: 204 });
+      const token = await mintToken(channel.id);
+
+      const response = await fetch(`${baseUrl}/ingest/orders`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}` },
+        body: "hi",
+      });
+
+      expect(response.status).toBe(204);
+      await expect(response.text()).resolves.toBe("");
+    });
+
+    it("still answers 202 on a deployment that configures neither", async () => {
+      const channel = await createChannel({ slug: "orders" });
+      const token = await mintToken(channel.id);
+
+      const response = await fetch(`${baseUrl}/ingest/orders`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}` },
+        body: "hi",
+      });
+
+      expect(response.status).toBe(202);
+    });
+
+    it("leaves the rejected paths on their own statuses", async () => {
+      const channel = await createChannel({ slug: "orders", ingestSuccessStatus: 200 });
+      await mintToken(channel.id);
+
+      const unauthorized = await fetch(`${configuredBaseUrl}/ingest/orders`, {
+        method: "POST",
+        headers: { authorization: "Bearer wrong-token" },
+        body: "hi",
+      });
+      expect(unauthorized.status).toBe(401);
+    });
   });
 
   it("rejects ingest with a missing token", async () => {
