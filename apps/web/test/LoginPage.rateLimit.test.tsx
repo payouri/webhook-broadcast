@@ -26,6 +26,13 @@ describe("LoginPage rate limiting (issue #91)", () => {
   });
 
   it("shows a distinct cooldown notice, disables submit, counts down, and re-enables on its own", async () => {
+    // Installed before the render, not midway through it: the countdown's
+    // 250ms interval must be created on the fake clock, or it keeps ticking on
+    // real time and `advanceTimersByTime` below never fires it — the DOM then
+    // still shows the first frame's "0:05" and this test fails on whichever
+    // machine loses that race (CI did). `shouldAdvanceTime` keeps Testing
+    // Library's own real-time polling (`findBy*`, `waitFor`) working.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const resetAt = Date.now() + 5_000;
     fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
       const path = requestPath(input);
@@ -82,7 +89,6 @@ describe("LoginPage rate limiting (issue #91)", () => {
     const button = screen.getByRole("button", { name: /Try again in/ });
     expect(button).toHaveProperty("disabled", true);
 
-    vi.useFakeTimers({ shouldAdvanceTime: true });
     await act(async () => {
       vi.advanceTimersByTime(2_000);
     });
