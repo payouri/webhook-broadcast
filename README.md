@@ -72,8 +72,14 @@ being healthy.
 
 Every published port binds to `127.0.0.1` only. Host ports are overridable via
 `POSTGRES_HOST_PORT`, `REDIS_HOST_PORT`, `API_HOST_PORT`, `WORKER_HOST_PORT` and
-`WEB_HOST_PORT` — the in-container ports are fixed, so remapping a host port can't
-desync the app's listen port from its healthcheck.
+`WEB_HOST_PORT`. Compose pins each in-container listen port to its default, so remapping
+a host port can't desync a service's listen port from its healthcheck.
+
+Outside Compose those in-container ports do move: `api` takes `PORT`, `worker` takes
+`WORKER_HEALTH_PORT`, and `web` — whose nginx config is rendered from a template at
+start-up — takes `WEB_PORT` plus `API_UPSTREAM` for the api it proxies to. That last pair
+is what lets `web` and `api` share a single network namespace, as in an ECS `awsvpc` task
+where there is no per-container hostname. See ADR 0008 for the two variables' constraints.
 
 - `curl localhost:8080/health` — API liveness
 - `curl localhost:8080/ready` — API readiness (Postgres + Redis dependency checks)

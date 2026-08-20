@@ -1,7 +1,13 @@
+# A template, not a plain conf: the entrypoint renders it at start-up, so
+# ${WEB_PORT} and ${API_UPSTREAM} are settable from the outside. Only those two
+# are substituted; nginx's own runtime variables ($host, $http_accept, ...) reach
+# the rendered config intact. See apps/web/Dockerfile for the mechanism and the
+# values' constraints.
 server {
-    # 8080, not 80: the unprivileged image's master process is not root and
-    # cannot bind a privileged port.
-    listen 8080;
+    # Defaults to 8080, not 80: the unprivileged image's master process is not
+    # root and cannot bind a privileged port. Settable so that web can move off
+    # 8080 where it has to share a network namespace with the api.
+    listen ${WEB_PORT};
     server_name _;
     root /usr/share/nginx/html;
     index index.html;
@@ -14,7 +20,8 @@ server {
         return 200 "ok\n";
     }
 
-    # Same-origin proxy to the api service (compose network) so the
+    # Same-origin proxy to the api service (`api:8080` on the compose network;
+    # `127.0.0.1:<port>` when web and api share one task's namespace) so the
     # dashboard's HttpOnly session cookie (ADR 0005) is same-site. Inherited by
     # every proxying location below.
     proxy_set_header Host $host;
@@ -32,7 +39,7 @@ server {
     # 401/404) from the api — answering it with a 200 HTML page would swallow
     # the Broadcast silently, which is the one failure this product cannot have.
     location ~ ^/ingest(/|$) {
-        proxy_pass http://api:8080;
+        proxy_pass ${API_UPSTREAM};
     }
 
     # The admin API. This path space overlaps the client-side router (issue #42:
@@ -47,7 +54,7 @@ server {
         }
         error_page 418 = /index.html;
 
-        proxy_pass http://api:8080;
+        proxy_pass ${API_UPSTREAM};
     }
 
     location / {

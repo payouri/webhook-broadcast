@@ -5,7 +5,7 @@
  * Activity tab's empty state.
  *
  * Derived from the browser's own origin rather than a configured constant:
- * both nginx (production, `apps/web/nginx.conf`) and the Vite dev proxy
+ * both nginx (production, `apps/web/nginx.conf.template`) and the Vite dev proxy
  * (`apps/web/vite.config.ts`) forward `/ingest` same-origin alongside the
  * rest of the admin API, so the dashboard's origin is always the ingest
  * origin too.

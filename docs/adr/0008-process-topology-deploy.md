@@ -23,3 +23,14 @@ API and Delivery worker run as **separate processes** from one image (`server` |
 | `DELIVERY_BACKOFF_MAX_MS` | `3600000` | |
 | `ENDPOINT_AUTO_DISABLE_AFTER_MS` | `3600000` | |
 | `COOKIE_NAME` | `wb_operator` | dashboard session cookie |
+
+## Web container env surface (nginx-rendered, not boot-validated)
+
+The `web` image ships no Node process, so these two are outside the Zod schema above: they are substituted into `apps/web/nginx.conf.template` by the base image's entrypoint at start-up (issue #100). Rendering depends on that entrypoint — a deployment that replaces it gets the base image's stock config, with no `/ingest` proxying.
+
+| Variable | Default | Notes |
+|---|---|---|
+| `WEB_PORT` | `8080` | nginx listen port *inside* the container; not `WEB_HOST_PORT`, which is the compose host-side mapping |
+| `API_UPSTREAM` | `http://api:8080` | `proxy_pass` target; `scheme://host:port` with no path or trailing slash |
+
+Together these let `web` and `api` run in one ECS `awsvpc` task, where the shared network namespace means there is no `api` hostname and only one container can hold a given port: the pair addresses each other over loopback (e.g. api on `PORT=8081`, web on `API_UPSTREAM=http://127.0.0.1:8081`). Compose leaves both at their defaults.

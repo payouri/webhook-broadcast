@@ -12,7 +12,7 @@ import react from "@vitejs/plugin-react";
 // must fall through to the SPA shell rather than hit the admin API and get a
 // JSON 404. Browser navigations always send `Accept: text/html…`; this app's
 // own fetch calls never do, so branch on that instead of the path (mirrors
-// nginx.conf's production equivalent).
+// nginx.conf.template's production equivalent).
 const adminApiProxy = {
   target: "http://localhost:8080",
   changeOrigin: true,
@@ -34,7 +34,7 @@ export default defineConfig({
       "/deliveries": adminApiProxy,
       // `/ingest` is proxied too (issue #47) so the ingest URL the dashboard
       // shows — built from this origin, `apps/web/src/lib/ingestUrl.ts` —
-      // actually resolves in dev, mirroring nginx.conf. It gets no `bypass`:
+      // actually resolves in dev, mirroring nginx.conf.template. It gets no `bypass`:
       // /ingest is not a client-side route, so a producer that advertises
       // `Accept: text/html` must still reach the api and get its 202 rather
       // than a 200 SPA shell that swallows the Broadcast.
