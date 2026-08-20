@@ -4,6 +4,7 @@ import { bootEnv } from "./config.js";
 import { DELIVERY_QUEUE_NAME, type DeliveryWorkItem } from "./deliveryQueue.js";
 import { createHealthServer } from "./healthServer.js";
 import { MetricsCollector } from "./observability/metrics.js";
+import { resolveRedisConnectionOptions } from "./redisTls.js";
 import { RetryableDeliveryError } from "./worker/errors.js";
 import { processDelivery } from "./worker/processDelivery.js";
 import { startRetentionSweeper } from "./worker/retentionSweeper.js";
@@ -13,8 +14,10 @@ const { db, pool } = createDb(env.DATABASE_URL, env.DATABASE_CA_CERT);
 const metrics = new MetricsCollector();
 metrics.workerConcurrency.set(env.WORKER_CONCURRENCY);
 
+const redisConnection = resolveRedisConnectionOptions(env.REDIS_URL, env.REDIS_CA_CERT);
+
 const metricsQueue = new Queue<DeliveryWorkItem>(DELIVERY_QUEUE_NAME, {
-  connection: { url: env.REDIS_URL },
+  connection: redisConnection,
 });
 
 const worker = new Worker<DeliveryWorkItem>(
@@ -35,7 +38,7 @@ const worker = new Worker<DeliveryWorkItem>(
     );
   },
   {
-    connection: { url: env.REDIS_URL },
+    connection: redisConnection,
     concurrency: env.WORKER_CONCURRENCY,
     settings: {
       // ADR 0003's backoff math all lives in retryPolicy.ts/processDelivery.ts;

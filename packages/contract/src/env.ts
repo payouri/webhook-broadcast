@@ -28,6 +28,17 @@ export const envSchema = z.object({
    */
   DATABASE_CA_CERT: z.string().optional(),
   REDIS_URL: z.url(),
+  /**
+   * Pins TLS verification of a `rediss://` `REDIS_URL` to this CA (PEM,
+   * `\n`-escaped or literal newlines both accepted) instead of leaving
+   * ioredis to defer to Node's `tls.connect` defaults — see
+   * `apps/api/src/redisTls.ts` for why (ioredis parses no
+   * `sslrootcert`-equivalent param, unlike `pg`). Unset means a `rediss://`
+   * URL still encrypts but does not verify the server certificate;
+   * `redis://` is unaffected either way. Not part of `migrateEnvSchema`:
+   * `migrate` touches Postgres only.
+   */
+  REDIS_CA_CERT: z.string().optional(),
   OPERATOR_API_KEY: z.string().min(1),
   PORT: z.coerce.number().int().positive().default(8080),
   WORKER_HEALTH_PORT: z.coerce.number().int().positive().default(9091),

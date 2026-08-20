@@ -2,6 +2,7 @@ import { Queue } from "bullmq";
 import { randomUUID } from "node:crypto";
 import { Redis } from "ioredis";
 import { DEFAULT_DELIVERY_MAX_ATTEMPTS } from "@webhook-broadcast/contract/env";
+import { resolveRedisConnectionOptions, resolveRedisTls } from "./redisTls.js";
 
 export const DELIVERY_QUEUE_NAME = "delivery";
 
@@ -38,10 +39,11 @@ export class BullMqDeliveryQueue implements DeliveryQueue {
   constructor(
     redisUrl: string,
     private readonly maxAttempts: number = DEFAULT_MAX_ATTEMPTS,
+    private readonly redisCaCert?: string,
   ) {
     this.redisUrl = redisUrl;
     this.queue = new Queue<DeliveryWorkItem>(DELIVERY_QUEUE_NAME, {
-      connection: { url: redisUrl },
+      connection: resolveRedisConnectionOptions(redisUrl, redisCaCert),
     });
   }
 
@@ -91,10 +93,15 @@ export class BullMqDeliveryQueue implements DeliveryQueue {
   }
 
   async ping(): Promise<void> {
+    // Same TLS config as the Queue above (`resolveRedisTls`, not
+    // ioredis's own scheme handling) — this client backs /ready's Redis
+    // check, and it must not report readiness under different TLS
+    // settings than the connection Deliveries actually go out on (#104).
     const redis = new Redis(this.redisUrl, {
       maxRetriesPerRequest: 1,
       connectTimeout: 2_000,
       lazyConnect: true,
+      ...resolveRedisTls(this.redisUrl, this.redisCaCert),
     });
     try {
       await redis.connect();

@@ -45,13 +45,13 @@ importers:
         specifier: workspace:*
         version: link:../../packages/db
       bullmq:
-        specifier: ^6.0.0
+        specifier: 6.0.9
         version: 6.0.9(ioredis@6.0.0)(pg@8.22.0)
       drizzle-orm:
         specifier: '>=0.45.0 <1.0.0'
         version: 0.45.2(@types/pg@8.21.0)(pg@8.22.0)
       ioredis:
-        specifier: ^6.0.0
+        specifier: 6.0.0
         version: 6.0.0
       koa:
         specifier: ^3.0.0

@@ -17,9 +17,9 @@
     "@koa/router": "^15.0.0",
     "@webhook-broadcast/contract": "workspace:*",
     "@webhook-broadcast/db": "workspace:*",
-    "bullmq": "^6.0.0",
+    "bullmq": "6.0.9",
     "drizzle-orm": ">=0.45.0 <1.0.0",
-    "ioredis": "^6.0.0",
+    "ioredis": "6.0.0",
     "koa": "^3.0.0",
     "pg": "^8.0.0",
     "zod": "^4.0.0"

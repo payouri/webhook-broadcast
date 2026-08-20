@@ -76,6 +76,32 @@ This is deliberately pinned in code instead of left to `pg`'s own default: `pg-c
 plans to flip `sslmode`'s meaning again in v3 (pg v9) — the same URL that verifies today would
 silently start only encrypting. See the issue that added this (#102) for the full history.
 
+### Redis TLS
+
+`server` and `worker` both resolve Redis TLS the same way (`apps/api/src/redisTls.ts`) — the same
+decision as Postgres above, applied to a second datastore:
+
+- **Local Compose**: `REDIS_URL` is `redis://` — plaintext, as in `.env.example`. The scheme
+  alone decides this: a `redis://` URL stays plaintext and `REDIS_CA_CERT` is ignored, so
+  switching a deployment to TLS means changing the scheme, not just supplying a CA.
+- **Managed Redis, encrypt-only**: `REDIS_URL=rediss://...`, `REDIS_CA_CERT` unset. Unlike
+  Postgres, ioredis has no `sslmode`/`sslrootcert`-style query parameter at all — the scheme is
+  the entire config surface for TLS — so this is the only way to ask for encryption without
+  verification. Left to ioredis's own defaults, a `rediss://` URL defers to Node's `tls.connect`
+  behaviour (`rejectUnauthorized: true`) and verifies the server certificate against Node's
+  bundled trust store, which a managed provider's own root generally isn't in — so
+  `resolveRedisTls` sets `rejectUnauthorized: false` explicitly instead of relying on that.
+- **Managed Redis, verify the server cert (recommended)**: `REDIS_URL=rediss://...` and set
+  `REDIS_CA_CERT` to the provider's CA bundle (PEM; literal newlines or `\n`-escaped both work).
+  There is no `ssl*` URL parameter for it to conflict with — unlike `DATABASE_CA_CERT`, this
+  combination has nothing to refuse.
+
+Every construction site (the worker's metrics `Queue` and `Worker`, and `BullMqDeliveryQueue`'s
+`Queue` and its `ping()` client — the client backing `/ready`'s Redis check) goes through
+`resolveRedisTls`/`resolveRedisConnectionOptions` rather than passing `{ url: REDIS_URL }` alone
+and relying on ioredis's scheme handling. See the issue that added this (#104) for the full
+history, including why the `ping()` site in particular matters.
+
 ## Tests
 
 ```bash

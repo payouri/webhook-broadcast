@@ -8,7 +8,8 @@ API and Delivery worker run as **separate processes** from one image (`server` |
 |---|---|---|
 | `DATABASE_URL` | — | required; TLS config: see README's "Postgres TLS" section |
 | `DATABASE_CA_CERT` | unset | optional PEM CA; pins server-cert verification. Mutually exclusive with any `ssl*` parameter in `DATABASE_URL` |
-| `REDIS_URL` | — | required |
+| `REDIS_URL` | — | required; TLS config: see README's "Redis TLS" section |
+| `REDIS_CA_CERT` | unset | optional PEM CA; pins `rediss://` server-cert verification. No `ssl*`-style URL param exists to conflict with it (unlike `DATABASE_CA_CERT`), so there's nothing to refuse |
 | `OPERATOR_API_KEY` | — | required; Bearer + cookie |
 | `PORT` | `8080` | API listen |
 | `WORKER_HEALTH_PORT` | `9091` | worker health |
