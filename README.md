@@ -49,6 +49,33 @@ Required env vars (`DATABASE_URL`, `REDIS_URL`, `OPERATOR_API_KEY`) are Zod-vali
 boot in all three commands — a missing or invalid value fails fast with a printed diagnostic
 instead of failing later at first use.
 
+### Postgres TLS
+
+`server`, `worker`, and `migrate` all resolve TLS the same way (`packages/db/src/ssl.ts`):
+
+- **Local Compose**: `DATABASE_URL` carries no `sslmode` at all — Postgres speaks plain TCP on
+  the Compose network, as in `.env.example`.
+- **Managed Postgres, encrypt-only**: use
+  `DATABASE_URL=...?sslmode=require&uselibpqcompat=true`. Do **not** use bare `?sslmode=require` —
+  `pg-connection-string@2.x` (pulled in by `pg@^8`) treats `prefer`/`require`/`verify-ca` as
+  aliases for `verify-full`, so the client verifies the server certificate against Node's bundled
+  trust store. Managed providers (RDS, Cloud SQL, ...) sign with their own root, which generally
+  isn't in that store, so bare `sslmode=require` fails where the deployment only asked for
+  encryption — the `pg` client's own deprecation warning ("SSL modes 'prefer', 'require', and
+  'verify-ca' are treated as aliases for 'verify-full'") is describing exactly this. The
+  `uselibpqcompat=true` flag opts into libpq's actual meaning of `require`: encrypt, don't verify.
+- **Managed Postgres, verify the server cert (recommended)**: set `DATABASE_CA_CERT` to the
+  provider's CA bundle (PEM; literal newlines or `\n`-escaped both work), and leave `DATABASE_URL`
+  free of every `ssl*` parameter. Pinning happens in code rather than through the connection
+  string, so the two cannot be combined: `pg` re-parses the connection string _after_ merging in
+  explicit config, and any `ssl*` parameter there would silently discard the pinned CA. Rather
+  than let that happen, the combination fails fast at boot with a
+  `ConflictingDatabaseSslConfigError` naming the offending parameters.
+
+This is deliberately pinned in code instead of left to `pg`'s own default: `pg-connection-string`
+plans to flip `sslmode`'s meaning again in v3 (pg v9) — the same URL that verifies today would
+silently start only encrypting. See the issue that added this (#102) for the full history.
+
 ## Tests
 
 ```bash

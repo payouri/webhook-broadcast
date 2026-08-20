@@ -10,7 +10,7 @@ const env = bootMigrateEnv();
 // is the repo root in both cases).
 const migrationsFolder = resolve(process.cwd(), "packages/db/migrations");
 
-runMigrations(env.DATABASE_URL, migrationsFolder)
+runMigrations(env.DATABASE_URL, migrationsFolder, env.DATABASE_CA_CERT)
   .then(() => {
     console.log(JSON.stringify({ msg: "migrations applied" }));
     process.exit(0);

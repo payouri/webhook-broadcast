@@ -458,7 +458,7 @@ interface Totals {
 async function main(): Promise<void> {
   const env = bootMigrateEnv();
   const clean = process.argv.includes("--clean");
-  const { db, pool } = createDb(env.DATABASE_URL);
+  const { db, pool } = createDb(env.DATABASE_URL, env.DATABASE_CA_CERT);
 
   try {
     // Ids are assigned in one deterministic pass first, so both the reset and

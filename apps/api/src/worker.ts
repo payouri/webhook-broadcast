@@ -9,7 +9,7 @@ import { processDelivery } from "./worker/processDelivery.js";
 import { startRetentionSweeper } from "./worker/retentionSweeper.js";
 
 const env = bootEnv();
-const { db, pool } = createDb(env.DATABASE_URL);
+const { db, pool } = createDb(env.DATABASE_URL, env.DATABASE_CA_CERT);
 const metrics = new MetricsCollector();
 metrics.workerConcurrency.set(env.WORKER_CONCURRENCY);
 

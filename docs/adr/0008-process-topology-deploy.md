@@ -6,7 +6,8 @@ API and Delivery worker run as **separate processes** from one image (`server` |
 
 | Variable | Default | Notes |
 |---|---|---|
-| `DATABASE_URL` | — | required |
+| `DATABASE_URL` | — | required; TLS config: see README's "Postgres TLS" section |
+| `DATABASE_CA_CERT` | unset | optional PEM CA; pins server-cert verification. Mutually exclusive with any `ssl*` parameter in `DATABASE_URL` |
 | `REDIS_URL` | — | required |
 | `OPERATOR_API_KEY` | — | required; Bearer + cookie |
 | `PORT` | `8080` | API listen |

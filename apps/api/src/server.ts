@@ -7,7 +7,7 @@ import { parseHeaderList } from "./ingest/headers.js";
 import { MetricsCollector } from "./observability/metrics.js";
 
 const env = bootEnv();
-const { db, pool } = createDb(env.DATABASE_URL);
+const { db, pool } = createDb(env.DATABASE_URL, env.DATABASE_CA_CERT);
 const metrics = new MetricsCollector();
 const deliveryQueue = new BullMqDeliveryQueue(env.REDIS_URL, env.DELIVERY_MAX_ATTEMPTS);
 const app = createApp({

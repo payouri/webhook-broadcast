@@ -18,6 +18,15 @@ export const DEFAULT_ENDPOINT_AUTO_DISABLE_AFTER_MS = 3_600_000;
  */
 export const envSchema = z.object({
   DATABASE_URL: z.url(),
+  /**
+   * Pins TLS verification of `DATABASE_URL`'s Postgres server to this CA
+   * (PEM, `\n`-escaped or literal newlines both accepted) instead of
+   * Node's bundled trust store — see `packages/db/src/ssl.ts` for why a
+   * managed provider's own root needs pinning explicitly. Unset means
+   * `DATABASE_URL` alone decides TLS (see `.env.example`); set, it is
+   * mutually exclusive with any `ssl*` parameter in `DATABASE_URL`.
+   */
+  DATABASE_CA_CERT: z.string().optional(),
   REDIS_URL: z.url(),
   OPERATOR_API_KEY: z.string().min(1),
   PORT: z.coerce.number().int().positive().default(8080),
@@ -78,6 +87,7 @@ export { DEFAULT_INGEST_SUCCESS_STATUS };
 
 export const migrateEnvSchema = z.object({
   DATABASE_URL: z.url(),
+  DATABASE_CA_CERT: z.string().optional(),
 });
 
 export type MigrateEnv = z.infer<typeof migrateEnvSchema>;
