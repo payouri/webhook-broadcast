@@ -3,7 +3,8 @@
   "compilerOptions": {
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
-    "types": ["vite/client"]
+    // "node" for the Dockerfile/template contract checked in test/nginxConfigTemplate.test.ts.
+    "types": ["vite/client", "node"]
   },
-  "include": ["src", "test"]
+  "include": ["src", "scripts", "test"]
 }
