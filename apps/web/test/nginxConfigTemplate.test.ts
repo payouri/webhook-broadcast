@@ -5,6 +5,7 @@ import {
   NGINX_TEMPLATE_PATH,
   envsubstFilterAdmits,
   readComposeWebPort,
+  readLocationBody,
   readNginxTemplateVariables,
   readWebRuntimeImage,
   requiredEnv,
@@ -39,6 +40,31 @@ describe("nginx.conf.template renders from the environment", () => {
 
   it("pins the same port in compose, so the listen port cannot desync from the healthcheck", () => {
     expect(readComposeWebPort()).toBe(image.env.WEB_PORT);
+  });
+});
+
+describe("the machine endpoints reach the api, never the SPA shell", () => {
+  // What this guards is worse than a 404 (issue #103): a path with no location
+  // of its own falls through to `try_files` and nginx answers /index.html with
+  // a 200. A monitor on /health then stays green while the api is dead, and
+  // /ready — the only endpoint reporting datastore connectivity — becomes
+  // indistinguishable from a healthy SPA.
+  const machineEndpoints = ["~ ^/ingest(/|$)", "~ ^/(health|ready)$"];
+
+  it.each(machineEndpoints)("`location %s` proxies to the api upstream", (header) => {
+    const body = readLocationBody(header, template);
+    expect(body, `nginx.conf.template declares no \`location ${header}\``).toBeDefined();
+    expect(body).toContain("proxy_pass ${API_UPSTREAM};");
+  });
+
+  it.each(machineEndpoints)("`location %s` is exempt from the SPA fallback", (header) => {
+    // The admin block earns its fallback by branching on `Accept: text/html`
+    // (issue #42). These are machine endpoints: a producer or a monitor that
+    // advertises text/html must still get the api's answer, so neither half of
+    // that mechanism may appear here.
+    const body = readLocationBody(header, template);
+    expect(body).not.toContain("http_accept");
+    expect(body).not.toContain("index.html");
   });
 });
 

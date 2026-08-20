@@ -120,3 +120,29 @@ export function readComposeWebPort(
   }
   return /^\s*WEB_PORT:\s*(\S+)/m.exec(webService)?.[1];
 }
+
+/**
+ * The body of `location <header> { ... }` in the template, or undefined if the
+ * template declares no such location.
+ *
+ * An assertion about one path space has to read the location that actually
+ * serves it, not the whole file: searching the template for `proxy_pass` passes
+ * just as happily when the only one sits in some other block.
+ */
+export function readLocationBody(
+  header: string,
+  template = readFileSync(NGINX_TEMPLATE_PATH, "utf8"),
+): string | undefined {
+  const opening = template.indexOf(`location ${header} {`);
+  if (opening === -1) return undefined;
+
+  const start = template.indexOf("{", opening);
+  let depth = 0;
+  for (let index = start; index < template.length; index += 1) {
+    if (template[index] === "{") depth += 1;
+    else if (template[index] === "}" && --depth === 0) {
+      return template.slice(start + 1, index);
+    }
+  }
+  throw new Error(`nginx.conf.template: \`location ${header}\` is never closed`);
+}

@@ -42,6 +42,16 @@ server {
         proxy_pass ${API_UPSTREAM};
     }
 
+    # `/health` and `/ready` — the api's operational endpoints, proxied here
+    # (issue #103) so that monitors do not mistake nginx's SPA shell for the
+    # api's actual health. These must never fall back to /index.html, just as
+    # /ingest must not — they are machine endpoints, and a monitor advertising
+    # `Accept: text/html` must still get the api's answer rather than a page.
+    location ~ ^/(health|ready)$ {
+        access_log off;
+        proxy_pass ${API_UPSTREAM};
+    }
+
     # The admin API. This path space overlaps the client-side router (issue #42:
     # a Channel's own URL is /channels/:id, with /:tab and /:broadcastId beyond
     # it) — a hard reload on one of those URLs is a browser navigation, not an
