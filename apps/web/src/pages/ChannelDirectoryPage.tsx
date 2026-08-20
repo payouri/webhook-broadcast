@@ -183,7 +183,7 @@ export function ChannelDirectoryPage() {
                 value={slug}
                 onChange={(event) => setSlug(event.target.value)}
                 onBlur={slugField.onBlur}
-                placeholder="unipile-dev"
+                placeholder="crm-events"
                 required
                 aria-invalid={slugField.error ? "true" : "false"}
                 aria-describedby={
@@ -200,7 +200,7 @@ export function ChannelDirectoryPage() {
               <p className="advisory" id="new-channel-slug-rule">
                 <Info className="advisory-icon" size={14} strokeWidth={2} aria-hidden="true" />
                 <span>
-                  Lowercase letters, digits, and hyphens between them (e.g. <code>unipile-dev</code>
+                  Lowercase letters, digits, and hyphens between them (e.g. <code>crm-events</code>
                   ). The slug is the ingest path: <code>POST /ingest/&lt;slug&gt;</code>.
                 </span>
               </p>

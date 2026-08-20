@@ -302,7 +302,7 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
   // POST /ingest/:slug with no Authorization header at all — the slug is
   // then the only thing gating its fan-out.
   it("accepts an unauthenticated POST for a Channel with allowUnauthenticatedIngest set", async () => {
-    const openSlug = "unipile-hosted-auth-notify-abc123";
+    const openSlug = "provider-hosted-auth-notify-abc123";
     const createResponse = await fetch(
       `${baseUrl}/channels`,
       authed({
@@ -330,7 +330,7 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
   });
 
   it("still accepts a Bearer token on an open Channel without requiring it to be valid", async () => {
-    const openSlug = "unipile-hosted-auth-notify-xyz789";
+    const openSlug = "provider-hosted-auth-notify-xyz789";
     await fetch(
       `${baseUrl}/channels`,
       authed({

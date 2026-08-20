@@ -29,7 +29,7 @@ export const envSchema = z.object({
   /**
    * Issue #99: the status `POST /ingest/:slug` answers on the accepted
    * path. `202` is the correct REST answer and stays the default, but at
-   * least one real producer (Unipile) treats anything other than `200` as a
+   * least one real-world producer treats anything other than `200` as a
    * failure and retries a request the broadcaster already accepted — which
    * turns every event into six Broadcasts, permanently. Constrained to 2xx:
    * a non-2xx "success" would break the retry logic of every *other*

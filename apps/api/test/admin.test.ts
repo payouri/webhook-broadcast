@@ -295,7 +295,7 @@ describe("Admin auth + Channel CRUD (HTTP seam)", () => {
         authed({
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ slug: "unipile", forwardHeaders: ["x-signature"] }),
+          body: JSON.stringify({ slug: "acme", forwardHeaders: ["x-signature"] }),
         }),
       );
       expect(createResponse.status).toBe(201);
@@ -490,7 +490,7 @@ describe("Admin auth + Channel CRUD (HTTP seam)", () => {
     function authed(init: RequestInit = {}): RequestInit {
       return { ...init, headers: { authorization: `Bearer ${OPERATOR_API_KEY}`, ...init.headers } };
     }
-    const LONG_SLUG = "unipile-hosted-auth-notify-abc123";
+    const LONG_SLUG = "provider-hosted-auth-notify-abc123";
 
     it("creates a Channel with allowUnauthenticatedIngest: true given a sufficiently long slug", async () => {
       const response = await fetch(

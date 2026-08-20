@@ -211,7 +211,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
     // A slug the field itself accepts, so the request actually reaches the API:
     // what is under test is the envelope's `details` winning over its generic
     // `message`, not local validation.
-    fireEvent.change(screen.getByLabelText("Slug"), { target: { value: "unipile-dev" } });
+    fireEvent.change(screen.getByLabelText("Slug"), { target: { value: "crm-events" } });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Create Channel" }));
       await Promise.resolve();
@@ -310,7 +310,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
       expect(slugInput.getAttribute("aria-describedby")).toContain("new-channel-slug-rule");
 
       // A placeholder would have vanished here; the rule does not.
-      fireEvent.change(slugInput, { target: { value: "Unipile" } });
+      fireEvent.change(slugInput, { target: { value: "Crm" } });
       expect(document.getElementById("new-channel-slug-rule")?.textContent).toContain(
         "Lowercase letters, digits, and hyphens",
       );
@@ -324,7 +324,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
       const slugInput = screen.getByLabelText("Slug");
 
       // Silent on first pass: nothing is announced while the field is being filled.
-      fireEvent.change(slugInput, { target: { value: "UnipileDev" } });
+      fireEvent.change(slugInput, { target: { value: "CrmEvents" } });
       expect(document.getElementById("new-channel-slug-error")).toBeNull();
 
       // Announced on blur, in the same sentence the admin API would have returned.
@@ -345,7 +345,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
       expect(fetchMock.mock.calls.length).toBe(callsBefore);
 
       // Live once marked: the message clears the moment the value becomes valid.
-      fireEvent.change(slugInput, { target: { value: "unipile-dev" } });
+      fireEvent.change(slugInput, { target: { value: "crm-events" } });
       expect(document.getElementById("new-channel-slug-error")).toBeNull();
       expect(slugInput.getAttribute("aria-invalid")).toBe("false");
     });
@@ -358,7 +358,7 @@ describe("ChannelDirectoryPage — freshness and retry", () => {
       // `a--b` matches /^[a-z0-9-]+$/ but not the contract's kebab-case rule, so
       // a local copy of the regex passed input the server then 400'd.
       const slugInput = screen.getByLabelText("Slug");
-      fireEvent.change(slugInput, { target: { value: "unipile--dev" } });
+      fireEvent.change(slugInput, { target: { value: "crm--events" } });
       fireEvent.blur(slugInput);
 
       expect(document.getElementById("new-channel-slug-error")?.textContent).toContain(
