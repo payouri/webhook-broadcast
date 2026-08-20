@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { runMigrations } from "@webhook-broadcast/db";
 import { bootMigrateEnv } from "./config.js";
+import { serializeErrorChain } from "./errorChain.js";
 
 const env = bootMigrateEnv();
 
@@ -15,6 +16,6 @@ runMigrations(env.DATABASE_URL, migrationsFolder)
     process.exit(0);
   })
   .catch((error: unknown) => {
-    console.error(JSON.stringify({ msg: "migration failed", error: String(error) }));
+    console.error(JSON.stringify({ msg: "migration failed", error: serializeErrorChain(error) }));
     process.exit(1);
   });
