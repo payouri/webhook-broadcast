@@ -95,11 +95,12 @@ export const envSchema = z.object({
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   LOGIN_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   /**
-   * Issue #107: gates `GET /openapi.json` (the operator-authenticated,
-   * re-emitted-from-Zod admin contract). Defaults on — the document is
+   * Gates both representations of the operator-authenticated,
+   * re-emitted-from-Zod admin contract: `GET /openapi.json` (issue #107) and
+   * `GET /openapi.yaml` (issue #108). Defaults on — the document is
    * additive-only and worth serving out of the box. A strict boolean enum,
    * not loose truthy coercion, so a typo in deploy config fails boot rather
-   * than silently disabling the route.
+   * than silently disabling the routes.
    */
   DOCS_ENABLED: z
     .enum(["true", "false"])

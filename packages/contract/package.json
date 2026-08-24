@@ -18,13 +18,13 @@
   },
   "dependencies": {
     "openapi-fetch": "^0.17.0",
+    "yaml": "^2.9.0",
     "zod": "^4.0.0",
     "zod-openapi": "^6.0.0"
   },
   "devDependencies": {
     "openapi-typescript": "^7.13.0",
     "tsx": "^4.0.0",
-    "typescript": "^6.0.0",
-    "yaml": "^2.9.0"
+    "typescript": "^6.0.0"
   }
 }

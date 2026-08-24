@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 import type Router from "@koa/router";
-import { emitAdminOpenApiDocument, errorBody } from "@webhook-broadcast/contract";
+import {
+  emitAdminOpenApiDocument,
+  errorBody,
+  toCanonicalAdminOpenApiYaml,
+} from "@webhook-broadcast/contract";
 
 export interface DocsRouteConfig {
   docsEnabled: boolean;
@@ -29,28 +33,26 @@ function ifNoneMatchMatches(header: string, etag: string): boolean {
     .some((candidate) => candidate !== "" && candidate === current);
 }
 
-/**
- * `GET /openapi.json` (issue #107) — the admin contract re-emitted from the
- * same Zod source as the committed `docs/contracts/admin.openapi.yaml`
- * sketch (ADR 0012), not read off disk: the sketch isn't shipped in the
- * runtime image, and re-emission from the code that is actually running is
- * the whole reason to serve this from a deployment rather than trust the
- * repo copy. Serialized exactly once here, at app construction — reused
- * verbatim for every request, never re-emitted per call.
- *
- * Mounted on the admin router, so it inherits operator auth like every other
- * admin route: every path this document describes already requires a
- * credential, so there's no legitimate unauthenticated reader for it either.
- *
- * Deliberately not one of the paths `emitAdminOpenApiDocument()` itself
- * describes — a document served behind `DOCS_ENABLED` must not advertise a
- * path that 404s when the flag is off.
- */
-export function registerDocsRoutes(router: Router, config: DocsRouteConfig): void {
-  const documentJson = JSON.stringify(emitAdminOpenApiDocument());
-  const etag = `"${createHash("sha256").update(documentJson).digest("hex")}"`;
+function etagOf(body: string): string {
+  return `"${createHash("sha256").update(body).digest("hex")}"`;
+}
 
-  router.get("/openapi.json", (ctx) => {
+/**
+ * Registers one representation of the admin contract on the admin router,
+ * sharing the auth/`DOCS_ENABLED`/`ETag`/`no-cache` behaviour between
+ * `/openapi.json` (issue #107) and `/openapi.yaml` (issue #108) so the two
+ * differ only in which pre-serialized body and content type they send.
+ */
+function registerDocRoute(
+  router: Router,
+  path: string,
+  config: DocsRouteConfig,
+  body: string,
+  contentType: string,
+): void {
+  const etag = etagOf(body);
+
+  router.get(path, (ctx) => {
     if (!config.docsEnabled) {
       ctx.status = 404;
       ctx.body = errorBody(
@@ -71,7 +73,38 @@ export function registerDocsRoutes(router: Router, config: DocsRouteConfig): voi
       return;
     }
     ctx.status = 200;
-    ctx.type = "application/json";
-    ctx.body = documentJson;
+    ctx.type = contentType;
+    ctx.body = body;
   });
+}
+
+/**
+ * `GET /openapi.json` (issue #107) and `GET /openapi.yaml` (issue #108) —
+ * the admin contract re-emitted from the same Zod source as the committed
+ * `docs/contracts/admin.openapi.yaml` sketch (ADR 0012), not read off disk:
+ * the sketch isn't shipped in the runtime image, and re-emission from the
+ * code that is actually running is the whole reason to serve this from a
+ * deployment rather than trust the repo copy. Both representations are
+ * derived from one in-memory document and serialized exactly once here, at
+ * app construction — reused verbatim for every request, never re-emitted
+ * per call. The YAML body goes through the contract package's own canonical
+ * serializer (`toCanonicalAdminOpenApiYaml`) so its bytes match the sketch's
+ * formatting conventions rather than whatever a fresh call to `yaml.stringify`
+ * would default to.
+ *
+ * Mounted on the admin router, so both inherit operator auth like every
+ * other admin route: every path this document describes already requires a
+ * credential, so there's no legitimate unauthenticated reader for it either.
+ *
+ * Deliberately not among the paths `emitAdminOpenApiDocument()` itself
+ * describes — a document served behind `DOCS_ENABLED` must not advertise a
+ * path that 404s when the flag is off.
+ */
+export function registerDocsRoutes(router: Router, config: DocsRouteConfig): void {
+  const document = emitAdminOpenApiDocument();
+  const documentJson = JSON.stringify(document);
+  const documentYaml = toCanonicalAdminOpenApiYaml(document);
+
+  registerDocRoute(router, "/openapi.json", config, documentJson, "application/json");
+  registerDocRoute(router, "/openapi.yaml", config, documentYaml, "application/yaml");
 }

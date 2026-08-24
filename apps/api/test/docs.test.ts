@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Database } from "@webhook-broadcast/db";
-import { emitAdminOpenApiDocument } from "@webhook-broadcast/contract";
+import { emitAdminOpenApiDocument, parseAdminOpenApiYaml } from "@webhook-broadcast/contract";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { FakeDeliveryQueue } from "./fakeDeliveryQueue.js";
@@ -126,5 +126,86 @@ describe("GET /openapi.json", () => {
     await expect(response.json()).resolves.toEqual({
       error: { code: "docs_disabled", message: expect.any(String) },
     });
+  });
+});
+
+describe("GET /openapi.yaml", () => {
+  let server: Server;
+  let baseUrl: string;
+
+  afterEach(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  it("requires an operator credential", async () => {
+    ({ server, baseUrl } = await startApp());
+    const response = await fetch(`${baseUrl}/openapi.yaml`);
+    expect(response.status).toBe(401);
+  });
+
+  it("parses to the same document as GET /openapi.json", async () => {
+    // The test that catches the packaging mistake: a missing `yaml` module
+    // in the pruned production image fails loudly here, not silently.
+    ({ server, baseUrl } = await startApp());
+    const [jsonResponse, yamlResponse] = await Promise.all([
+      fetch(`${baseUrl}/openapi.json`, {
+        headers: { authorization: `Bearer ${OPERATOR_API_KEY}` },
+      }),
+      fetch(`${baseUrl}/openapi.yaml`, {
+        headers: { authorization: `Bearer ${OPERATOR_API_KEY}` },
+      }),
+    ]);
+    expect(yamlResponse.status).toBe(200);
+    expect(yamlResponse.headers.get("content-type")).toContain("application/yaml");
+    const jsonBody = await jsonResponse.json();
+    const yamlBody = parseAdminOpenApiYaml(await yamlResponse.text());
+    expect(yamlBody).toEqual(jsonBody);
+    expect(yamlBody).toEqual(emitAdminOpenApiDocument());
+  });
+
+  it("sets a strong ETag and no-cache, non-public Cache-Control", async () => {
+    ({ server, baseUrl } = await startApp());
+    const response = await fetch(`${baseUrl}/openapi.yaml`, {
+      headers: { authorization: `Bearer ${OPERATOR_API_KEY}` },
+    });
+    expect(response.headers.get("cache-control")).toBe("no-cache");
+    expect(response.headers.get("etag")).toMatch(/^"[0-9a-f]{64}"$/);
+  });
+
+  it("returns 304 when If-None-Match matches the current ETag", async () => {
+    ({ server, baseUrl } = await startApp());
+    const first = await fetch(`${baseUrl}/openapi.yaml`, {
+      headers: { authorization: `Bearer ${OPERATOR_API_KEY}` },
+    });
+    const etag = first.headers.get("etag");
+    expect(etag).toBeTruthy();
+
+    const second = await fetch(`${baseUrl}/openapi.yaml`, {
+      headers: {
+        authorization: `Bearer ${OPERATOR_API_KEY}`,
+        "If-None-Match": etag ?? "",
+      },
+    });
+    expect(second.status).toBe(304);
+  });
+
+  it("404s with code docs_disabled when DOCS_ENABLED is false, even authenticated", async () => {
+    ({ server, baseUrl } = await startApp(false));
+    const response = await fetch(`${baseUrl}/openapi.yaml`, {
+      headers: { authorization: `Bearer ${OPERATOR_API_KEY}` },
+    });
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "docs_disabled", message: expect.any(String) },
+    });
+  });
+
+  it("is not one of the document's own paths", async () => {
+    ({ server, baseUrl } = await startApp());
+    const response = await fetch(`${baseUrl}/openapi.json`, {
+      headers: { authorization: `Bearer ${OPERATOR_API_KEY}` },
+    });
+    const body = (await response.json()) as { paths: Record<string, unknown> };
+    expect(body.paths["/openapi.yaml"]).toBeUndefined();
   });
 });
