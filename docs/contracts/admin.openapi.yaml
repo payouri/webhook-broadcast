@@ -971,8 +971,14 @@ components:
       in: cookie
       name: wb_operator
       type: apiKey
+externalDocs:
+  description: Ingest request/response shape and auth, documented in full
+  url: https://github.com/payouri/webhook-broadcast/blob/trunk/CONTEXT.md
 info:
-  description: Operator-facing admin contract emitted from Zod schemas in packages/contract. Ingest `POST /ingest/{slug}` is intentionally NOT in this document.
+  description: |-
+    Operator-facing admin contract emitted from Zod schemas in packages/contract for Channel/Endpoint/Broadcast/Delivery administration.
+
+    `POST /ingest/{slug}` is deliberately NOT a path in this document (ADR 0005) — it authenticates with the Channel's own ingest token rather than an operator credential, accepts an arbitrary request body with no useful schema, and a generated `ingest()` client method typed `body: unknown` would be noise. It still exists and can be called: `POST /ingest/{slug}` with `Authorization: Bearer <channel ingest token>` (omit the header entirely when the Channel has opted into unauthenticated ingest), any request body relayed verbatim to every enabled Endpoint on that Channel, answering a 2xx on acceptance whose exact status defaults to `202` but is configurable service-wide via `INGEST_SUCCESS_STATUS` and per-Channel via `ingestSuccessStatus`. The accepted response carries the id of the new Broadcast, except under a configured `204`/`205`, which carry no body by HTTP rule. The linked documentation covers ingest in full.
   title: webhook-broadcast Admin API
   version: 0.1.0
 openapi: 3.1.0
