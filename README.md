@@ -102,6 +102,16 @@ Every construction site (the worker's metrics `Queue` and `Worker`, and `BullMqD
 and relying on ioredis's scheme handling. See the issue that added this (#104) for the full
 history, including why the `ping()` site in particular matters.
 
+## OpenAPI contract
+
+The admin API publishes an OpenAPI 3.1 contract, emitted from Zod schemas in `packages/contract`
+(`pnpm contract:emit`) and drift-checked against the committed sketch in CI (`pnpm contract:check`).
+A running deployment serves the contract at `/openapi.json` (JSON), `/openapi.yaml` (YAML), and
+`/docs` (rendered interactive reference via Scalar) — all three require operator authentication
+(a bearer token, or the dashboard's session cookie, which is what makes `/docs` usable in a
+browser) and are gated by `DOCS_ENABLED` (default on, `404` with `docs_disabled` when off).
+See `docs/adr/0005-admin-api-contract.md` for the contract shape and serving decisions.
+
 ## Tests
 
 ```bash
