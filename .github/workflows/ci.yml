@@ -22,6 +22,9 @@ jobs:
       # against `styles.css`. Both name the offending key or token on failure.
       - run: pnpm docs:check
       - run: pnpm typecheck
+      # Guards the three-project Vitest split (issue #105): a test file that
+      # matches no project's include never runs, and the suite stays green.
+      - run: pnpm test:check-projects
       - run: pnpm test
       - run: pnpm lint
       - run: pnpm format
