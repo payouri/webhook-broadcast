@@ -1,8 +1,8 @@
 # Tailwind is not adopted in `apps/web` at current scale
 
 `apps/web` styles itself with one hand-written stylesheet, `apps/web/src/styles.css`, whose custom
-properties are the tokens in `.impeccable/design.json` and whose rules implement `DESIGN.md`. No
-utility-CSS framework is added. Unlike `ADR 0013`, this is a judgment about scale rather than a
+properties are the tokens declared in `DESIGN.md`'s frontmatter and whose rules implement that
+document. No utility-CSS framework is added. Unlike `ADR 0013`, this is a judgment about scale rather than a
 principle, and it carries an explicit condition for reopening.
 
 Keep the two separate. `ADR 0013` rejects pre-styled component kits because their defaults contradict
@@ -18,52 +18,69 @@ The stylesheet's comments are the design system's working memory, and a class st
 put them. `styles.css` spends ten lines on the Channel row's `grid-template-columns` explaining that
 each row is its own grid, so an `auto` leading track sizes to that row's own label and would place
 the slug at a different x on an `ENABLED` row than on an `AUTO-DISABLED` one, which is why the track
-is `minmax(var(--status-stamp-column), auto)`. It spends twelve more deriving the status badge's
+is `minmax(var(--status-lamp-column), auto)`. It spends twelve more deriving the status badge's
 tone-and-form vocabulary from PRODUCT.md's "status is never encoded in color alone". It explains why
-the focus-ring block needs class selectors alongside the bare `button` selector: `.button-ghost` and
-`.link-button` also land on router `Link`s, which render as `a` and never match `button`. Each of
+the focus-ring and control blocks are keyed on classes rather than on the bare `button` element:
+`.button-ghost` and `.link-button` also land on router `Link`s, which render as `a` and never match
+`button`. Each of
 those comments sits at the point of enforcement, where the next person to touch the rule will
 actually read it. Move the rules into `grid-cols-[minmax(116px,auto)_auto_1fr_auto_auto]` and that
 reasoning has no home, so within a year someone "simplifies" the selector list and quietly breaks
 focus rings on two components.
 
-The element selectors are also load-bearing. Bare `button`, `input`, and `textarea` rules make a
-newly added control correct by default, which is why 23 buttons and 10 inputs across the app are
-consistent without any per-call-site discipline. Tailwind has no element selectors, so those rules
-would stay in an `@layer base` block exactly as written, which is what Tailwind's own guidance
-advises for base styles. That leaves the load-bearing half of the stylesheet in place and lets
-Tailwind absorb only the layout utilities: the same migration cost for a smaller share of the
-benefit.
+The class vocabulary is what is load-bearing, and it is deliberately not element selectors. The
+bare `button` rule is a *reset* — it strips the UA appearance and carries none of its own — because
+the previous element-selector system "broke both ways" (`<Link className="button-ghost">` got no
+radius or padding, and `.channel-row` inherited the primary button's hover fill). Fields are keyed on
+`.field-control` for the same reason; there is no bare `input` or `textarea` rule at all. So the 46
+buttons and 10 inputs across the app are consistent because each opts into a named class, not because
+an element selector caught them. Tailwind would have to absorb that whole vocabulary rather than just
+the layout utilities — it cannot be left behind in an `@layer base` block the way a genuine
+element-selector base layer could — which is what makes the migration all-or-nothing rather than
+incremental.
 
 ## What argues for it, honestly
 
-Nearly 60 hand-invented class names (`.activity-preview`, `.delivery-meta`, `.token-prefix`,
+Over 120 hand-invented class names (`.activity-preview`, `.delivery-meta`, `.token-prefix`,
 `.copy-row`) are real cost, and Tailwind removes naming from the job entirely. Dead styles become
 self-eliminating, where today an orphaned rule sits in the stylesheet indefinitely with nothing to
-flag it. And a component's appearance stops requiring a jump into a 660-line file to reconstruct.
+flag it. And a component's appearance stops requiring a jump into a 2500-line file to reconstruct.
 
-These are genuine, and none of them is currently painful. One stylesheet, 20 component files, a small
-team, and a written spec that predates the code. Tailwind's value scales with the number of people
+These are genuine, and the first and third have grown teeth since this was written. One stylesheet,
+28 component files, a small team, and a written spec that predates the code. Tailwind's value scales with the number of people
 fighting over a growing stylesheet, and that is not the situation.
 
 Against that, the costs are concrete: Tailwind and its Vite plugin in the build; a `@theme` block
-duplicating `.impeccable/design.json` and able to drift from it, which matters because the
-`impeccable` skill reads that file as the source of truth; roughly 50 class names ported by hand
-across 20 files with every `DESIGN.md` rule re-verified visually, since no codemod does this; and an
-escape hatch where `bg-[#fff]` and `text-[oklch(...)]` cost the same keystrokes as a token, turning
-The Warm Grey Rule and The One Voice Rule into lint problems rather than structural ones. Today
-`var(--paper)` is the only path there is. The test suite is unaffected either way, as `apps/web/test`
+duplicating `DESIGN.md`'s token frontmatter and able to drift from it; roughly 130 class names ported
+by hand across 28 files with every `DESIGN.md` rule re-verified visually, since no codemod does this;
+and an escape hatch where `bg-[#fff]` and `text-[oklch(...)]` cost the same keystrokes as a token,
+turning The Anodized Grey Rule and The One Voice Rule into lint problems rather than structural ones.
+Today a named ground token such as `var(--face)` is the only path there is. The test suite is unaffected either way, as `apps/web/test`
 queries by role and text rather than by class.
 
-For reference, the scale this judgment is made at: `styles.css` is 660 lines with 58 distinct class
-selectors, against 20 files and roughly 1400 lines of TSX in `apps/web/src`.
+For reference, the scale this judgment is made at: `styles.css` is 2516 lines with 128 distinct
+class selectors across 225 rule blocks, against 28 files and roughly 5300 lines of TSX in
+`apps/web/src`.
+
+## Status: reopen condition met, decision open
+
+The first reopen condition below has fired. `styles.css` is 2516 lines — a thousand past the ~1500
+threshold this ADR set — and the other scale figures have grown by roughly the same factor. By this
+ADR's own terms that makes the decision **pending review, not settled**: nothing here should be read
+as a standing rejection of Tailwind at the current size.
+
+Whether to adopt it is a human call and is deliberately not made in this edit. The reasoning above
+has been corrected against the code so that call is made on true premises; the second and third
+conditions have not been checked and would need a look at specificity fights and at who is actually
+editing the stylesheet. Until someone decides, the status quo holds by default — no utility framework
+is added — but the argument for it should be re-read, not inherited.
 
 ## When to reopen this
 
 Any one of these makes Tailwind the better answer, and none of them requires a new argument, only a
 check:
 
-- `styles.css` passes roughly 1500 lines.
+- `styles.css` passes roughly 1500 lines. **Met** — 2516 lines as of this revision.
 - Specificity fights start appearing, or rules accumulate that nobody can prove are still used.
 - More than one or two people are editing the stylesheet concurrently and colliding.
 

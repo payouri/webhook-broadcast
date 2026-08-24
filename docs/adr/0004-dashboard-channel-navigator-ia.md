@@ -29,9 +29,9 @@ Source: throwaway prototype on branch `prototype/dashboard-ia` (`prototypes/dash
 | **Channel → activity, failures** | Endpoint groups: identity, auto-disabled, failed / dead-lettered counts (24h), last failure; children are that Endpoint's failing Broadcasts carrying its Delivery status and last error | `GET /channels/:id/failures`, `GET /channels/:id/broadcasts?endpointId=&status=failed&cursor=` |
 | **Channel → endpoints** | name, url, enabled, autoDisabledAt, successRate24h, p95Ms, lastSuccessAt | `GET /channels/:id/endpoints` (+ health aggregates) |
 | **Channel → settings** | slug, description, enabled, ingest tokens (masked) | `GET/PATCH /channels/:id` |
-| **Broadcast detail** | inbound body + contentType + receivedAt; fan-out Deliveries; Replay | `GET /broadcasts/:id`, `POST /broadcasts/:id/replay` |
+| **Broadcast detail** | inbound body + contentType + receivedAt; fan-out Deliveries; Replay | `GET /channels/:channelId/broadcasts/:broadcastId`, `POST /channels/:channelId/broadcasts/:broadcastId/replay` |
 | **Delivery detail** | endpoint identity, status, Attempt timeline; Retry if dead_lettered | `GET /deliveries/:id`, `GET /deliveries/:id/attempts`, `POST /deliveries/:id/retry` |
-| **Endpoint create/edit** | url, name, timeoutMs, headers, enabled | `POST/PATCH /channels/:id/endpoints/:endpointId` |
+| **Endpoint create/edit** | url, name, timeoutMs, headers, enabled | `POST /channels/:id/endpoints`, `PATCH /channels/:id/endpoints/:endpointId` |
 
 ## Empty / loading / error
 

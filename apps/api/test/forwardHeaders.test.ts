@@ -52,7 +52,7 @@ describe("selectForwardableHeaders", () => {
  * persisted, so it is bounded by `DEFAULT_INGEST_HEADER_DENYLIST` and cannot
  * widen it. Pins that boundary: naming a default-denied credential header is
  * accepted at configuration time but forwards nothing, because the header was
- * never stored on the Broadcast. See ADR 0010.
+ * never stored on the Broadcast. See ADR 0016.
  */
 describe("forwardHeaders is bounded by the ingest header denylist (ADR 0002)", () => {
   it("forwards nothing for a default-denied credential header the sender did present", () => {

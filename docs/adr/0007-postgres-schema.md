@@ -10,13 +10,27 @@ CREATE TYPE delivery_status AS ENUM (
 );
 
 CREATE TABLE channel (
-  id            uuid PRIMARY KEY,
-  slug          text NOT NULL,
-  description   text,
-  enabled       boolean NOT NULL DEFAULT true,
-  deleted_at    timestamptz,
-  created_at    timestamptz NOT NULL,
-  updated_at    timestamptz NOT NULL
+  id                            uuid PRIMARY KEY,
+  slug                          text NOT NULL,
+  description                   text,
+  enabled                       boolean NOT NULL DEFAULT true,
+  -- Allow-listed inbound header names forwarded on delivery (ADR 0016).
+  forward_headers               jsonb NOT NULL DEFAULT '[]',
+  -- Per-Channel opt-in to token-less ingest (ADR 0010).
+  allow_unauthenticated_ingest  boolean NOT NULL DEFAULT false,
+  -- NULL = inherit the service-wide INGEST_SUCCESS_STATUS.
+  ingest_success_status         integer,
+  deleted_at                    timestamptz,
+  created_at                    timestamptz NOT NULL,
+  updated_at                    timestamptz NOT NULL,
+  -- An open-ingest Channel's slug is the only thing gating its fan-out, so
+  -- the slug carries a minimum length the moment that switch is on.
+  CONSTRAINT channel_open_ingest_slug_length_chk
+    CHECK (NOT allow_unauthenticated_ingest OR length(slug) >= 24),
+  -- A non-2xx "success" would make every well-behaved producer retry an
+  -- event the broadcaster already accepted.
+  CONSTRAINT channel_ingest_success_status_2xx_chk
+    CHECK (ingest_success_status IS NULL OR (ingest_success_status BETWEEN 200 AND 299))
 );
 -- Uniqueness applies to live Channels only, so a soft-deleted slug is
 -- reclaimable (issue #35). Every slug lookup filters `deleted_at IS NULL`.
@@ -101,3 +115,9 @@ CREATE TABLE attempt (
 ## Since the initial schema
 
 `attempt` now also carries a nullable `attempt_number` column and a second unique index `(delivery_id, attempt_number)`, added by migration `0006_curious_thena.sql`. This is the **expand** step of renaming the cryptic `n` to the name application code already uses; `n` and `attempt_delivery_id_n_key` stay authoritative until the dual-write, sweep, and contract phases land as their own deploys. See ADR 0011.
+
+`channel` has gained three columns and both of its CHECK constraints since the initial schema, all folded into the sketch above:
+
+- `forward_headers` (`0002_unique_gambit.sql`) — ADR 0016.
+- `allow_unauthenticated_ingest` and `channel_open_ingest_slug_length_chk` (`0003_gigantic_kang.sql`) — ADR 0010.
+- `ingest_success_status` and `channel_ingest_success_status_2xx_chk` (`0007_gifted_moira_mactaggert.sql`).

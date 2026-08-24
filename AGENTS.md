@@ -27,5 +27,5 @@ component kit (shadcn/ui, MUI, Mantine) and no utility-CSS framework (Tailwind).
 `docs/adr/0014-tailwind-not-adopted-at-current-scale.md` before adding any UI or styling dependency.
 0013 is settled; 0014 is a scale judgment with stated conditions for reopening, so propose rather
 than assume. A surface that genuinely needs to float above content takes the headless `radix-ui`
-primitive for its behavior only, dressed in the existing classes; see `DESIGN.md` §5 Overlays for
-the terms.
+primitive for its behavior only, dressed in the existing classes; see `DESIGN.md` §4 Elevation for
+the overlay grant and its terms.
