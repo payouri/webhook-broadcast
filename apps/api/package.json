@@ -15,6 +15,7 @@
   "dependencies": {
     "@koa/bodyparser": "^6.0.0",
     "@koa/router": "^15.0.0",
+    "@scalar/api-reference": "1.66.1",
     "@webhook-broadcast/contract": "workspace:*",
     "@webhook-broadcast/db": "workspace:*",
     "bullmq": "6.0.9",

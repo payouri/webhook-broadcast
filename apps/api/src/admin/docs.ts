@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import type Router from "@koa/router";
 import {
   emitAdminOpenApiDocument,
@@ -37,20 +40,112 @@ function etagOf(body: string): string {
   return `"${createHash("sha256").update(body).digest("hex")}"`;
 }
 
+interface DocRepresentation {
+  body: string;
+  etag: string;
+}
+
+/**
+ * A doc route's body is produced on first use, then reused verbatim.
+ *
+ * The two contract representations are cheap and already in memory, but the
+ * Scalar bundle is ~4 MB read off disk, and producing it eagerly would make
+ * *constructing the app* depend on that file existing — so a pruned image
+ * missing it, or a future release of the package moving it, would take down
+ * the whole api rather than the one route that needs it, on a deployment that
+ * may well have set `DOCS_ENABLED=false` precisely to opt out of all this.
+ * Deferring the work keeps the blast radius of a missing docs asset inside
+ * the docs routes, and keeps `DOCS_ENABLED=false` from paying for it at all.
+ */
+function representationLoader(load: () => string): () => DocRepresentation {
+  let cached: DocRepresentation | undefined;
+  return () => {
+    if (cached === undefined) {
+      const body = load();
+      cached = { body, etag: etagOf(body) };
+    }
+    return cached;
+  };
+}
+
+/**
+ * `@scalar/api-reference`'s standalone browser bundle is loaded from its own
+ * package directory on disk, the same pattern the api already relies on for
+ * `bullmq` (see `apps/api/Dockerfile`): the file is never one of the
+ * package's declared `exports` subpaths, so it has to be found by resolving
+ * an entry point `exports` *does* list (`.`, `dist/index.js`) and walking up
+ * to the package root from there, rather than importing it as a module.
+ * `require.resolve` only resolves the path — it never loads or executes the
+ * ESM-only package — so this works whether or not the running api process
+ * could otherwise `require()` it.
+ */
+function resolveScalarStandaloneBundlePath(): string {
+  const require = createRequire(import.meta.url);
+  const entryPoint = require.resolve("@scalar/api-reference");
+  const packageRoot = dirname(dirname(entryPoint)); // .../dist/index.js -> .../dist -> package root
+  return join(packageRoot, "dist", "browser", "standalone.js");
+}
+
+/**
+ * The `/docs` shell (issue #109): a small HTML string, not a template file —
+ * this route is the whole reason `apps/api` gains no template/build step for
+ * it. It fetches `/openapi.json` itself before booting the renderer so a
+ * session that expired between page load and spec fetch shows a plain
+ * sentence instead of an empty renderer around a console 401 (the fetch
+ * result is discarded once it's known to be OK; `Scalar.createApiReference`
+ * re-requests the same URL, which the browser serves from its HTTP cache /
+ * revalidates via the `ETag` above, not a second real fetch in practice).
+ */
+function docsHtmlShell(): string {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>API Reference</title>
+  </head>
+  <body>
+    <div id="docs-root">Loading the API reference…</div>
+    <script src="/docs/scalar.js"></script>
+    <script>
+      (function () {
+        var root = document.getElementById("docs-root");
+        fetch("/openapi.json", { credentials: "same-origin" })
+          .then(function (response) {
+            if (!response.ok) {
+              root.textContent =
+                "Your session has expired. Log in to the dashboard to view the API reference.";
+              return;
+            }
+            root.textContent = "";
+            window.Scalar.createApiReference("#docs-root", { url: "/openapi.json" });
+          })
+          .catch(function () {
+            root.textContent =
+              "Your session has expired. Log in to the dashboard to view the API reference.";
+          });
+      })();
+    </script>
+  </body>
+</html>
+`;
+}
+
 /**
  * Registers one representation of the admin contract on the admin router,
  * sharing the auth/`DOCS_ENABLED`/`ETag`/`no-cache` behaviour between
- * `/openapi.json` (issue #107) and `/openapi.yaml` (issue #108) so the two
- * differ only in which pre-serialized body and content type they send.
+ * `/openapi.json` (issue #107), `/openapi.yaml` (issue #108) and `/docs`
+ * (issue #109) so they differ only in which body they load and which content
+ * type they send.
  */
 function registerDocRoute(
   router: Router,
   path: string,
   config: DocsRouteConfig,
-  body: string,
+  load: () => string,
   contentType: string,
 ): void {
-  const etag = etagOf(body);
+  const representation = representationLoader(load);
 
   router.get(path, (ctx) => {
     if (!config.docsEnabled) {
@@ -61,6 +156,8 @@ function registerDocRoute(
       );
       return;
     }
+
+    const { body, etag } = representation();
 
     // no-cache (not `public`): these are authenticated responses that may
     // pass through a shared proxy, and a redeploy with a changed contract
@@ -105,6 +202,21 @@ export function registerDocsRoutes(router: Router, config: DocsRouteConfig): voi
   const documentJson = JSON.stringify(document);
   const documentYaml = toCanonicalAdminOpenApiYaml(document);
 
-  registerDocRoute(router, "/openapi.json", config, documentJson, "application/json");
-  registerDocRoute(router, "/openapi.yaml", config, documentYaml, "application/yaml");
+  registerDocRoute(router, "/openapi.json", config, () => documentJson, "application/json");
+  registerDocRoute(router, "/openapi.yaml", config, () => documentYaml, "application/yaml");
+
+  // `GET /docs` (issue #109): renders the admin contract in a browser via
+  // Scalar's standalone bundle, gated by the same operator auth + DOCS_ENABLED
+  // as the two representations above. `GET /docs/scalar.js` serves that
+  // bundle from the single explicit on-disk path resolved above — no
+  // static-directory middleware mounted over the package — read on first
+  // request rather than at construction (see `representationLoader`).
+  registerDocRoute(router, "/docs", config, docsHtmlShell, "text/html; charset=utf-8");
+  registerDocRoute(
+    router,
+    "/docs/scalar.js",
+    config,
+    () => readFileSync(resolveScalarStandaloneBundlePath(), "utf8"),
+    "application/javascript; charset=utf-8",
+  );
 }

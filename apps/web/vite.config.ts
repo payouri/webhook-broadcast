@@ -39,6 +39,14 @@ export default defineConfig({
       // `Accept: text/html` must still reach the api and get its 202 rather
       // than a 200 SPA shell that swallows the Broadcast.
       "/ingest": { target: "http://localhost:8080", changeOrigin: true },
+      // `/docs`, `/docs/scalar.js` and the two OpenAPI representations
+      // (issue #109), mirroring nginx.conf.template's production equivalent.
+      // No `bypass`, for the same reason /ingest has none: a browser
+      // navigating to /docs sends `Accept: text/html`, and that request must
+      // reach the api's renderer, not fall back to the SPA shell.
+      "/docs": { target: "http://localhost:8080", changeOrigin: true },
+      "/openapi.json": { target: "http://localhost:8080", changeOrigin: true },
+      "/openapi.yaml": { target: "http://localhost:8080", changeOrigin: true },
     },
   },
 });

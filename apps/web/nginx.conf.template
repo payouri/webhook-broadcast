@@ -73,6 +73,28 @@ server {
         proxy_pass ${API_UPSTREAM};
     }
 
+    # `/docs`, `/docs/scalar.js` and the two OpenAPI representations (issue
+    # #109) — proxied here so the admin contract renders in a browser on the
+    # dashboard origin: the only credential a plain browser page can present
+    # is this origin's HttpOnly session cookie (ADR 0005), and hitting the
+    # api's own port directly is a different origin that never receives it.
+    #
+    # No `Accept: text/html` bypass, unlike the admin API block above and
+    # unlike /ingest for the same reason: a browser navigating to /docs sends
+    # exactly that header, and it is precisely the request that must reach
+    # the api's renderer rather than fall back to the SPA shell.
+    location ~ ^/docs(/|$) {
+        proxy_pass ${API_UPSTREAM};
+    }
+
+    location = /openapi.json {
+        proxy_pass ${API_UPSTREAM};
+    }
+
+    location = /openapi.yaml {
+        proxy_pass ${API_UPSTREAM};
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }

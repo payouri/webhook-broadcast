@@ -209,3 +209,106 @@ describe("GET /openapi.yaml", () => {
     expect(body.paths["/openapi.yaml"]).toBeUndefined();
   });
 });
+
+describe("GET /docs", () => {
+  let server: Server;
+  let baseUrl: string;
+
+  afterEach(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  it("requires an operator credential", async () => {
+    ({ server, baseUrl } = await startApp());
+    const response = await fetch(`${baseUrl}/docs`);
+    expect(response.status).toBe(401);
+  });
+
+  it("renders the renderer bootstrap with a reference to /openapi.json, for an authenticated request", async () => {
+    ({ server, baseUrl } = await startApp());
+    const response = await fetch(`${baseUrl}/docs`, {
+      headers: { authorization: `Bearer ${OPERATOR_API_KEY}` },
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    const body = await response.text();
+    expect(body).toContain("/docs/scalar.js");
+    expect(body).toContain("/openapi.json");
+    expect(body).toContain("createApiReference");
+  });
+
+  // A session can expire between this page loading and its own fetch of the
+  // spec. The shell must carry the fallback copy for that case, so a non-2xx
+  // spec fetch reads as "log in again" rather than as an empty renderer above
+  // a console 401.
+  it("carries the copy shown when the spec fetch is not 2xx", async () => {
+    ({ server, baseUrl } = await startApp());
+    const response = await fetch(`${baseUrl}/docs`, {
+      headers: { authorization: `Bearer ${OPERATOR_API_KEY}` },
+    });
+    const body = await response.text();
+    expect(body).toContain("response.ok");
+    expect(body).toContain("Log in to the dashboard");
+  });
+
+  it("404s with code docs_disabled when DOCS_ENABLED is false, even authenticated", async () => {
+    ({ server, baseUrl } = await startApp(false));
+    const response = await fetch(`${baseUrl}/docs`, {
+      headers: { authorization: `Bearer ${OPERATOR_API_KEY}` },
+    });
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "docs_disabled", message: expect.any(String) },
+    });
+  });
+
+  // Not one of the document's own paths (mirrors /openapi.json and
+  // /openapi.yaml above): a document served behind DOCS_ENABLED must not
+  // advertise a path that 404s when the flag is off.
+  it("is not one of the document's own paths", async () => {
+    ({ server, baseUrl } = await startApp());
+    const response = await fetch(`${baseUrl}/openapi.json`, {
+      headers: { authorization: `Bearer ${OPERATOR_API_KEY}` },
+    });
+    const body = (await response.json()) as { paths: Record<string, unknown> };
+    expect(body.paths["/docs"]).toBeUndefined();
+  });
+});
+
+describe("GET /docs/scalar.js", () => {
+  let server: Server;
+  let baseUrl: string;
+
+  afterEach(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  it("requires an operator credential", async () => {
+    ({ server, baseUrl } = await startApp());
+    const response = await fetch(`${baseUrl}/docs/scalar.js`);
+    expect(response.status).toBe(401);
+  });
+
+  it("serves the Scalar standalone bundle for an authenticated request", async () => {
+    ({ server, baseUrl } = await startApp());
+    const response = await fetch(`${baseUrl}/docs/scalar.js`, {
+      headers: { authorization: `Bearer ${OPERATOR_API_KEY}` },
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("application/javascript");
+    const body = await response.text();
+    expect(body.length).toBeGreaterThan(1000);
+    expect(body).toContain("createApiReference");
+  });
+
+  it("404s with code docs_disabled when DOCS_ENABLED is false, even authenticated", async () => {
+    ({ server, baseUrl } = await startApp(false));
+    const response = await fetch(`${baseUrl}/docs/scalar.js`, {
+      headers: { authorization: `Bearer ${OPERATOR_API_KEY}` },
+    });
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "docs_disabled", message: expect.any(String) },
+    });
+  });
+});

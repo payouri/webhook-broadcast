@@ -7,3 +7,9 @@ allowBuilds:
   msgpackr-extract: true
   protobufjs: true
   ssh2: true
+  # Transitive dep of @scalar/api-reference's Vue components (issue #109).
+  # Its postinstall only picks a vue2/vue3 compat shim to write into its own
+  # package directory — the api never imports vue-demi or any Vue runtime,
+  # it only reads @scalar/api-reference's pre-built standalone bundle off
+  # disk, so that shim is never consulted and the script is safe to skip.
+  vue-demi: false

@@ -27,7 +27,9 @@ ENV NODE_ENV=production
 
 # dist holds the three bundled entrypoints; node_modules holds only the
 # externalised runtime deps (bullmq loads its Lua scripts from its own package
-# directory, so it must stay on disk rather than be inlined).
+# directory, so it must stay on disk rather than be inlined; @scalar/api-reference's
+# standalone browser bundle is read from its own package directory the same way,
+# for GET /docs — issue #109).
 COPY --from=prune --chown=node:node /prod/node_modules ./node_modules
 COPY --from=prune --chown=node:node /prod/dist ./apps/api/dist
 # migrate.mjs resolves this path from the process cwd (/app).
