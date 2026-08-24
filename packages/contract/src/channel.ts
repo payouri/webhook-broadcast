@@ -10,7 +10,7 @@ export const channelTokenSummarySchema = z
     id: idSchema,
     prefix: z
       .string()
-      .meta({ description: "First ~8 chars of the token for recognition; never full secret" }),
+      .meta({ description: "First 12 chars of the token — the `wbt_` wire prefix plus 8 of the secret — for recognition; never the full secret" }),
     createdAt: dateTimeSchema,
   })
   .meta({ id: "ChannelTokenSummary" });

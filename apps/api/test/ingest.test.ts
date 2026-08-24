@@ -1,6 +1,8 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Channel, ChannelTokenCreated, Endpoint } from "@webhook-broadcast/contract";
+import { schema } from "@webhook-broadcast/db";
+import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { FakeDeliveryQueue } from "./fakeDeliveryQueue.js";
@@ -136,6 +138,19 @@ describe("POST /ingest/:slug (Channel-token HTTP seam)", () => {
     expect(activityBody.items).toHaveLength(1);
     expect(activityBody.items[0]?.id).toEqual(body.id);
     expect(activityBody.items[0]?.bodyPreview).toContain("hello");
+
+    // Persisted headers are not part of the Broadcast contract, so the filter
+    // (ADR 0002) is asserted against the row itself: the env denylist entry
+    // and the always-denied credential headers are gone, the rest is kept.
+    const [row] = await testDb.db
+      .select({ headers: schema.broadcasts.headers, body: schema.broadcasts.body })
+      .from(schema.broadcasts)
+      .where(eq(schema.broadcasts.id, body.id));
+    expect(row?.body.toString("utf8")).toBe(JSON.stringify({ hello: "world" }));
+    expect(row?.headers).toMatchObject({ "x-request-id": "abc-123" });
+    expect(row?.headers).not.toHaveProperty("x-secret");
+    expect(row?.headers).not.toHaveProperty("authorization");
+    expect(row?.headers).not.toHaveProperty("cookie");
   });
 
   // Issue #99: the accepted status is configurable because a producer whose

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Check, TriangleAlert, X } from "lucide-react";
 import {
   MAX_ENDPOINT_TIMEOUT_MS,
+  MIN_ENDPOINT_TIMEOUT_MS,
   endpointHeadersSchema,
   endpointTimeoutMsSchema,
   endpointUrlSchema,
@@ -288,9 +289,9 @@ export function EndpointForm({
             id={timeoutFieldId}
             className="field-control"
             type="number"
-            min={1}
             // Both bounds come from the contract, so the number stepper stops
             // where the schema does instead of restating either one here.
+            min={MIN_ENDPOINT_TIMEOUT_MS}
             max={MAX_ENDPOINT_TIMEOUT_MS}
             value={timeoutMs}
             onChange={(event) => setTimeoutMs(event.target.value)}

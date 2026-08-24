@@ -35,6 +35,7 @@ export {
   endpointHeadersSchema,
   endpointTimeoutMsSchema,
   MAX_ENDPOINT_TIMEOUT_MS,
+  MIN_ENDPOINT_TIMEOUT_MS,
   endpointCreateSchema,
   endpointUpdateSchema,
   endpointListQuerySchema,

@@ -1,6 +1,6 @@
 import type { IncomingHttpHeaders } from "node:http";
 
-/** Always stripped from persisted ingest headers unless explicitly allowlisted. */
+/** Always stripped from persisted ingest headers; the allowlist cannot re-admit these. */
 export const DEFAULT_INGEST_HEADER_DENYLIST = [
   "authorization",
   "cookie",

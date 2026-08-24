@@ -357,6 +357,10 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
       const badge = screen.getByText("Auto-disabled");
       expect(badge.className).toContain("lamp-cut");
       expect(badge.className).toContain("lamp-hollow");
+      // The slash is the third of the three, and the only one that survives
+      // being read without color: assert the glyph, not just the classes.
+      const autoDisabledGlyph = badge.querySelector(".lamp-glass svg")?.outerHTML;
+      expect(autoDisabledGlyph).toBeTruthy();
       cleanup();
 
       render(<EndpointHealthLamp enabled={false} successRate24h={0} />);
@@ -364,6 +368,7 @@ describe("StatusLamp — one status vocabulary, never color alone", () => {
       expect(disabled.className).toContain("lamp-neutral");
       expect(disabled.className).toContain("lamp-hollow");
       expect(disabled.className).not.toContain("lamp-cut");
+      expect(disabled.querySelector(".lamp-glass svg")?.outerHTML).not.toEqual(autoDisabledGlyph);
     });
   });
 });

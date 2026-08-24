@@ -17,6 +17,14 @@ export const DEFAULT_ENDPOINT_AUTO_DISABLE_AFTER_MS = 3_600_000;
  * Mirrors the env surface table in docs/adr/0008-process-topology-deploy.md.
  */
 export const envSchema = z.object({
+  /**
+   * Deployment mode. The only thing this service reads it for is whether the
+   * operator session cookie is marked `Secure` — `production` means it is, so
+   * a deployment that forgets to set it degrades to a cookie usable over
+   * plain HTTP. Validated here rather than read off `process.env` at the call
+   * site so it appears in the documented env surface like every other key.
+   */
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.url(),
   /**
    * Pins TLS verification of `DATABASE_URL`'s Postgres server to this CA

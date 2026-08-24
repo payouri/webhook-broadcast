@@ -157,6 +157,13 @@ describe("Activity view toggle (issue #98)", () => {
     fireEvent.click(screen.getByRole("button", { name: "All Broadcasts" }));
     expect(await screen.findByText("all-succeeded")).toBeTruthy();
     expect(window.location.search).not.toContain("filter=failed");
+    // The return leg has to move the pressed state back too, not just the URL.
+    expect(
+      screen.getByRole("button", { name: "All Broadcasts" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("button", { name: "Failures by Endpoint" }).getAttribute("aria-pressed"),
+    ).toBe("false");
   });
 
   it("navigates the Channel directory's health badge into the reactive view", async () => {

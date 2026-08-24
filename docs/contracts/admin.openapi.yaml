@@ -690,7 +690,7 @@ components:
         $ref: "#/components/schemas/ChannelTokenSummary"
       type: array
     __schema43:
-      description: First ~8 chars of the token for recognition; never full secret
+      description: First 12 chars of the token — the `wbt_` wire prefix plus 8 of the secret — for recognition; never the full secret
       type: string
     __schema44:
       anyOf:
@@ -821,7 +821,7 @@ components:
       minLength: 1
       type: string
     __schema68:
-      description: First ~8 chars of the token for recognition; never full secret
+      description: First 12 chars of the token — the `wbop_` wire prefix plus 7 of the secret — for recognition; never the full secret
       type: string
     __schema69:
       anyOf:
@@ -1013,6 +1013,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       summary: List channels
       tags:
         - channels
@@ -1039,6 +1040,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       summary: Create channel
       tags:
         - channels
@@ -1062,6 +1064,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       summary: Soft-delete channel (sets deletedAt)
       tags:
         - channels
@@ -1088,6 +1091,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       tags:
         - channels
     patch:
@@ -1119,6 +1123,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       tags:
         - channels
   /channels/{channelId}/broadcasts:
@@ -1166,6 +1171,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       summary: Channel activity (newest first)
       tags:
         - broadcasts
@@ -1198,6 +1204,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       summary: Broadcast detail with fanned-out Deliveries
       tags:
         - broadcasts
@@ -1230,6 +1237,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       summary: Accept a new Broadcast from stored payload (202 semantics)
       tags:
         - broadcasts
@@ -1274,6 +1282,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       tags:
         - endpoints
     post:
@@ -1305,6 +1314,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       tags:
         - endpoints
   /channels/{channelId}/endpoints/{endpointId}:
@@ -1332,6 +1342,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       summary: Hard-delete endpoint, freeing its (channelId, url)
       tags:
         - endpoints
@@ -1363,6 +1374,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       tags:
         - endpoints
     patch:
@@ -1399,6 +1411,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       tags:
         - endpoints
   /channels/{channelId}/failures:
@@ -1425,6 +1438,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       summary: Ranked failure roll-up by Endpoint (24h window)
       tags:
         - channels
@@ -1452,6 +1466,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       summary: Create ingest token; plaintext returned once
       tags:
         - tokens
@@ -1480,6 +1495,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       tags:
         - tokens
   /deliveries/{deliveryId}:
@@ -1506,6 +1522,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       tags:
         - deliveries
   /deliveries/{deliveryId}/attempts:
@@ -1532,6 +1549,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       tags:
         - deliveries
   /deliveries/{deliveryId}/retry:
@@ -1558,6 +1576,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       summary: Re-enqueue a dead_lettered Delivery (409 if not dead_lettered)
       tags:
         - deliveries
@@ -1579,6 +1598,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       summary: "List operator token summaries (issue #41)"
       tags:
         - operator-tokens
@@ -1605,6 +1625,7 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       summary: Mint an operator token; plaintext returned once
       tags:
         - operator-tokens
@@ -1628,11 +1649,13 @@ paths:
           description: Error
       security:
         - OperatorBearer: []
+        - OperatorCookie: []
       summary: Revoke an operator token immediately, no redeploy required
       tags:
         - operator-tokens
 security:
   - OperatorBearer: []
+  - OperatorCookie: []
 servers:
   - url: /
 tags:

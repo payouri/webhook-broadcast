@@ -24,11 +24,12 @@ type StubHandler = (req: IncomingMessage, res: ServerResponse) => void;
  * behavior is swapped per test — the process boundary under test is
  * "worker dials an Endpoint URL", not any particular downstream service.
  *
- * ADR 0003's retry policy is driven entirely by `processDelivery`'s
- * return value — resolving after resetting the Delivery to `pending` and
- * throwing `RetryableDeliveryError`, or exhausting attempts and resolving
- * with `dead_lettered` — so these tests simulate BullMQ's backoff by
- * calling it again directly, with no real waiting involved.
+ * ADR 0003's retry policy is driven entirely by how `processDelivery`
+ * settles — every retryable outcome resets the Delivery to `pending` and
+ * then throws `RetryableDeliveryError`, while terminal outcomes
+ * (`succeeded`, `failed`, `dead_lettered`) resolve — so these tests
+ * simulate BullMQ's backoff by catching that error and calling it again
+ * directly, with no real waiting involved.
  */
 describe("processDelivery (worker HTTP seam, stub target)", () => {
   let testDb: TestDb;
@@ -244,15 +245,18 @@ describe("processDelivery (worker HTTP seam, stub target)", () => {
       // Never respond; the client-side AbortController must fire.
     };
     const { deliveryId } = await seedDelivery({ endpointUrl: stubUrl, timeoutMs: 50 });
-    const deps = baseDeps({ maxAttempts: 1, backoffBaseMs: 1, backoffMaxMs: 10 });
+    const deps = baseDeps({ maxAttempts: 2, backoffBaseMs: 1, backoffMaxMs: 10 });
 
-    // maxAttempts: 1 means the very first Attempt is already the last one.
-    await processDelivery(deps, deliveryId);
-
+    await expect(processDelivery(deps, deliveryId)).rejects.toThrow(RetryableDeliveryError);
     const record = await getDeliveryForProcessing(testDb.db, deliveryId);
-    expect(record?.status).toBe("dead_lettered");
+    expect(record?.status).toBe("pending");
+
+    await processDelivery(deps, deliveryId);
+    const finalRecord = await getDeliveryForProcessing(testDb.db, deliveryId);
+    expect(finalRecord?.status).toBe("dead_lettered");
 
     const attemptRows = await attemptRowsFor(deliveryId);
+    expect(attemptRows).toHaveLength(2);
     expect(attemptRows[0]?.statusCode).toBeNull();
     expect(attemptRows[0]?.error).toContain("timed out");
   });
@@ -421,6 +425,48 @@ describe("processDelivery (worker HTTP seam, stub target)", () => {
     await processDelivery(baseDeps(), deliveryId);
 
     expect(seenHeaders["x-signature"]).toBe("operator-configured");
+  });
+
+  it("lets an Endpoint header win over a forwarded inbound header whose name differs only in case", async () => {
+    let seenHeaders: Record<string, string | undefined> = {};
+    handler = (req, res) => {
+      seenHeaders = { ...req.headers } as Record<string, string | undefined>;
+      res.writeHead(200);
+      res.end("ok");
+    };
+    const { deliveryId } = await seedDelivery({
+      endpointUrl: stubUrl,
+      // Operator-supplied names are never normalized, and forwarded names keep
+      // the Broadcast's stored casing. A raw object spread only overrides a
+      // byte-identical key, so both would reach `fetch` and be combined into
+      // `attacker-influenced, operator-configured`.
+      headers: { "X-Signature": "operator-configured" },
+      forwardHeaders: ["x-signature"],
+      broadcastHeaders: { "x-signature": "attacker-influenced" },
+    });
+
+    await processDelivery(baseDeps(), deliveryId);
+
+    expect(seenHeaders["x-signature"]).toBe("operator-configured");
+  });
+
+  it("serves the Broadcast content-type over a differently-cased Endpoint or forwarded content-type", async () => {
+    let seenContentType: string | undefined;
+    handler = (req, res) => {
+      seenContentType = req.headers["content-type"];
+      res.writeHead(200);
+      res.end("ok");
+    };
+    const { deliveryId } = await seedDelivery({
+      endpointUrl: stubUrl,
+      headers: { "Content-Type": "text/plain" },
+      forwardHeaders: ["content-type"],
+      broadcastHeaders: { "Content-Type": "text/csv" },
+    });
+
+    await processDelivery(baseDeps(), deliveryId);
+
+    expect(seenContentType).toBe("application/json");
   });
 
   it("never forwards the Channel's own ingest authorization header even if allow-listed", async () => {

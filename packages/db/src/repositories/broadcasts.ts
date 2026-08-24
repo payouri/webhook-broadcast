@@ -109,8 +109,12 @@ export interface BroadcastWithEndpointDeliveryRow extends BroadcastRow {
  * newest-first `(receivedAt, id)` keyset pagination as `listBroadcastsByChannel`
  * (the cursor shape is unchanged, so a client's existing cursor decoding
  * needs no new case), narrowed to Broadcasts whose Delivery *to this one
- * Endpoint* is `failed` or `dead_lettered` — the same predicate
- * `getRecentFailureCountsByChannelIds` and `getFailureRollupForChannel` use.
+ * Endpoint* is `failed` or `dead_lettered`. The status half of that predicate
+ * matches `getRecentFailureCountsByChannelIds` and `getFailureRollupForChannel`,
+ * but those two also bound the window to `CHANNEL_RECENT_FAILURE_WINDOW_MS` and
+ * this list does not: it is the Endpoint's whole failure history. A roll-up
+ * header count and its drill-down list can therefore legitimately disagree,
+ * with the list showing failures older than the window.
  *
  * The join is on `(broadcastId, endpointId)`, which
  * `delivery_broadcast_endpoint_key` (ADR 0007) guarantees is unique — so this
@@ -246,8 +250,9 @@ export const EMPTY_FANOUT_SUMMARY: FanoutSummaryRow = {
 
 /**
  * Fan-out is computed in SQL from Delivery rows, never stored on Broadcast
- * (ADR 0007) — Delivery creation lands with the fan-out/queue slice, so this
- * returns `EMPTY_FANOUT_SUMMARY` for Broadcasts with no Delivery rows yet.
+ * (ADR 0007) — Delivery creation lands with the fan-out/queue slice, so a
+ * Broadcast with no Delivery rows yet is absent from the returned Map
+ * entirely; callers substitute `EMPTY_FANOUT_SUMMARY` for a missing entry.
  */
 export async function getFanoutSummariesByBroadcastIds(
   db: Database,

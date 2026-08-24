@@ -64,6 +64,12 @@ describe("the pre-paint theme script", () => {
     const bundle = INDEX_HTML.indexOf('<script type="module"');
     expect(prePaint).toBeGreaterThan(-1);
     expect(bundle).toBeGreaterThan(prePaint);
+
+    // "From the head" is the other half of the claim: a script placed in the
+    // body would still precede the module bundle and still paint late.
+    const headEnd = INDEX_HTML.indexOf("</head>");
+    expect(headEnd).toBeGreaterThan(-1);
+    expect(prePaint).toBeLessThan(headEnd);
   });
 
   it.each(["dark", "light"] as const)("stamps a forced %s theme", (theme) => {

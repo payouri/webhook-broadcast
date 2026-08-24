@@ -53,7 +53,7 @@ function useCountdownSeconds(resetAtMs: number | null): number | null {
 
 /**
  * The rule this field enforces is the contract's, stated once and read here —
- * the same shape as `EndpointForm`'s `validateUrl` and `ChannelSettingsForm`'s
+ * the same shape as `EndpointForm`'s `validateUrl` and `ChannelDirectoryPage`'s
  * `validateSlug`. PRODUCT.md Principle 7: a constraint the browser can check
  * is checked in the browser, at the field, using the schema the contract
  * package already holds (`loginRequestSchema`'s `apiKey: z.string().min(1)`),

@@ -14,21 +14,6 @@ import { ingestUrl } from "../../lib/ingestUrl.js";
 import { useFieldError } from "../../lib/useFieldError.js";
 
 /**
- * The rule this field enforces is the contract's, stated once and read here —
- * DESIGN.md §5's Reward-Early-Punish-Late Rule says a field "validates locally
- * against the contract schema", and the schema's own message is what the admin
- * API would have returned, so the field and the server say the same sentence
- * rather than two paraphrases of one rule.
- *
- * The pair is parsed through `channelUpdateSchema` — the request body's own
- * schema — rather than through `channelSlugSchema` alone, because one of this
- * field's constraints is not the slug's on its own: an open-ingest Channel's
- * slug is the only thing gating its fan-out, so the contract refines the slug's
- * minimum length against the switch beside it. Sending both through the schema
- * is what keeps that length and its wording out of this file, per DESIGN.md's
- * "Don't restate a contract constraint as a hand-written check in `apps/web`".
- */
-/**
  * Issue #99: blank means "inherit the service-wide default", which is the
  * common case — so the field is empty, not pre-filled with 202, and only a
  * deployment whose producer disagrees ever types here. The 2xx rule is the
@@ -49,6 +34,21 @@ function validateIngestSuccessStatus(value: string): string | null {
   return issue?.message ?? "Enter a 2xx status code.";
 }
 
+/**
+ * The rule this field enforces is the contract's, stated once and read here —
+ * DESIGN.md §5's Reward-Early-Punish-Late Rule says a field "validates locally
+ * against the contract schema", and the schema's own message is what the admin
+ * API would have returned, so the field and the server say the same sentence
+ * rather than two paraphrases of one rule.
+ *
+ * The pair is parsed through `channelUpdateSchema` — the request body's own
+ * schema — rather than through `channelSlugSchema` alone, because one of this
+ * field's constraints is not the slug's on its own: an open-ingest Channel's
+ * slug is the only thing gating its fan-out, so the contract refines the slug's
+ * minimum length against the switch beside it. Sending both through the schema
+ * is what keeps that length and its wording out of this file, per DESIGN.md's
+ * "Don't restate a contract constraint as a hand-written check in `apps/web`".
+ */
 function makeValidateSlug(allowUnauthenticatedIngest: boolean) {
   return (value: string): string | null => {
     if (value.length === 0) {

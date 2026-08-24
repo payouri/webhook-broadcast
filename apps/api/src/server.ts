@@ -20,7 +20,7 @@ const app = createApp({
   deliveryQueue,
   operatorApiKey: env.OPERATOR_API_KEY,
   cookieName: env.COOKIE_NAME,
-  cookieSecure: process.env.NODE_ENV === "production",
+  cookieSecure: env.NODE_ENV === "production",
   trustProxy: env.TRUST_PROXY,
   loginRateLimitMaxAttempts: env.LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
   loginRateLimitWindowMs: env.LOGIN_RATE_LIMIT_WINDOW_MS,

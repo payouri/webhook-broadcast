@@ -16,7 +16,17 @@ export const errorResponse: NonNullable<ZodOpenApiResponsesObject["default"]> = 
   },
 };
 
-export const operatorSecurity = [{ OperatorBearer: [] as string[] }];
+/**
+ * Either credential satisfies an admin operation, matching what the operator
+ * middleware actually accepts: a Bearer token, or the dashboard's HttpOnly
+ * session cookie. Declaring only bearer here left `OperatorCookie` defined but
+ * unreferenced, so every spec reader and the generated client concluded the
+ * cookie does not work.
+ */
+export const operatorSecurity = [
+  { OperatorBearer: [] as string[] },
+  { OperatorCookie: [] as string[] },
+];
 
 /** `{channelId}` — the Channel every channel-scoped domain hangs off. */
 export const channelIdPath = z.object({ channelId: idSchema });

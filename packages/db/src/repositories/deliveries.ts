@@ -8,8 +8,9 @@ export type DeliveryStatus = (typeof deliveries.$inferSelect)["status"];
 /**
  * Issue #44: the single documented window for the Channel directory's
  * failure signal — how far back a `failed`/`dead_lettered` Delivery still
- * counts toward "recent". One constant used by the aggregate query below;
- * nothing else recomputes or restates this number.
+ * counts toward "recent". Declared once and imported by every query that
+ * needs it (here, `channels.ts`'s directory health, `endpoints.ts`'s
+ * per-Endpoint roll-up); nothing recomputes or restates the number itself.
  */
 export const CHANNEL_RECENT_FAILURE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -75,9 +76,10 @@ export interface DeliveryForProcessing {
 }
 
 /**
- * Everything the worker needs for one HTTP Attempt, joined from the
- * Delivery id alone — the BullMQ job payload only carries `deliveryId`, so
- * this is the worker's sole read before dialing out.
+ * Everything the worker needs for one HTTP Attempt, joined from the Delivery
+ * id alone. The BullMQ job payload also carries the Channel/Broadcast/Endpoint
+ * ids, but only for log correlation — none of them is trusted as a substitute
+ * for this read, which is the worker's sole read before dialing out.
  */
 export async function getDeliveryForProcessing(
   db: Database,

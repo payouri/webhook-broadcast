@@ -139,7 +139,8 @@ async function unwrap<T>(result: { data?: T; error?: unknown; response: Response
 
 /**
  * Dashboard-only auth routes — intentionally outside the published admin OpenAPI
- * contract (see apps/api/src/admin/authRoutes.ts).
+ * contract. `/auth/login` and `/auth/logout` are registered in
+ * apps/api/src/admin/authRoutes.ts; `/auth/session` in apps/api/src/app.ts.
  */
 async function authRequest<TResponse>(path: string, init: RequestInit = {}): Promise<TResponse> {
   const response = await fetch(path, {

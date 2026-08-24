@@ -42,6 +42,14 @@ export const endpointUrlSchema = z.url(
 export const MAX_ENDPOINT_TIMEOUT_MS = 3_600_000;
 
 /**
+ * The floor is only "a timeout at all" — anything below 1ms is not a shorter
+ * timeout, it is a request that can never complete. Exported alongside the cap
+ * so the Endpoint form's number stepper can take both bounds from here instead
+ * of restating either one.
+ */
+export const MIN_ENDPOINT_TIMEOUT_MS = 1;
+
+/**
  * Every rule below carries its own message, for the reason stated on
  * {@link endpointHeadersSchema}: an operator reads these in the Endpoint form,
  * so none of them may fall through to Zod's own voice. `0` and `1.5` are both
@@ -63,13 +71,13 @@ export const MAX_ENDPOINT_TIMEOUT_MS = 3_600_000;
  * decision and the migration behaviour for Endpoints already above it.
  */
 const timeoutNotWholeMessage = "Timeout must be a whole number of milliseconds";
-const timeoutTooSmallMessage = "Timeout must be at least 1ms";
+const timeoutTooSmallMessage = `Timeout must be at least ${MIN_ENDPOINT_TIMEOUT_MS}ms`;
 const timeoutTooLargeMessage = `Timeout must be at most ${MAX_ENDPOINT_TIMEOUT_MS}ms (1h) — past that, one slow Attempt stalls the rest of the Channel's fan-out`;
 
 export const endpointTimeoutMsSchema = z
   .number(timeoutNotWholeMessage)
   .int(timeoutNotWholeMessage)
-  .min(1, timeoutTooSmallMessage)
+  .min(MIN_ENDPOINT_TIMEOUT_MS, timeoutTooSmallMessage)
   .max(MAX_ENDPOINT_TIMEOUT_MS, timeoutTooLargeMessage);
 
 export const endpointSchema = z

@@ -21,7 +21,7 @@ import { logStructured } from "../observability/logger.js";
 
 export interface ProcessDeliveryDeps {
   db: Database;
-  /** Falls back to the Endpoint's own `timeoutMs` when set (ADR 0007/0008). */
+  /** Fallback for Endpoints with no `timeoutMs` of their own — the Endpoint's value wins (ADR 0007/0008). */
   defaultTimeoutMs: number;
   fetchImpl?: typeof fetch;
   /** ADR 0003 retry policy knobs — default to that ADR's documented defaults. */
@@ -37,14 +37,29 @@ export interface ProcessDeliveryDeps {
 }
 
 /**
+ * HTTP header names are case-insensitive, but an object spread only overrides a
+ * byte-identical key, and `fetch` *combines* two differently-cased entries into
+ * one comma-joined value rather than letting the later one win. Lowercasing
+ * every name before the merge is what makes the documented precedence below
+ * hold for names the two sides spelled differently.
+ */
+function byLowercaseName(headers: Record<string, string>): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [name, value] of Object.entries(headers)) {
+    result[name.toLowerCase()] = value;
+  }
+  return result;
+}
+
+/**
  * One Delivery's HTTP Attempt, retried per ADR 0003's policy. Exported
- * standalone from the BullMQ `Worker` wiring so it can be exercised
- * directly against a stub HTTP target without a live Redis: a retryable
- * failure resolves normally after resetting the Delivery to `pending` for
- * the next Attempt (a caller simulating BullMQ's backoff just calls this
- * again), or throws `RetryableDeliveryError` — the shape `worker.ts`'s
- * BullMQ `backoffStrategy` needs to actually delay that next call in
- * production.
+ * standalone from the BullMQ `Worker` wiring so it can be exercised directly
+ * against a stub HTTP target without a live Redis. Every retryable outcome
+ * resets the Delivery to `pending` and then throws `RetryableDeliveryError`
+ * — the shape `worker.ts`'s BullMQ `backoffStrategy` needs to actually delay
+ * the next Attempt in production. A caller simulating BullMQ's backoff catches
+ * that error and calls this again; only terminal outcomes (`succeeded`,
+ * `failed`, `dead_lettered`) resolve normally.
  */
 export async function processDelivery(
   deps: ProcessDeliveryDeps,
@@ -103,9 +118,13 @@ export async function processDelivery(
       headers: {
         // Forwarded inbound headers (issue #37) come first so operator-
         // configured `endpoint.headers` — and the content-type below —
-        // always win on a name collision.
-        ...forwardedHeaders,
-        ...record.endpoint.headers,
+        // always win on a name collision. Both sides are lowercased so that
+        // precedence holds however either side spelled the name: forwarded
+        // names keep the Broadcast's stored casing and `endpoint.headers`
+        // names are operator-supplied, so a raw spread would leave a
+        // differently-cased collision for `fetch` to concatenate instead.
+        ...byLowercaseName(forwardedHeaders),
+        ...byLowercaseName(record.endpoint.headers),
         "content-type": record.broadcast.contentType,
       },
       body: record.broadcast.body,

@@ -147,8 +147,13 @@ describe("Channel failure roll-up — GET /channels/:channelId/failures", () => 
     const broken = await createEndpoint(channel.id, "https://example.com/broken", "Broken Hook");
     const healthy = await createEndpoint(channel.id, "https://example.com/healthy");
 
-    await deliverOne(channel.id, broken.id, "dead_lettered", now);
-    await deliverOne(channel.id, broken.id, "failed", now);
+    // Distinct timestamps, newest last, so `lastFailureAt` is pinned to the
+    // newest *failure* rather than passing on a single shared value — and the
+    // later `succeeded` proves a success never moves it.
+    const older = new Date(now.getTime() - 60_000);
+    const newest = new Date(now.getTime() - 30_000);
+    await deliverOne(channel.id, broken.id, "dead_lettered", older);
+    await deliverOne(channel.id, broken.id, "failed", newest);
     await deliverOne(channel.id, broken.id, "succeeded", now);
     await deliverOne(channel.id, healthy.id, "succeeded", now);
 
@@ -160,6 +165,7 @@ describe("Channel failure roll-up — GET /channels/:channelId/failures", () => 
       endpointUrl: "https://example.com/broken",
       failed: 1,
       deadLettered: 1,
+      lastFailureAt: newest.toISOString(),
       autoDisabledAt: null,
     });
   });

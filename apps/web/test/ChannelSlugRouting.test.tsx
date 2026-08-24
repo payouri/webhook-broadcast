@@ -110,8 +110,11 @@ function slugCapableFetches(): (
           id: BROADCAST_ID,
           channelId: CHANNEL_ID,
           receivedAt: "2026-08-10T12:00:00.000Z",
+          // Deliberately distinct from the list row's `bodyPreview` above:
+          // if both fixtures said "hello-world", a test asserting the expanded
+          // body would pass on the collapsed row alone.
           contentType: "application/json",
-          body: "hello-world",
+          body: "hello-world-body",
           deliveries: [],
         }),
       );
@@ -123,7 +126,8 @@ function slugCapableFetches(): (
 /**
  * Issue #56: the Channel route accepts either the id or the slug, resolving
  * both to the same Channel — including the nested tab, `?filter=`, and
- * expanded-Broadcast forms — and an unknown or since-renamed slug renders the
+ * expanded-Broadcast forms, each covered by its own test below — and an
+ * unknown or since-renamed slug renders the
  * ordinary Channel-not-found view rather than a distinct error.
  */
 describe("Channel routes accept a slug (issue #56)", () => {
@@ -149,14 +153,32 @@ describe("Channel routes accept a slug (issue #56)", () => {
     expect(await screen.findByText("hello-world")).toBeTruthy();
   });
 
-  it("resolves the nested tab, ?filter=, and expanded-Broadcast forms through a slug", async () => {
+  it("resolves the nested tab and expanded-Broadcast forms through a slug", async () => {
     fetchMock.mockImplementation(slugCapableFetches());
 
-    renderRoutes(`/channels/${SLUG}/activity/${BROADCAST_ID}?filter=failed`);
+    renderRoutes(`/channels/${SLUG}/activity/${BROADCAST_ID}`);
 
     expect(await screen.findByText(SLUG)).toBeTruthy();
     expect(screen.getByRole("link", { name: "Activity" }).className).toContain("tab-active");
-    expect(await screen.findByText(/hello-world-body|hello-world/)).toBeTruthy();
+    // The expanded body, not the collapsed row's preview — the two fixtures
+    // differ so this can only pass if the Broadcast well actually opened.
+    expect(await screen.findByText(/hello-world-body/)).toBeTruthy();
+  });
+
+  it("resolves the ?filter= form through a slug, landing on the reactive view", async () => {
+    fetchMock.mockImplementation(slugCapableFetches());
+
+    renderRoutes(`/channels/${SLUG}/activity?filter=failed`);
+
+    expect(await screen.findByText(SLUG)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Activity" }).className).toContain("tab-active");
+    // `?filter=failed` selects the reactive failures-by-Endpoint structure, so
+    // the proactive log's row is absent and the Endpoint group is present.
+    const reactiveToggle = await screen.findByRole("button", { name: "Failures by Endpoint" });
+    expect(reactiveToggle.getAttribute("aria-pressed")).toBe("true");
+    // The Endpoint group heading only exists on the reactive structure — the
+    // proactive log is a flat Broadcast list with no Endpoint grouping.
+    expect(await screen.findByText(/example\.com\/hook/)).toBeTruthy();
   });
 
   it("still resolves the id form without a redirect (neither URL is rewritten)", async () => {

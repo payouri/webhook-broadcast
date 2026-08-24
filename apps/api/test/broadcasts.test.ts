@@ -112,6 +112,14 @@ describe("Channel Activity — GET /channels/:channelId/broadcasts (admin HTTP s
       fanout: { total: 0, succeeded: 0, failed: 0, deadLettered: 0, pending: 0 },
     });
     expect(body.items[1]).toMatchObject({ id: firstId, bodyPreview: "first-payload" });
+    // `receivedAt` is what "newest-first" is ordered by, so assert it is an
+    // ISO-8601 instant on both rows and that the order actually follows it.
+    const receivedAt = body.items.map((item) => item.receivedAt);
+    for (const value of receivedAt) {
+      expect(value).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(Number.isNaN(Date.parse(value))).toBe(false);
+    }
+    expect(Date.parse(receivedAt[0] ?? "")).toBeGreaterThanOrEqual(Date.parse(receivedAt[1] ?? ""));
     expect(body.nextCursor).toBeNull();
   });
 

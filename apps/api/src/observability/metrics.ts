@@ -154,7 +154,7 @@ export class MetricsCollector {
   constructor() {
     this.ingestAcceptedTotal = new CounterMetric(
       METRIC_NAMES.ingestAccepted,
-      "Ingest requests accepted with 202",
+      "Ingest requests accepted (counted before the per-Channel success status is chosen, so 200/201/202/204 all land here)",
     );
     this.attemptDurationSeconds = new HistogramMetric(
       METRIC_NAMES.attemptDuration,

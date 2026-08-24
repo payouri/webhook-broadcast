@@ -203,7 +203,7 @@ export const attempts = pgTable(
      * Issue #34 — expand step of a rename campaign for the cryptic `n`
      * column (app code already calls this `attemptNumber`, see
      * `apps/api/src/worker/processDelivery.ts`). Nullable and unbacked by
-     * app code for now: migration `0004_…` only adds the column and backfills
+     * app code for now: migration `0006_curious_thena.sql` only adds the column and backfills
      * the rows that existed when it ran, so every row written since is NULL
      * here. Do not read this column as a source of truth — `n` stays
      * authoritative until a later, independent deploy starts dual-writing it,

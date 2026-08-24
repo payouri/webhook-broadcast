@@ -79,7 +79,9 @@ function TokenRevokeConfirm({
 }
 
 /**
- * Settings tab token management (ADR 0004/0005): mint once, list id/prefix/createdAt, revoke.
+ * Settings tab token management (ADR 0004/0005): mint once, list prefix and
+ * createdAt per token, revoke. The token `id` is never displayed — it is only
+ * the row key and the revoke argument.
  *
  * Reads the Channel through `useChannelQuery` (issue #51) — the same cache entry
  * and the same ~5s freshness interval the parent `ChannelDetailPage` observes,

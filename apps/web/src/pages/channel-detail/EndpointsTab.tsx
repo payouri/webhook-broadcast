@@ -41,9 +41,10 @@ import { EndpointForm, type EndpointFormValues } from "./EndpointForm.js";
 // was already implemented on this list's rows — a button per Endpoint,
 // `aria-expanded`, an inset well that opens in place — it was only ever missing
 // its `data-row-nav` wiring and its own discoverable disclosure. Documented
-// here rather than reusing `ACTIVITY_SHORTCUTS`: this list never nests (no
-// Delivery-style child list), and Enter/Space open the Endpoint's editor
-// rather than a read-only detail well.
+// here rather than reusing either of the Activity tab's sets
+// (`ALL_BROADCASTS_SHORTCUTS` / `FAILURES_BY_ENDPOINT_SHORTCUTS`): this list
+// never nests (no Delivery-style child list), and Enter/Space open the
+// Endpoint's editor rather than a read-only detail well.
 const ENDPOINT_SHORTCUTS = [
   { keys: "↑ ↓", description: "Move between Endpoint rows" },
   { keys: "Home / End", description: "Jump to the first or last Endpoint" },

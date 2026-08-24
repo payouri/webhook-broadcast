@@ -76,7 +76,8 @@ export type BroadcastList = z.infer<typeof broadcastListSchema>;
  * Issue #84: `endpointId` + `status=failed` are additive and must arrive
  * together — narrows this Channel's Activity to the Broadcasts whose
  * Delivery to that one Endpoint failed or dead-lettered (`status: "failed"`
- * means both terminal failure states, matching `fanoutHasFailure`). Omitting
+ * means both terminal failure states, the same pairing the failure roll-up
+ * counts). Omitting
  * both leaves the existing unfiltered call's response unchanged.
  */
 export const broadcastListQuerySchema = z

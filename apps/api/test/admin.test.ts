@@ -289,7 +289,7 @@ describe("Admin auth + Channel CRUD (HTTP seam)", () => {
       await expect(missResponse.json()).resolves.toMatchObject({ items: [], nextCursor: null });
     });
 
-    it("creates a Channel with a forwardHeaders allow-list and lets it be forwarded/updated (issue #37)", async () => {
+    it("creates a Channel with a forwardHeaders allow-list and lets it be read back and updated (issue #37)", async () => {
       const createResponse = await fetch(
         `${baseUrl}/channels`,
         authed({

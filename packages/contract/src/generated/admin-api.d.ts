@@ -518,7 +518,7 @@ export interface components {
     /** @description Issue #45: how many of this Channel's Endpoints are currently auto-disabled (ADR 0003) — `autoDisabledAt IS NOT NULL`, cleared the moment an operator re-enables one. An auto-disabled Endpoint is otherwise silent: the Channel keeps accepting Broadcasts while fan-out to that target quietly stops, so this is surfaced on the directory row rather than only on the Endpoints tab. */
     __schema41: number;
     __schema42: components["schemas"]["ChannelTokenSummary"][];
-    /** @description First ~8 chars of the token for recognition; never full secret */
+    /** @description First 12 chars of the token — the `wbt_` wire prefix plus 8 of the secret — for recognition; never the full secret */
     __schema43: string;
     __schema44: components["schemas"]["DateTime"] | null;
     __schema45: string | null;
@@ -562,7 +562,7 @@ export interface components {
     __schema66: components["schemas"]["OperatorTokenSummary"][];
     /** @description Operator-chosen name identifying the holder, e.g. a CI job or laptop */
     __schema67: string;
-    /** @description First ~8 chars of the token for recognition; never full secret */
+    /** @description First 12 chars of the token — the `wbop_` wire prefix plus 7 of the secret — for recognition; never the full secret */
     __schema68: string;
     __schema69: components["schemas"]["DateTime"] | null;
     /** @default null */

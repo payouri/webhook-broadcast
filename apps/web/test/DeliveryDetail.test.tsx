@@ -140,7 +140,7 @@ describe("DeliveryDetail — Attempt timeline and Retry action (issue #21)", () 
     expect(screen.getAllByText("request timed out after 15000ms")).toHaveLength(1);
   });
 
-  it("shows a Retry action only when dead_lettered, and calls onRetried after a successful retry", async () => {
+  it("shows a Retry action for a dead_lettered Delivery, and calls onRetried after a successful retry", async () => {
     fetchMock.mockImplementation((input: string | URL | Request, init?: RequestInit) => {
       const path = requestPath(input);
       const method = requestMethod(input, init);
