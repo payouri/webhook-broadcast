@@ -8,9 +8,10 @@ export const dateTimeSchema = z.iso
 export const channelTokenSummarySchema = z
   .object({
     id: idSchema,
-    prefix: z
-      .string()
-      .meta({ description: "First 12 chars of the token — the `wbt_` wire prefix plus 8 of the secret — for recognition; never the full secret" }),
+    prefix: z.string().meta({
+      description:
+        "First 12 chars of the token — the `wbt_` wire prefix plus 8 of the secret — for recognition; never the full secret",
+    }),
     createdAt: dateTimeSchema,
   })
   .meta({ id: "ChannelTokenSummary" });

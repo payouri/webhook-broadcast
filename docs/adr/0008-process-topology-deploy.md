@@ -6,6 +6,7 @@ API and Delivery worker run as **separate processes** from one image (`server` |
 
 | Variable | Default | Notes |
 |---|---|---|
+| `NODE_ENV` | `development` | `development` \| `test` \| `production`. Only read to decide whether the operator session cookie is marked `Secure`; the api Dockerfile sets `production` for the image |
 | `DATABASE_URL` | — | required; TLS config: see README's "Postgres TLS" section |
 | `DATABASE_CA_CERT` | unset | optional PEM CA; pins server-cert verification. Mutually exclusive with any `ssl*` parameter in `DATABASE_URL` |
 | `REDIS_URL` | — | required; TLS config: see README's "Redis TLS" section |
@@ -25,6 +26,26 @@ API and Delivery worker run as **separate processes** from one image (`server` |
 | `DELIVERY_BACKOFF_MAX_MS` | `3600000` | |
 | `ENDPOINT_AUTO_DISABLE_AFTER_MS` | `3600000` | |
 | `COOKIE_NAME` | `wb_operator` | dashboard session cookie |
+| `TRUST_PROXY` | `false` | `true` \| `false`. When `true`, the session cookie's `Secure` flag follows `X-Forwarded-Proto`; when `false` it follows `NODE_ENV`, so a directly exposed API cannot be tricked into issuing a session cookie over plain HTTP |
+| `LOGIN_RATE_LIMIT_MAX_ATTEMPTS` | `5` | failed `POST /auth/login` attempts per client before lockout |
+| `LOGIN_RATE_LIMIT_WINDOW_MS` | `60000` | rolling window the count above applies over, and the lockout duration |
+
+The `migrate` command validates a deliberately narrower surface — `DATABASE_URL` and `DATABASE_CA_CERT` only (`migrateEnvSchema`) — so a migration job never fails fast on unrelated misconfig such as a missing `OPERATOR_API_KEY`. The CA is part of it: a deployment pinning a provider CA must pass it to `migrate` too, or that job reaches the database on different TLS terms than api and worker.
+
+## Compose host-side env surface (not boot-validated)
+
+Read by `docker-compose.yml` alone — substituted into its `environment:` and `ports:` entries, never by a Node process, so they are outside both Zod schemas. Every port mapping binds to `127.0.0.1`.
+
+| Variable | Default | Notes |
+|---|---|---|
+| `POSTGRES_USER` | `webhook_broadcast` | Postgres image seed; must match `DATABASE_URL` |
+| `POSTGRES_PASSWORD` | `webhook_broadcast` | as above |
+| `POSTGRES_DB` | `webhook_broadcast` | as above |
+| `POSTGRES_HOST_PORT` | `5433` | host side of the Postgres mapping; not 5432, which a local Postgres usually holds |
+| `REDIS_HOST_PORT` | `6380` | host side of the Redis mapping |
+| `API_HOST_PORT` | `8080` | host side of the api mapping; the container side is pinned to 8080 |
+| `WORKER_HOST_PORT` | `9091` | host side of the worker health mapping |
+| `WEB_HOST_PORT` | `5173` | host side of the web mapping; the container side is `WEB_PORT` below |
 
 ## Web container env surface (nginx-rendered, not boot-validated)
 

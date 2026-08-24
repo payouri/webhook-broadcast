@@ -14,7 +14,9 @@ export const DEFAULT_ENDPOINT_AUTO_DISABLE_AFTER_MS = 3_600_000;
 
 /**
  * Full process boot config for the `server` and `worker` commands.
- * Mirrors the env surface table in docs/adr/0008-process-topology-deploy.md.
+ * Mirrors the env surface table in docs/adr/0008-process-topology-deploy.md,
+ * and `.env.example` — `pnpm docs:check:env` fails CI when a key here is
+ * missing from either, so this is enforced rather than asserted.
  */
 export const envSchema = z.object({
   /**

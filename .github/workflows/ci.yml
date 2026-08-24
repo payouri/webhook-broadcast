@@ -17,6 +17,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm contract:check
+      # The two documentation-drift guards (issue #111): the boot env surface
+      # against `.env.example` and ADR 0008, and DESIGN.md's token frontmatter
+      # against `styles.css`. Both name the offending key or token on failure.
+      - run: pnpm docs:check
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm lint

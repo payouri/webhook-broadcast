@@ -79,10 +79,14 @@ services:
     profiles: ["app"]
     command: ["migrate"]
     restart: "no"
-    # No env_file: migrateEnvSchema validates DATABASE_URL alone, so the
-    # migration job never needs OPERATOR_API_KEY or the delivery tuning surface.
+    # No env_file: migrateEnvSchema validates DATABASE_URL and DATABASE_CA_CERT
+    # only, so the migration job never needs OPERATOR_API_KEY or the delivery
+    # tuning surface. Both are passed explicitly — a managed-Postgres
+    # deployment pinning a CA must pin it here too, or `migrate` would reach
+    # the database on different TLS terms than api and worker do.
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-webhook_broadcast}:${POSTGRES_PASSWORD:-webhook_broadcast}@postgres:5432/${POSTGRES_DB:-webhook_broadcast}
+      DATABASE_CA_CERT: ${DATABASE_CA_CERT:-}
     depends_on:
       postgres:
         condition: service_healthy

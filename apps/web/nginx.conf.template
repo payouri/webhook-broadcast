@@ -52,13 +52,19 @@ server {
         proxy_pass ${API_UPSTREAM};
     }
 
-    # The admin API. This path space overlaps the client-side router (issue #42:
-    # a Channel's own URL is /channels/:id, with /:tab and /:broadcastId beyond
+    # The admin API — the whole of it, `/operator-tokens` included. That one is
+    # not a path the SPA ever calls, but it is a tagged path space in the
+    # published contract and the endpoint `.env.example` tells operators to
+    # POST to, so leaving it out of this regex meant a same-origin operator
+    # request got the SPA shell instead of the api.
+    #
+    # Part of this path space overlaps the client-side router (issue #42: a
+    # Channel's own URL is /channels/:id, with /:tab and /:broadcastId beyond
     # it) — a hard reload on one of those URLs is a browser navigation, not an
     # API call, and must get the SPA shell rather than a JSON 404 from the admin
     # API. Browser navigations always send `Accept: text/html…`; this app's own
     # fetch calls never do, so branch on that instead of the path.
-    location ~ ^/(auth|channels|broadcasts|deliveries)(/|$) {
+    location ~ ^/(auth|channels|broadcasts|deliveries|operator-tokens)(/|$) {
         if ($http_accept ~* "text/html") {
             return 418;
         }

@@ -4,7 +4,7 @@
  * reactive path, the same Channel's Deliveries re-shaped into one collapsible
  * group per broken Endpoint (`GET /channels/{id}/failures`, issue #84). The
  * toggle used to read "All" / "Failures only" over a client-side filter on
- * the loaded page (issue #51's `fanoutHasFailure`, which filtered row
+ * the loaded page (issue #51 had a client-side `fanoutHasFailure` predicate, now gone, which filtered row
  * membership without changing the list's shape) — 44 identical
  * `1 failed, 3/4 succeeded` rows are one broken Endpoint, and the reactive
  * path now says so instead of listing each occurrence. The URL param and its

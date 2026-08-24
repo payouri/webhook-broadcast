@@ -4,7 +4,11 @@ description: Operator console for a single-tenant webhook multiplexer, built as 
 colors:
   plate: "oklch(96.6% 0.004 195)"
   face: "oklch(99.2% 0.002 195)"
+  face-raised: "oklch(96% 0.004 195)"
+  face-sunk: "oklch(90% 0.007 195)"
   well: "oklch(94% 0.006 195)"
+  well-deep: "oklch(90% 0.007 195)"
+  well-deepest: "oklch(85% 0.008 195)"
   score: "oklch(88% 0.007 195)"
   score-strong: "oklch(79% 0.009 195)"
   score-control: "oklch(61% 0.011 195)"
@@ -14,14 +18,18 @@ colors:
   anodize-pressed: "oklch(40% 0.105 195)"
   anodize-wash: "oklch(93% 0.028 195)"
   anodize-ink: "oklch(99% 0.004 195)"
-  lamp-live: "oklch(52% 0.14 152)"
+  lamp-live: "oklch(48% 0.14 152)"
   lamp-live-glass: "oklch(93% 0.045 152)"
   lamp-cut: "oklch(51% 0.19 27)"
   lamp-cut-glass: "oklch(93% 0.05 27)"
 colorsDark:
   plate: "oklch(20% 0.008 195)"
   face: "oklch(24.5% 0.008 195)"
+  face-raised: "oklch(29% 0.009 195)"
+  face-sunk: "oklch(16.5% 0.008 195)"
   well: "oklch(16.5% 0.008 195)"
+  well-deep: "oklch(12.5% 0.008 195)"
+  well-deepest: "oklch(9% 0.008 195)"
   score: "oklch(31% 0.010 195)"
   score-strong: "oklch(41% 0.011 195)"
   score-control: "oklch(54% 0.011 195)"
@@ -87,7 +95,7 @@ spacing:
   2xl: "32px"
 components:
   control:
-    backgroundColor: "{colors.face}"
+    backgroundColor: "{colors.face-raised}"
     textColor: "{colors.ink}"
     borderColor: "{colors.score-control}"
     typography: "{typography.label}"
@@ -95,10 +103,10 @@ components:
     padding: "8px 14px"
     boxShadow: "inset 0 1px 0 {lip.light}, 0 1px 0 {lip.shade}"
   control-hover:
-    backgroundColor: "{colors.well}"
+    backgroundColor: "{colors.face-sunk}"
     borderColor: "{colors.ink-muted}"
   control-active:
-    backgroundColor: "{colors.well}"
+    backgroundColor: "{colors.face-sunk}"
     boxShadow: "inset 0 2px 3px {lip.shade-deep}"
   control-primary:
     backgroundColor: "{colors.anodize}"
@@ -106,17 +114,17 @@ components:
     textColor: "{colors.anodize-ink}"
     fontWeight: 600
   control-commit:
-    backgroundColor: "{colors.face}"
+    backgroundColor: "{colors.face-raised}"
     textColor: "{colors.anodize}"
     borderColor: "{colors.anodize}"
     fontWeight: 600
   control-destructive:
-    backgroundColor: "{colors.face}"
+    backgroundColor: "{colors.face-raised}"
     textColor: "{colors.ink}"
     borderColor: "{colors.ink-muted}"
     fontWeight: 600
   control-destructive-hover:
-    backgroundColor: "{colors.well}"
+    backgroundColor: "{colors.face-sunk}"
     borderColor: "{colors.ink}"
   field:
     backgroundColor: "{colors.well}"
@@ -146,6 +154,9 @@ components:
     rounded: "{rounded.plate}"
     padding: "12px"
     boxShadow: "inset 0 1px 2px {lip.shade}"
+  # A row takes a per-nesting-level ground (see §4): Face at top level, and one
+  # step darker for each level it is nested inside. The value below is the
+  # top-level case only.
   row:
     backgroundColor: "{colors.face}"
     textColor: "{colors.ink}"
@@ -234,7 +245,7 @@ hierarchy is the failure.
 - Light default and a real dark theme, every token defined for both
 - Row-first layout, with a constant leading lamp column so state reads down the column
 - Every state carried four ways: glyph, form, label, color
-- One icon family (`lucide-react`), one stroke weight, never mixed with another set
+- One icon family (`lucide-react`), stroke weight scaled to glyph size (§5), never mixed with another set
 
 ## 2. Colors
 
@@ -263,7 +274,7 @@ and meaning is the scarce resource on this surface.
 
 ### Tertiary
 
-- **Lamp Live** (`oklch(52% 0.14 152)`) on **Lamp Live Glass**: a Delivery that succeeded, an
+- **Lamp Live** (`oklch(48% 0.14 152)`) on **Lamp Live Glass**: a Delivery that succeeded, an
   Endpoint or Channel that is enabled, a Channel with no recent failures.
 - **Lamp Cut** (`oklch(51% 0.19 27)`) on **Lamp Cut Glass**: a Delivery that failed or
   dead-lettered, an auto-disabled Endpoint, a failing Channel, a form validation error, an Attempt
@@ -618,8 +629,8 @@ while `.channel-row` inherited the primary button's hover fill and turned an ent
 ### Icons
 
 One family: **`lucide-react`**, imported per glyph. 1.5 to 2 stroke, sized 13px in controls and tabs,
-14px in inline text, 11px inside a lamp glass (where the stroke steps up to 2.25 to hold its shape),
-20px in an empty state. Every decorative glyph carries `aria-hidden="true"`. Two controls are
+14px in inline text, 16px in an icon-only control's glyph, 17px in the app brand mark, 11px inside a
+lamp glass (where the stroke steps up to 2.25 to hold its shape), 20px in an empty state. Every decorative glyph carries `aria-hidden="true"`. Two controls are
 icon-only — the theme toggle and the login field's reveal toggle — and each carries a full
 `aria-label` (repeated as `title`) naming both the current state and the consequence of pressing.
 Nothing else may go icon-only without earning that same pair.
@@ -627,10 +638,11 @@ Nothing else may go icon-only without earning that same pair.
 Glyphs are semantic, never decorative. The vocabulary: `Check` / `X` / `Ban` / `LoaderCircle` /
 `Clock` / `Power` / `Minus` for lamp states; `RotateCcw` Replay, `Repeat` Retry, `Copy`, `Power`
 Re-enable, `ShieldOff` Revoke, `KeyRound` Mint, `Trash2` Delete, `Check` Save, `X` Cancel for
-actions; `Radio` Channel, `Activity`, `Plug` Endpoint, `SlidersHorizontal` Settings, `KeyRound`
-Tokens, `Link2` Ingest URL, `Plus` New, `Filter`, `ArrowLeft` Back, `ChevronRight`/`ChevronDown`
-disclosure, `Inbox` empty, `SearchX` not found, `Info` advisory, `TriangleAlert` warning,
-`Sun`/`Moon`/`Monitor` theme, `Eye`/`EyeOff` reveal.
+actions; `LogOut` Sign out, `Radio` Channel, `Activity`, `Plug` Endpoint, `SlidersHorizontal`
+Settings, `KeyRound` Tokens, `Link2` Ingest URL, `Plus` New, `Filter`, `ArrowRightLeft` forwarded
+headers, `ArrowLeft` Back, `ChevronRight`/`ChevronDown` disclosure, `Keyboard` shortcuts disclosure,
+`Timer` login lockout countdown, `Inbox` empty, `SearchX` not found, `Info` advisory,
+`TriangleAlert` warning, `Sun`/`Moon`/`Monitor` theme, `Eye`/`EyeOff` reveal.
 
 **Do not introduce a second icon set.** Mixing families is visible immediately at this size.
 
@@ -684,9 +696,14 @@ The cross and the slash keep them apart without color. A Delivery still owed a r
 never `failed`, so the turning ring is the only branch that may claim work outstanding.
 
 **The Agreement Rule.** Any predicate that decides a Broadcast is a failure and any lamp that paints
-one must read the same fact. If `fanoutHasFailure` admits a row to the failures-only filter, the lamp
-on that row may not report it as healthy. A parent that disagrees with its own children is the one
-defect this surface cannot afford, because the whole product is a claim to be telling the truth.
+one must read the same fact. The filter toggle no longer narrows a single list — it switches structure,
+between the proactive Broadcast log and the reactive failures-by-Endpoint view built on the
+`GET /channels/{id}/failures` roll-up — but the rule holds across that seam and is why the seam is
+safe: `BroadcastFanoutLamp` paints Cut on exactly `deadLettered > 0 || failed > 0`, which is the same
+pair of terminal states the roll-up counts against an Endpoint. So a Broadcast the reactive view
+surfaces as broken can never be one the lamp paints as healthy. A parent that disagrees with its own
+children is the one defect this surface cannot afford, because the whole product is a claim to be
+telling the truth.
 
 **The Endpoint health lamp (issue #88).** The Endpoints tab's leading lamp used to render
 `enabled` — whichever the operator last chose — so a 100%-failing, still-enabled Endpoint wore the
@@ -740,16 +757,24 @@ The unit the dashboard exists to display, and the thing an operator scans twenty
 - A grid, with a **constant leading lamp column** (`--status-lamp-column`) shared by every row family
   (Channel, Endpoint, Broadcast, Delivery), so a lamp lands at the same x whichever list it scrolls
   past in and the eye can run the column without reading.
-- **The grid belongs to the list, not to the row.** Tracks are declared once on the `<ul>`
-  (`.row-list-channel`, `.row-list-activity`); the `<li>` is `display: contents` and the row itself
-  takes `grid-template-columns: subgrid`, so it keeps its own ground, border, radius, hover, and
-  focus ring while its tracks are sized across every sibling. When each row was its own grid, only
-  the leading track was actually pinned: a `1fr` description track let the widest health legend push
-  everything after it sideways, and the Channel directory's health lamp measured a **141px spread**
-  across seven rows, worst on exactly the rows that were broken. A second constant,
-  `--health-lamp-column`, pins that lamp the way `--status-lamp-column` pins the leading one. The
-  per-row `grid-template-columns` stays as a standalone fallback, because `subgrid` with no grid
-  ancestor supplying the axis has no tracks to inherit and collapses the row.
+- **The grid belongs to the list, wherever a list has siblings to size across.** Tracks are declared
+  once on the `<ul>` (`.row-list-channel`, `.row-list-activity`, `.row-list-endpoint`, and the two
+  reactive-failure lists `.row-list-failure-groups` / `.row-list-failure-children`); the `<li>` is
+  `display: contents` and the row itself takes `grid-template-columns: subgrid`, so it keeps its own
+  ground, border, radius, hover, and focus ring while its tracks are sized across every sibling. When
+  each row was its own grid, only the leading track was actually pinned: a `1fr` description track let
+  the widest health legend push everything after it sideways, and the Channel directory's health lamp
+  measured a **141px spread** across seven rows, worst on exactly the rows that were broken. A second
+  constant, `--health-lamp-column`, pins that lamp the way `--status-lamp-column` pins the leading one.
+  Those three `.row-list-*` families keep their per-row `grid-template-columns` as a standalone
+  fallback — unused in practice, but `subgrid` with no grid ancestor supplying the axis has no tracks
+  to inherit and collapses the row, so the fallback has to stay live rather than be deleted.
+
+  Delivery and Token are the two families where the per-row grid is the _only_ grid: a Delivery row is
+  always a single row inside one expanded Broadcast's well, and a Token row list is short and
+  Settings-column-narrow, so neither has a list of siblings whose widths need resolving together.
+  They still take the leading lamp column from the same constant.
+
 - **A row family owns its own tracks.** Channel, Activity, Endpoint, Delivery, and Token each declare
   their own, and a family may not borrow another's because the number of columns happens to match.
   Endpoint rows borrowed the Channel directory's and inherited its ranking, where the flexible column
@@ -976,6 +1001,40 @@ This is where the No-Flicker Rule stops applying. That rule governs representati
 and local validation does not wait for anything; a message that has been earned appears on the
 frame it is earned on, with no delay and no hold. What replaces the round trip is not a faster
 loading state, it is the absence of one.
+
+### Failures by Endpoint (the reactive Activity structure)
+
+`?filter=failed` does not narrow the Broadcast log — it replaces it. The reactive structure leads with
+which Endpoint is broken and nests that Endpoint's failing Broadcasts inside it, because 44 identical
+`1 failed, 3/4 succeeded` rows are one cause and not 44 events (ADR 0004, amended). Two row families
+carry it, `.row-failure-group` for the Endpoint header and `.row-failure-child` for its Broadcasts,
+and neither borrows the flat log's tracks: a group header's lamp legend composes
+("auto-disabled · 12 dead-lettered · 340 failed") and a child row carries a per-Delivery cause column
+the flat log has no place for. Both still take their tracks from their own list via subgrid, and both
+keep the leading lamp column at `--status-lamp-column`, so the column reads down either structure.
+The toggle between the two is a pair of `aria-pressed` controls, not a select — this is a choice
+between two views, and both are always available.
+
+### Keyboard shortcut disclosure
+
+Every list that binds row-to-row keys states them, in an inline `<details>` rendered as the last thing
+in its list section. Native `<details>`, not a hand-rolled toggle: it is keyboard-operable and reports
+its own open state to assistive tech without help, which matters most on the one surface whose job is
+telling an operator about interactions they do not yet know. It goes last and nothing sits below it, so
+opening it extends into empty space and never moves its own trigger or the rows above. Its `<summary>`
+takes `.control` alone — a disclosure, not a filter, so it states its position with `[open]` and a
+chevron rather than with `aria-pressed`. Each list names its own bindings; there is no single global
+shortcut sheet, because the bindings differ per structure.
+
+### Bulk retry of dead-lettered Deliveries
+
+An expanded Broadcast offers one control to re-queue every `dead_lettered` Delivery under it, behind
+the same inline confirm region every destructive or irreversible action uses. It is not a batch
+endpoint — each Delivery goes through the per-Delivery retry route independently — and the report says
+so: one line per Delivery, naming the ones that queued and the ones that did not, never a single
+pass/fail verdict for the batch. The report stays on screen after its own retries bring the count to
+zero, because "3 queued, 1 refused" is the answer the operator came for and it must not be swept away
+by the state change it caused.
 
 ### Theme control
 

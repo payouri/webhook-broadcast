@@ -11,9 +11,10 @@ export const operatorTokenSummarySchema = z
   .object({
     id: idSchema,
     label: operatorTokenLabelSchema,
-    prefix: z
-      .string()
-      .meta({ description: "First 12 chars of the token — the `wbop_` wire prefix plus 7 of the secret — for recognition; never the full secret" }),
+    prefix: z.string().meta({
+      description:
+        "First 12 chars of the token — the `wbop_` wire prefix plus 7 of the secret — for recognition; never the full secret",
+    }),
     createdAt: dateTimeSchema,
     lastUsedAt: dateTimeSchema.nullable(),
   })
