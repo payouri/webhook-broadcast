@@ -12,6 +12,7 @@ import { createOperatorAuthMiddleware, operatorLabelOf } from "./admin/auth.js";
 import { registerAuthRoutes } from "./admin/authRoutes.js";
 import { registerChannelFailureRoutes } from "./admin/channelFailures.js";
 import { registerChannelRoutes } from "./admin/channels.js";
+import { registerDocsRoutes } from "./admin/docs.js";
 import { registerEndpointRoutes } from "./admin/endpoints.js";
 import { registerChannelTokenRoutes } from "./admin/tokens.js";
 import { registerOperatorTokenRoutes } from "./admin/operatorTokens.js";
@@ -39,6 +40,7 @@ export interface AppDeps {
   ingestHeaderAllowlist?: string[];
   ingestHeaderDenylist?: string[];
   ingestSuccessStatus?: number;
+  docsEnabled?: boolean;
   metrics?: MetricsCollector;
   renderMetrics?: () => Promise<string>;
 }
@@ -126,6 +128,7 @@ export function createApp(deps: AppDeps): Koa {
     ctx.status = 200;
     ctx.body = { ok: true };
   });
+  registerDocsRoutes(adminRouter, { docsEnabled: deps.docsEnabled ?? true });
   registerChannelRoutes(adminRouter, deps.db);
   registerChannelFailureRoutes(adminRouter, deps.db);
   registerEndpointRoutes(adminRouter, deps.db);

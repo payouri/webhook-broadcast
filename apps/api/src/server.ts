@@ -28,6 +28,7 @@ const app = createApp({
   ingestHeaderAllowlist: parseHeaderList(env.INGEST_HEADER_ALLOWLIST),
   ingestHeaderDenylist: parseHeaderList(env.INGEST_HEADER_DENYLIST),
   ingestSuccessStatus: env.INGEST_SUCCESS_STATUS,
+  docsEnabled: env.DOCS_ENABLED,
   metrics,
   renderMetrics: () => metrics.render(deliveryQueue.bullQueue),
 });

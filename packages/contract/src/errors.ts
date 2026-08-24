@@ -35,7 +35,8 @@ export type ErrorCode =
   | "validation_failed"
   | "payload_too_large"
   | "internal_error"
-  | "rate_limited";
+  | "rate_limited"
+  | "docs_disabled";
 
 export function errorBody(
   code: ErrorCode,

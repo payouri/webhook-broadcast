@@ -29,6 +29,7 @@ API and Delivery worker run as **separate processes** from one image (`server` |
 | `TRUST_PROXY` | `false` | `true` \| `false`. When `true`, the session cookie's `Secure` flag follows `X-Forwarded-Proto`; when `false` it follows `NODE_ENV`, so a directly exposed API cannot be tricked into issuing a session cookie over plain HTTP |
 | `LOGIN_RATE_LIMIT_MAX_ATTEMPTS` | `5` | failed `POST /auth/login` attempts per client before lockout |
 | `LOGIN_RATE_LIMIT_WINDOW_MS` | `60000` | rolling window the count above applies over, and the lockout duration |
+| `DOCS_ENABLED` | `true` | gates operator-authenticated `GET /openapi.json` (issue #107); `false` answers `404` with `code: "docs_disabled"` rather than deregistering the route |
 
 The `migrate` command validates a deliberately narrower surface — `DATABASE_URL` and `DATABASE_CA_CERT` only (`migrateEnvSchema`) — so a migration job never fails fast on unrelated misconfig such as a missing `OPERATOR_API_KEY`. The CA is part of it: a deployment pinning a provider CA must pass it to `migrate` too, or that job reaches the database on different TLS terms than api and worker.
 
