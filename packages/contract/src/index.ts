@@ -70,6 +70,8 @@ export {
   broadcastListQuerySchema,
   deliveryStatusSchema,
   deliveryItemSchema,
+  forwardedHeaderFingerprintSchema,
+  FORWARDED_HEADER_FINGERPRINT_LENGTH,
   broadcastDetailSchema,
   broadcastReplayAcceptedSchema,
 } from "./broadcast.js";
@@ -81,6 +83,7 @@ export type {
   BroadcastListQuery,
   DeliveryStatus,
   DeliveryItem,
+  ForwardedHeaderFingerprint,
   BroadcastDetail,
   BroadcastReplayAccepted,
 } from "./broadcast.js";

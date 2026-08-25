@@ -117,6 +117,39 @@ export const deliveryItemSchema = z
 export type DeliveryItem = z.infer<typeof deliveryItemSchema>;
 
 /**
+ * Issue #112: how many hex characters of the SHA-256 a forwarded-header
+ * fingerprint carries. 12 hex chars is ~48 bits — conclusive for "did the
+ * rotation land?" when comparing two digests, and far too little to attack
+ * the value back out of.
+ */
+export const FORWARDED_HEADER_FINGERPRINT_LENGTH = 12;
+
+/**
+ * Issue #112: one stored forwarded header, identified but never disclosed.
+ *
+ * A forwarded header is frequently a credential (ADR 0016 exists to relay
+ * exactly those). The Endpoint is its intended audience; the admin API is a
+ * much broader one, so the detail response carries a digest instead of the
+ * value — enough to compare the digest the producer actually presented
+ * against the digest the current secret derives, and nothing else.
+ */
+export const forwardedHeaderFingerprintSchema = z
+  .object({
+    name: z.string().meta({
+      description: "Stored header name, as the producer sent it",
+    }),
+    fingerprint: z
+      .string()
+      .regex(new RegExp(`^[0-9a-f]{${FORWARDED_HEADER_FINGERPRINT_LENGTH}}$`))
+      .meta({
+        description: `First ${FORWARDED_HEADER_FINGERPRINT_LENGTH} hex characters of the SHA-256 of the forwarded value`,
+      }),
+  })
+  .meta({ id: "ForwardedHeaderFingerprint" });
+
+export type ForwardedHeaderFingerprint = z.infer<typeof forwardedHeaderFingerprintSchema>;
+
+/**
  * Broadcast detail (issue #19 AC): inbound payload plus every fanned-out
  * Delivery. `body` is a UTF-8 decode of the raw bytes — good enough for the
  * MVP demo's JSON/text payloads; binary bodies just render with replacement
@@ -132,6 +165,10 @@ export const broadcastDetailSchema = z
       description: "Raw inbound body (UTF-8 text for MVP sketch)",
     }),
     deliveries: z.array(deliveryItemSchema),
+    forwardedHeaders: z.array(forwardedHeaderFingerprintSchema).optional().meta({
+      description:
+        "Fingerprints of the stored headers this Channel forwards (ADR 0016). Absent when the Channel forwards nothing; empty when it forwards headers but none were stored on this Broadcast. Digests what the producer presented, so an Endpoint overriding the same header name on the wire is not reflected here. Never carries the raw values.",
+    }),
   })
   .meta({ id: "BroadcastDetail" });
 

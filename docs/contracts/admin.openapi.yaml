@@ -6,15 +6,15 @@ components:
         at:
           $ref: "#/components/schemas/DateTime"
         durationMs:
-          $ref: "#/components/schemas/__schema105"
+          $ref: "#/components/schemas/__schema109"
         error:
-          $ref: "#/components/schemas/__schema106"
+          $ref: "#/components/schemas/__schema110"
         id:
           $ref: "#/components/schemas/Id"
         n:
-          $ref: "#/components/schemas/__schema103"
+          $ref: "#/components/schemas/__schema107"
         statusCode:
-          $ref: "#/components/schemas/__schema104"
+          $ref: "#/components/schemas/__schema108"
       required:
         - id
         - n
@@ -27,9 +27,9 @@ components:
       additionalProperties: false
       properties:
         items:
-          $ref: "#/components/schemas/__schema102"
+          $ref: "#/components/schemas/__schema106"
         nextCursor:
-          $ref: "#/components/schemas/__schema107"
+          $ref: "#/components/schemas/__schema111"
       required:
         - items
         - nextCursor
@@ -38,7 +38,7 @@ components:
       additionalProperties: false
       properties:
         id:
-          $ref: "#/components/schemas/__schema95"
+          $ref: "#/components/schemas/__schema99"
       required:
         - id
       type: object
@@ -53,6 +53,8 @@ components:
           $ref: "#/components/schemas/__schema86"
         deliveries:
           $ref: "#/components/schemas/__schema88"
+        forwardedHeaders:
+          $ref: "#/components/schemas/__schema95"
         id:
           $ref: "#/components/schemas/Id"
         receivedAt:
@@ -259,7 +261,7 @@ components:
       additionalProperties: false
       properties:
         attemptCount:
-          $ref: "#/components/schemas/__schema98"
+          $ref: "#/components/schemas/__schema102"
         broadcastId:
           $ref: "#/components/schemas/Id"
         channelId:
@@ -267,17 +269,17 @@ components:
         endpointId:
           $ref: "#/components/schemas/Id"
         endpointName:
-          $ref: "#/components/schemas/__schema96"
+          $ref: "#/components/schemas/__schema100"
         endpointUrl:
-          $ref: "#/components/schemas/__schema97"
+          $ref: "#/components/schemas/__schema101"
         id:
           $ref: "#/components/schemas/Id"
         lastDurationMs:
-          $ref: "#/components/schemas/__schema100"
+          $ref: "#/components/schemas/__schema104"
         lastError:
-          $ref: "#/components/schemas/__schema101"
+          $ref: "#/components/schemas/__schema105"
         lastStatusCode:
-          $ref: "#/components/schemas/__schema99"
+          $ref: "#/components/schemas/__schema103"
         status:
           $ref: "#/components/schemas/__schema80"
         updatedAt:
@@ -464,6 +466,17 @@ components:
         - deadLettered
         - pending
       type: object
+    ForwardedHeaderFingerprint:
+      additionalProperties: false
+      properties:
+        fingerprint:
+          $ref: "#/components/schemas/__schema98"
+        name:
+          $ref: "#/components/schemas/__schema97"
+      required:
+        - name
+        - fingerprint
+      type: object
     Id:
       format: uuid
       pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
@@ -536,22 +549,20 @@ components:
         - type: "null"
     __schema100:
       anyOf:
+        - type: string
+        - type: "null"
+    __schema101:
+      type: string
+    __schema102:
+      maximum: 9007199254740991
+      minimum: 0
+      type: integer
+    __schema103:
+      anyOf:
         - maximum: 9007199254740991
           minimum: -9007199254740991
           type: integer
         - type: "null"
-    __schema101:
-      anyOf:
-        - type: string
-        - type: "null"
-    __schema102:
-      items:
-        $ref: "#/components/schemas/Attempt"
-      type: array
-    __schema103:
-      maximum: 9007199254740991
-      minimum: 1
-      type: integer
     __schema104:
       anyOf:
         - maximum: 9007199254740991
@@ -560,20 +571,38 @@ components:
         - type: "null"
     __schema105:
       anyOf:
+        - type: string
+        - type: "null"
+    __schema106:
+      items:
+        $ref: "#/components/schemas/Attempt"
+      type: array
+    __schema107:
+      maximum: 9007199254740991
+      minimum: 1
+      type: integer
+    __schema108:
+      anyOf:
         - maximum: 9007199254740991
           minimum: -9007199254740991
           type: integer
         - type: "null"
-    __schema106:
+    __schema109:
       anyOf:
-        - type: string
-        - type: "null"
-    __schema107:
-      anyOf:
-        - type: string
+        - maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: integer
         - type: "null"
     __schema11:
       type: boolean
+    __schema110:
+      anyOf:
+        - type: string
+        - type: "null"
+    __schema111:
+      anyOf:
+        - type: string
+        - type: "null"
     __schema12:
       $ref: "#/components/schemas/__schema5"
     __schema13:
@@ -942,24 +971,22 @@ components:
         - type: string
         - type: "null"
     __schema95:
-      $ref: "#/components/schemas/Id"
-      description: New Broadcast id from replay
+      $ref: "#/components/schemas/__schema96"
+      description: Fingerprints of the stored headers this Channel forwards (ADR 0016). Absent when the Channel forwards nothing; empty when it forwards headers but none were stored on this Broadcast. Digests what the producer presented, so an Endpoint overriding the same header name on the wire is not reflected here. Never carries the raw values.
     __schema96:
-      anyOf:
-        - type: string
-        - type: "null"
+      items:
+        $ref: "#/components/schemas/ForwardedHeaderFingerprint"
+      type: array
     __schema97:
+      description: Stored header name, as the producer sent it
       type: string
     __schema98:
-      maximum: 9007199254740991
-      minimum: 0
-      type: integer
+      description: First 12 hex characters of the SHA-256 of the forwarded value
+      pattern: ^[0-9a-f]{12}$
+      type: string
     __schema99:
-      anyOf:
-        - maximum: 9007199254740991
-          minimum: -9007199254740991
-          type: integer
-        - type: "null"
+      $ref: "#/components/schemas/Id"
+      description: New Broadcast id from replay
   securitySchemes:
     OperatorBearer:
       bearerFormat: API key

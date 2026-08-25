@@ -16,6 +16,7 @@ import {
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { FakeDeliveryQueue } from "./fakeDeliveryQueue.js";
+import { sha256Prefix } from "./sha256Prefix.js";
 import { startTestDb, type TestDb } from "./testDb.js";
 
 const OPERATOR_API_KEY = "test-operator-key";
@@ -189,19 +190,24 @@ describe("Broadcast detail — GET /channels/:channelId/broadcasts/:broadcastId 
     return { ...init, headers: { authorization: `Bearer ${OPERATOR_API_KEY}`, ...init.headers } };
   }
 
-  async function createChannel(slug: string): Promise<Channel> {
+  async function createChannel(slug: string, forwardHeaders?: string[]): Promise<Channel> {
     const response = await fetch(
       `${baseUrl}/channels`,
       authed({
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ slug }),
+        body: JSON.stringify(forwardHeaders ? { slug, forwardHeaders } : { slug }),
       }),
     );
     return (await response.json()) as Channel;
   }
 
-  async function ingest(channelId: string, slug: string, body: string): Promise<string> {
+  async function ingest(
+    channelId: string,
+    slug: string,
+    body: string,
+    extraHeaders: Record<string, string> = {},
+  ): Promise<string> {
     const mintResponse = await fetch(
       `${baseUrl}/channels/${channelId}/tokens`,
       authed({ method: "POST" }),
@@ -209,11 +215,24 @@ describe("Broadcast detail — GET /channels/:channelId/broadcasts/:broadcastId 
     const { token } = (await mintResponse.json()) as ChannelTokenCreated;
     const response = await fetch(`${baseUrl}/ingest/${slug}`, {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        ...extraHeaders,
+      },
       body,
     });
     const accepted = (await response.json()) as { id: string };
     return accepted.id;
+  }
+
+  async function getDetail(channelId: string, broadcastId: string): Promise<BroadcastDetail> {
+    const response = await fetch(
+      `${baseUrl}/channels/${channelId}/broadcasts/${broadcastId}`,
+      authed(),
+    );
+    expect(response.status).toBe(200);
+    return (await response.json()) as BroadcastDetail;
   }
 
   it("404s for an unknown Channel", async () => {
@@ -256,6 +275,93 @@ describe("Broadcast detail — GET /channels/:channelId/broadcasts/:broadcastId 
       body: JSON.stringify({ hello: "world" }),
       deliveries: [],
     });
+  });
+
+  /**
+   * Issue #112: a stale producer-side shared secret is only ever visible as a
+   * 401 on the Delivery, which says *that* the Endpoint rejected it, never
+   * *what was presented*. These pin the one comparison that tells a stale
+   * secret apart from a misconfigured Endpoint — and pin that making it
+   * possible never puts the credential itself on the admin API.
+   */
+  it("omits forwardedHeaders entirely for a Channel that declares no forwardHeaders", async () => {
+    const channel = await createChannel("orders");
+    const broadcastId = await ingest(channel.id, "orders", "{}", {
+      "x-unipile-webhook-secret": "derived-from-api-key",
+    });
+
+    const body = (await getDetail(channel.id, broadcastId)) as BroadcastDetail;
+    expect(body).not.toHaveProperty("forwardedHeaders");
+    expect(JSON.stringify(body)).not.toContain("derived-from-api-key");
+  });
+
+  it("fingerprints each stored forwarded header without disclosing its value", async () => {
+    const channel = await createChannel("orders", ["x-unipile-webhook-secret"]);
+    const broadcastId = await ingest(channel.id, "orders", "{}", {
+      "x-unipile-webhook-secret": "derived-from-api-key",
+      "x-not-declared": "ignored",
+    });
+
+    const body = (await getDetail(channel.id, broadcastId)) as BroadcastDetail;
+    expect(body.forwardedHeaders).toEqual([
+      {
+        name: "x-unipile-webhook-secret",
+        fingerprint: sha256Prefix("derived-from-api-key"),
+      },
+    ]);
+    expect(JSON.stringify(body)).not.toContain("derived-from-api-key");
+
+    // AC: raw forwarded-header values are never returned by *any* admin
+    // endpoint, so the sibling list route has to stay clean too — it is the
+    // other route that reads the same Broadcast rows.
+    const listResponse = await fetch(`${baseUrl}/channels/${channel.id}/broadcasts`, authed());
+    expect(JSON.stringify(await listResponse.json())).not.toContain("derived-from-api-key");
+  });
+
+  it("fingerprints a replayed Broadcast the same as the original it copied", async () => {
+    const channel = await createChannel("orders", ["x-unipile-webhook-secret"]);
+    const originalId = await ingest(channel.id, "orders", "{}", {
+      "x-unipile-webhook-secret": "derived-from-api-key",
+    });
+
+    const replayResponse = await fetch(
+      `${baseUrl}/channels/${channel.id}/broadcasts/${originalId}/replay`,
+      authed({ method: "POST" }),
+    );
+    expect(replayResponse.status).toBe(202);
+    const { id: replayId } = (await replayResponse.json()) as { id: string };
+
+    const original = await getDetail(channel.id, originalId);
+    const replay = await getDetail(channel.id, replayId);
+    expect(replay.forwardedHeaders).toEqual(original.forwardedHeaders);
+    expect(JSON.stringify(replay)).not.toContain("derived-from-api-key");
+  });
+
+  it("gives two Broadcasts different fingerprints once the producer's secret rotates", async () => {
+    const channel = await createChannel("orders", ["x-unipile-webhook-secret"]);
+    const staleId = await ingest(channel.id, "orders", "{}", {
+      "x-unipile-webhook-secret": "old-derived",
+    });
+    const rotatedId = await ingest(channel.id, "orders", "{}", {
+      "x-unipile-webhook-secret": "new-derived",
+    });
+
+    const stale = (await getDetail(channel.id, staleId)) as BroadcastDetail;
+    const rotated = (await getDetail(channel.id, rotatedId)) as BroadcastDetail;
+    expect(stale.forwardedHeaders?.[0]?.fingerprint).not.toBe(
+      rotated.forwardedHeaders?.[0]?.fingerprint,
+    );
+  });
+
+  it("returns an empty list when the Channel declares a header the Broadcast never stored", async () => {
+    const channel = await createChannel("orders", ["x-api-key"]);
+    const broadcastId = await ingest(channel.id, "orders", "{}", {
+      "x-api-key": "dropped-by-the-ingest-denylist",
+    });
+
+    const body = (await getDetail(channel.id, broadcastId)) as BroadcastDetail;
+    expect(body.forwardedHeaders).toEqual([]);
+    expect(JSON.stringify(body)).not.toContain("dropped-by-the-ingest-denylist");
   });
 });
 

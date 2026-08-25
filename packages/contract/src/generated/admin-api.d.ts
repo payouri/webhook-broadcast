@@ -263,24 +263,25 @@ export interface components {
   schemas: {
     Attempt: {
       at: components["schemas"]["DateTime"];
-      durationMs: components["schemas"]["__schema105"];
-      error: components["schemas"]["__schema106"];
+      durationMs: components["schemas"]["__schema109"];
+      error: components["schemas"]["__schema110"];
       id: components["schemas"]["Id"];
-      n: components["schemas"]["__schema103"];
-      statusCode: components["schemas"]["__schema104"];
+      n: components["schemas"]["__schema107"];
+      statusCode: components["schemas"]["__schema108"];
     };
     AttemptList: {
-      items: components["schemas"]["__schema102"];
-      nextCursor: components["schemas"]["__schema107"];
+      items: components["schemas"]["__schema106"];
+      nextCursor: components["schemas"]["__schema111"];
     };
     BroadcastAccepted: {
-      id: components["schemas"]["__schema95"];
+      id: components["schemas"]["__schema99"];
     };
     BroadcastDetail: {
       body: components["schemas"]["__schema87"];
       channelId: components["schemas"]["Id"];
       contentType: components["schemas"]["__schema86"];
       deliveries: components["schemas"]["__schema88"];
+      forwardedHeaders?: components["schemas"]["__schema95"];
       id: components["schemas"]["Id"];
       receivedAt: components["schemas"]["DateTime"];
     };
@@ -360,16 +361,16 @@ export interface components {
      */
     DateTime: string;
     Delivery: {
-      attemptCount: components["schemas"]["__schema98"];
+      attemptCount: components["schemas"]["__schema102"];
       broadcastId: components["schemas"]["Id"];
       channelId: components["schemas"]["Id"];
       endpointId: components["schemas"]["Id"];
-      endpointName: components["schemas"]["__schema96"];
-      endpointUrl: components["schemas"]["__schema97"];
+      endpointName: components["schemas"]["__schema100"];
+      endpointUrl: components["schemas"]["__schema101"];
       id: components["schemas"]["Id"];
-      lastDurationMs: components["schemas"]["__schema100"];
-      lastError: components["schemas"]["__schema101"];
-      lastStatusCode: components["schemas"]["__schema99"];
+      lastDurationMs: components["schemas"]["__schema104"];
+      lastError: components["schemas"]["__schema105"];
+      lastStatusCode: components["schemas"]["__schema103"];
       status: components["schemas"]["__schema80"];
       updatedAt: components["schemas"]["DateTime"];
     };
@@ -437,6 +438,10 @@ export interface components {
       succeeded: components["schemas"]["__schema75"];
       total: components["schemas"]["__schema74"];
     };
+    ForwardedHeaderFingerprint: {
+      fingerprint: components["schemas"]["__schema98"];
+      name: components["schemas"]["__schema97"];
+    };
     /** Format: uuid */
     Id: string;
     OperatorTokenCreate: {
@@ -462,15 +467,19 @@ export interface components {
     __schema0: string;
     __schema1: string;
     __schema10: string | null;
-    __schema100: number | null;
-    __schema101: string | null;
-    __schema102: components["schemas"]["Attempt"][];
-    __schema103: number;
+    __schema100: string | null;
+    __schema101: string;
+    __schema102: number;
+    __schema103: number | null;
     __schema104: number | null;
-    __schema105: number | null;
-    __schema106: string | null;
-    __schema107: string | null;
+    __schema105: string | null;
+    __schema106: components["schemas"]["Attempt"][];
+    __schema107: number;
+    __schema108: number | null;
+    __schema109: number | null;
     __schema11: boolean;
+    __schema110: string | null;
+    __schema111: string | null;
     __schema12: components["schemas"]["__schema5"];
     __schema13: boolean;
     __schema14: components["schemas"]["__schema8"] | null;
@@ -598,12 +607,15 @@ export interface components {
     __schema92: number | null;
     __schema93: number | null;
     __schema94: string | null;
-    /** @description New Broadcast id from replay */
-    __schema95: components["schemas"]["Id"];
-    __schema96: string | null;
+    /** @description Fingerprints of the stored headers this Channel forwards (ADR 0016). Absent when the Channel forwards nothing; empty when it forwards headers but none were stored on this Broadcast. Digests what the producer presented, so an Endpoint overriding the same header name on the wire is not reflected here. Never carries the raw values. */
+    __schema95: components["schemas"]["__schema96"];
+    __schema96: components["schemas"]["ForwardedHeaderFingerprint"][];
+    /** @description Stored header name, as the producer sent it */
     __schema97: string;
-    __schema98: number;
-    __schema99: number | null;
+    /** @description First 12 hex characters of the SHA-256 of the forwarded value */
+    __schema98: string;
+    /** @description New Broadcast id from replay */
+    __schema99: components["schemas"]["Id"];
   };
   responses: never;
   parameters: never;

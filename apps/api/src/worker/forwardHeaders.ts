@@ -14,6 +14,22 @@
 const NEVER_FORWARD = new Set(["authorization"]);
 
 /**
+ * The header names a Channel's `forwardHeaders` actually asks for, once
+ * blanks are dropped and the `NEVER_FORWARD` backstop is applied — a Channel
+ * whose allow-list survives to nothing forwards nothing, however it was
+ * spelled. Exported so a caller can ask "does this Channel forward anything
+ * at all?" without re-deriving the normalisation and drifting from it
+ * (issue #112 decides on that answer whether to expose fingerprints).
+ */
+export function normalizeForwardAllowlist(allowlist: string[]): Set<string> {
+  return new Set(
+    allowlist
+      .map((name) => name.trim().toLowerCase())
+      .filter((name) => name.length > 0 && !NEVER_FORWARD.has(name)),
+  );
+}
+
+/**
  * Picks the subset of a Broadcast's stored inbound headers (ADR 0002) named
  * on the Channel's `forwardHeaders` allow-list, matched case-insensitively.
  * A stored multi-value header is joined with `", "` — the same
@@ -23,11 +39,7 @@ export function selectForwardableHeaders(
   broadcastHeaders: Record<string, string | string[]>,
   allowlist: string[],
 ): Record<string, string> {
-  const allowSet = new Set(
-    allowlist
-      .map((name) => name.trim().toLowerCase())
-      .filter((name) => name.length > 0 && !NEVER_FORWARD.has(name)),
-  );
+  const allowSet = normalizeForwardAllowlist(allowlist);
   if (allowSet.size === 0) {
     return {};
   }

@@ -13,7 +13,7 @@ A subscribed target URL owned by exactly one Channel. Carries `url`, optional `n
 _Avoid_: subscriber, destination, webhook, target
 
 **Broadcast**:
-The record of one inbound request accepted on a Channel. Identified by an opaque UUID returned in the accepted-ingest response (`202` by default; configurable per deployment via `INGEST_SUCCESS_STATUS` and per Channel via `ingestSuccessStatus`, always 2xx). Stores `channelId`, `receivedAt`, `contentType`, and the raw body. Fan-out targets are the Endpoints enabled on that Channel at accept time.
+The record of one inbound request accepted on a Channel. Identified by an opaque UUID returned in the accepted-ingest response (`202` by default; configurable per deployment via `INGEST_SUCCESS_STATUS` and per Channel via `ingestSuccessStatus`, always 2xx). Stores `channelId`, `receivedAt`, `contentType`, the raw body, and the inbound headers ADR 0002's ingest filter admitted. Those headers are readable back only as a **fingerprint** — a header's name beside a truncated SHA-256 of the value the Channel's `forwardHeaders` relays (issue #112) — never as the value, since the header is usually a credential the Endpoint, not the admin API, is the audience for. Fan-out targets are the Endpoints enabled on that Channel at accept time.
 _Avoid_: event, message, job, request (alone)
 
 **Replay**:

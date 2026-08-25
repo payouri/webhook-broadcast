@@ -12,6 +12,7 @@ import {
   decodeBroadcastCursor,
   encodeBroadcastCursor,
   getBroadcastById,
+  getChannelById,
   getFanoutSummariesByBroadcastIds,
   listBroadcastsByChannel,
   listBroadcastsForEndpointFailures,
@@ -23,6 +24,7 @@ import {
 } from "@webhook-broadcast/db";
 import type { DeliveryQueue } from "../deliveryQueue.js";
 import { fanOutBroadcast } from "../fanOutBroadcast.js";
+import { fingerprintForwardedHeaders } from "./forwardedHeaderFingerprints.js";
 import { requireChannel } from "./requireChannel.js";
 import { requireUuidParam, parseListCursor, toDetails } from "./validation.js";
 
@@ -160,6 +162,16 @@ export function registerBroadcastRoutes(router: Router, config: BroadcastRouteCo
       return;
     }
 
+    // Re-read for `forwardHeaders` (issue #112). `requireChannel` deliberately
+    // stays a boolean guard shared by every nested route, so this route pays
+    // one extra point read rather than widening that seam for its own use.
+    const channel = await getChannelById(db, channelId);
+    if (!channel) {
+      ctx.status = 404;
+      ctx.body = errorBody("not_found", "channel not found");
+      return;
+    }
+
     const broadcast = await getBroadcastById(db, channelId, broadcastId);
     if (!broadcast) {
       ctx.status = 404;
@@ -187,6 +199,10 @@ export function registerBroadcastRoutes(router: Router, config: BroadcastRouteCo
         lastError: delivery.lastError,
         updatedAt: delivery.updatedAt.toISOString(),
       })),
+      // Issue #112: `undefined` for a Channel that forwards nothing, which
+      // Koa's JSON serialisation drops — so those responses keep their exact
+      // previous shape.
+      forwardedHeaders: fingerprintForwardedHeaders(broadcast.headers, channel.forwardHeaders),
     };
     ctx.status = 200;
     ctx.body = detail;
