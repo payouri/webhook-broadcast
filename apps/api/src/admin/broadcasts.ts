@@ -12,7 +12,6 @@ import {
   decodeBroadcastCursor,
   encodeBroadcastCursor,
   getBroadcastById,
-  getChannelById,
   getFanoutSummariesByBroadcastIds,
   listBroadcastsByChannel,
   listBroadcastsForEndpointFailures,
@@ -25,7 +24,7 @@ import {
 import type { DeliveryQueue } from "../deliveryQueue.js";
 import { fanOutBroadcast } from "../fanOutBroadcast.js";
 import { fingerprintForwardedHeaders } from "./forwardedHeaderFingerprints.js";
-import { requireChannel } from "./requireChannel.js";
+import { guardedChannelOf, requireChannel } from "./requireChannel.js";
 import { requireUuidParam, parseListCursor, toDetails } from "./validation.js";
 
 const BODY_PREVIEW_MAX_LENGTH = 200;
@@ -162,15 +161,10 @@ export function registerBroadcastRoutes(router: Router, config: BroadcastRouteCo
       return;
     }
 
-    // Re-read for `forwardHeaders` (issue #112). `requireChannel` deliberately
-    // stays a boolean guard shared by every nested route, so this route pays
-    // one extra point read rather than widening that seam for its own use.
-    const channel = await getChannelById(db, channelId);
-    if (!channel) {
-      ctx.status = 404;
-      ctx.body = errorBody("not_found", "channel not found");
-      return;
-    }
+    // `forwardHeaders` comes from the row the guard just loaded (issue #114),
+    // so the 404 above is the only one — no second read, no second branch to
+    // keep in step with it.
+    const channel = guardedChannelOf(ctx);
 
     const broadcast = await getBroadcastById(db, channelId, broadcastId);
     if (!broadcast) {
