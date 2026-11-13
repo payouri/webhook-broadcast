@@ -9,5 +9,10 @@
     ],
     "disableClaudeAiConnectors": true,
     "enableAllProjectMcpServers": false,
-    "enabledMcpjsonServers": []
+    "enabledMcpjsonServers": [],
+    "permissions": {
+        "allow": [
+            "EnterWorktree", "ExitWorktree"
+        ]
+    }
 }
