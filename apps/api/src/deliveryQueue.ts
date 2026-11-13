@@ -32,6 +32,23 @@ export interface DeliveryQueue {
 /** Mirrors `DELIVERY_MAX_ATTEMPTS`'s env default (ADR 0003). */
 const DEFAULT_MAX_ATTEMPTS = DEFAULT_DELIVERY_MAX_ATTEMPTS;
 
+/**
+ * How many finished BullMQ jobs Redis keeps. Postgres owns Delivery history
+ * (ADR 0007) and nothing reads finished jobs back, but BullMQ keeps them
+ * forever by default: ~1.2 KB per Delivery, which filled the production Redis
+ * in November 2026. A small recent window is still kept for debugging and so
+ * `removeFinishedJob` below has something to clear on an operator retry.
+ *
+ * `processDelivery` resolves for every terminal Delivery, `failed` and
+ * `dead_lettered` included, so those land in `completed` too. A BullMQ
+ * `failed` job means the processor itself broke (e.g. Postgres unreachable),
+ * hence the longer window there.
+ */
+export const DELIVERY_JOB_RETENTION = {
+  removeOnComplete: { age: 60 * 60, count: 1_000 },
+  removeOnFail: { age: 7 * 24 * 60 * 60, count: 1_000 },
+} as const;
+
 export class BullMqDeliveryQueue implements DeliveryQueue {
   private readonly queue: Queue<DeliveryWorkItem>;
   private readonly redisUrl: string;
@@ -67,6 +84,7 @@ export class BullMqDeliveryQueue implements DeliveryQueue {
       jobId: deliveryId,
       attempts: this.maxAttempts,
       backoff: { type: "custom" as const },
+      ...DELIVERY_JOB_RETENTION,
     };
   }
 

@@ -4,6 +4,7 @@ import { Worker } from "bullmq";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   BullMqDeliveryQueue,
+  DELIVERY_JOB_RETENTION,
   DELIVERY_QUEUE_NAME,
   type DeliveryWorkItem,
 } from "../src/deliveryQueue.js";
@@ -107,6 +108,43 @@ describe("BullMqDeliveryQueue", () => {
     const requeued = await queue.bullQueue.getJob(workItem.deliveryId);
     expect(requeued).toBeDefined();
     expect(await requeued!.getState()).toBe("waiting");
+  });
+
+  it.each([
+    {
+      outcome: "completed" as const,
+      keep: DELIVERY_JOB_RETENTION.removeOnComplete.count,
+      processor: async (): Promise<undefined> => undefined,
+    },
+    {
+      outcome: "failed" as const,
+      keep: DELIVERY_JOB_RETENTION.removeOnFail.count,
+      processor: async (): Promise<undefined> => {
+        throw new Error("processor broke");
+      },
+    },
+  ])("keeps at most $keep $outcome jobs in Redis", async ({ outcome, keep, processor }) => {
+    const total = keep + 5;
+    let finished = 0;
+    const allFinished = new Promise<void>((resolve) => {
+      worker = new Worker<DeliveryWorkItem>(DELIVERY_QUEUE_NAME, processor, {
+        connection: { url: redis.getConnectionUrl() },
+        concurrency: 50,
+      });
+      worker.on(outcome, () => {
+        finished += 1;
+        if (finished === total) {
+          resolve();
+        }
+      });
+    });
+    await worker!.waitUntilReady();
+
+    await queue.enqueueBulk(Array.from({ length: total }, () => sampleWorkItem()));
+    await allFinished;
+
+    const counts = await queue.bullQueue.getJobCounts(outcome);
+    expect(counts[outcome]).toBe(keep);
   });
 
   it("enqueueBulk adds every Delivery", async () => {
